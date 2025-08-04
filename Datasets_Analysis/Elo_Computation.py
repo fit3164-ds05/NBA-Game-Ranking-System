@@ -156,4 +156,23 @@ plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
 plt.tight_layout()
 plt.show()
 
+# %% Export ratings data and plot
+# Export full_ratings DataFrame to CSV
+full_ratings.to_csv("full_ratings.csv", index=False)
+print("✅ full_ratings exported to full_ratings.csv")
+
+# Save the plot as an image
+plt.figure(figsize=(14, 8))
+for team in all_teams:
+    team_data = full_ratings[full_ratings["TEAM"] == team]
+    plt.plot(team_data["GAME_DATE"], team_data["RATING"], label=team)
+
+plt.title("Glicko Ratings Over Time for All Teams")
+plt.xlabel("Date")
+plt.ylabel("Rating")
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+plt.tight_layout()
+plt.savefig("glicko_ratings_over_time.png", dpi=300)
+print("✅ Plot saved as glicko_ratings_over_time.png")
+
 # %% Plotting
