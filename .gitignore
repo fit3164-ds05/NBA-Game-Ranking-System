@@ -1,1 +1,18 @@
 .DS_Store
+
+# Python venv
+.venv/
+backend/.venv/
+
+# Node modules
+frontend/node_modules/
+
+# Byte-compiled cache
+**/__pycache__/
+**/*.py[cod]
+
+# SQLite DB
+backend/*.sqlite3
+
+# Env files
+*.env
