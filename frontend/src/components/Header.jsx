@@ -4,16 +4,12 @@ import { Link } from 'react-router-dom';
 export default function Header({title}){
         return (
     <header
-      className="
-        text-white
-        w-full
-        bg-blue-800
-        px-6
-        py-4
-        flex
-        justify-between
-        items-center
-      "
+      className="relative z-10 w-full max-w-7xl mx-auto mt-4
+         flex justify-between items-center
+         px-6 py-4
+         bg-yellow-900 text-white
+         backdrop-blur-md shadow-lg
+         rounded-2xl"
     >
       <h1 className="text-2xl font-bold">{title}</h1>
       <nav className="space-x-4">

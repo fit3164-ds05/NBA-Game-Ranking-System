@@ -6,3 +6,7 @@ html, body, #root {
   height: 100%;
   width: 100%;
 }
+
+@theme {
+  --background-image-home-hero: url('/hero.jpg');
+}
