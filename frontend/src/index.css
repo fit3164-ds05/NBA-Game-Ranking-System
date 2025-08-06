@@ -9,4 +9,5 @@ html, body, #root {
 
 @theme {
   --background-image-home-hero: url('/hero.jpg');
+  --background-image-home-nba: url('/NBA.jpg');
 }
