@@ -7,7 +7,7 @@ export default function Header({title}){
       className="relative z-10 w-full max-w-7xl mx-auto mt-4
          flex justify-between items-center
          px-6 py-4
-         bg-yellow-900 text-white
+         bg-amber-600 text-white
          backdrop-blur-md shadow-lg
          rounded-2xl"
     >
