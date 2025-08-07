@@ -2,6 +2,7 @@
 
 # Python venv
 .venv/
+venv/
 backend/.venv/
 
 # Node modules
@@ -16,3 +17,4 @@ backend/*.sqlite3
 
 # Env files
 *.env
+
