@@ -1,5 +1,6 @@
 # %% importing dataset and libraries
 import pandas as pd
+from glicko2 import Player
 games = pd.read_csv("Datasets/games.csv")
 
 # %% Inspecting the data
@@ -14,9 +15,7 @@ def explore_dataframe(df, num_rows=5):
     print(df.shape)
     print("\nColumn names:")
     print(list(df.columns))
-
 explore_dataframe(games)
-
 
 # %% Ensuring every game ID appears twice
 # dropping identical rows (besides win_streak, rolling_point since they were stuffed by the duplicate games
@@ -26,17 +25,11 @@ game_id_counts = games['GAME_ID'].value_counts()
 exceptions = game_id_counts[game_id_counts != 2]
 
 if exceptions.empty:
-    print("✅ All GAME_IDs appear exactly twice.")
+    print("All GAME_IDs appear exactly twice.")
 else:
-    print("❌ Exceptions found:")
+    print("Exceptions found:")
     print(exceptions)
 
-
-##
-# Creating a table
-# Game ID, Date, Win Team, Lose Team, Draw, Point Diff
-#
-#
 # %% Creating a results DF
 # Create results table
 results = []
@@ -73,8 +66,6 @@ for game_id, group in games.groupby("GAME_ID"):
 results_df = pd.DataFrame(results)
 
 print(results_df.head())
-
-
 # %% Glicko
 # Install package if needed
 # pip install glicko2
@@ -82,9 +73,6 @@ print(results_df.head())
 # Ensure proper date format and sort
 results_df["GAME_DATE"] = pd.to_datetime(results_df["GAME_DATE"])
 results_df = results_df.sort_values(by="GAME_DATE").reset_index(drop=True)
-
-from glicko2 import Player
-import pandas as pd
 
 # Create a dictionary to store players
 players = {}
@@ -175,4 +163,3 @@ plt.tight_layout()
 plt.savefig("glicko_ratings_over_time.png", dpi=300)
 print("✅ Plot saved as glicko_ratings_over_time.png")
 
-# %% Plotting
