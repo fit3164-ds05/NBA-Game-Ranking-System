@@ -4,7 +4,7 @@ export default function Picbutton({ title, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full py-10 flex flex-col items-center justify-center bg-white text-white rounded-lg shadow-md hover:bg-blue-800 transition"
+      className="w-full py-10 flex flex-col items-center justify-center bg-white text-white rounded-lg shadow-md hover:bg-amber-600 transition"
     >      <span className="text-lg font-semibold text-black">{title}</span>
     </button>
   );

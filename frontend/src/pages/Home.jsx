@@ -3,12 +3,10 @@ import Picbutton from "../components/Picbutton";
 import { useNavigate } from "react-router-dom";
 
 export default function Home() {
-
   const navigate = useNavigate();
 
   return (
-     <div className="relative min-h-screen">
-
+    <div className="relative min-h-screen">
       <div className="fixed inset-0 z-0 bg-home-nba bg-cover bg-center" />
 
       {/* foreground content */}
@@ -21,25 +19,23 @@ export default function Home() {
         <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12 mt-70">
           <Picbutton
             title="Historical Ratings"
-            onClick={() => navigate('/historicalranking')}
+            onClick={() => navigate("/historicalranking")}
           />
           <Picbutton
             title="Statistics Dashboard"
-            onClick={() => navigate('/dashboardhome')}
+            onClick={() => navigate("/dashboardhome")}
           />
           <Picbutton
             title="Game Predictions"
-            onClick={() => navigate('/gameprediction')}
+            onClick={() => navigate("/gameprediction")}
           />
         </div>
 
         {/* section divider */}
         <div className="w-full border-b-4 border-white mb-6" />
 
-        <Explanationcard
-        title='Features'
-        children = 'Child content'
-        ></Explanationcard>
+        <Explanationcard title="Features" colour="amber-600/80">
+        </Explanationcard>
       </main>
     </div>
   );
