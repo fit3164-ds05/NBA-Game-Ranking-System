@@ -1,27 +1,21 @@
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
-
-app = Flask(__name__)
-# Bring in CORS for 
+from app.routes import api_bp
 
 
-# From CSV
-# Import the csv and read as a pandas dataframe
-# From there turn to dictionary and jsonify it
-# From there it works the same
+def create_app():
+    app = Flask(__name__)
+    # Enable CORS for all routes so the frontend can call the API during development
+    CORS(app)
 
-@app.route("/api") # Only permits GET Requests
-def users():
-    return jsonify(
-        {
-            "users": [
-                'User1',
-                'User2',
-                'User3',
-                'User4'
-            ]
-        }
-    )
+    # Mount the API blueprint at /api so routes in routes.py appear under /api
+    # For example health will be at GET /api/
+    app.register_blueprint(api_bp, url_prefix="/api")
+
+    return app
+
+
+app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)

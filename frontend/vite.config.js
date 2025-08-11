@@ -9,7 +9,8 @@ export default defineConfig({
     server: {
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:5000"
+          target: process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:5000",
+          changeOrigin: true  // changeOrigin true rewrites the Host header so Flask treats the request as if it came directly to it. This avoids occasional CORS quirks and cookie domain issues during local dev.
         }
       }
     }
