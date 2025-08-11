@@ -36,7 +36,10 @@ export default function Home() {
         {/* section divider */}
         <div className="w-full border-b-4 border-white mb-6" />
 
-        <Explanationcard>Features</Explanationcard>
+        <Explanationcard
+        title='Features'
+        children = 'Child content'
+        ></Explanationcard>
       </main>
     </div>
   );
