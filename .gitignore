@@ -18,3 +18,9 @@ backend/*.sqlite3
 # Env files
 *.env
 
+backend/.venv/
+backend/__pycache__/
+frontend/node_modules/
+Datasets_Analysis/
+.env
+*.env
