@@ -1,7 +1,53 @@
 # %% importing dataset and libraries
 import pandas as pd
+import numpy as np
 from glicko2 import Player
-games = pd.read_csv("Datasets/games.csv")
+games_original = pd.read_csv("Datasets_Analysis/Datasets/games.csv")
+playoff_games = pd.read_csv("Datasets_Analysis/Datasets/playoffs.csv")
+
+# %% inspecting the columns in each
+common_cols = sorted(set(games_original.columns).intersection(set(playoff_games.columns)))
+only_in_games = sorted(set(games_original.columns) - set(playoff_games.columns))
+only_in_playoffs = sorted(set(playoff_games.columns) - set(games_original.columns))
+
+print(f"Common columns ({len(common_cols)}):")
+print("\n".join(common_cols))
+
+print(f"\nColumns only in games ({len(only_in_games)}):")
+print("\n".join(only_in_games))
+
+print(f"\nColumns only in playoffs ({len(only_in_playoffs)}):")
+print("\n".join(only_in_playoffs))
+
+
+# %% Joining the two datasets
+# Keep only the columns common to both datasets, then vertically stack them
+common_cols = sorted(set(games_original.columns).intersection(set(playoff_games.columns)))
+
+# Add IS_PLAYOFF column to distinguish regular season and playoff games
+games_original["IS_PLAYOFF"] = 0
+playoff_games["IS_PLAYOFF"] = 1
+
+playoff_games["WL"] = [0 if x == "L" else 1 for x in playoff_games["WL"]]
+# Restrict each frame to the common columns plus IS_PLAYOFF and concatenate
+games = pd.concat([
+    games_original[common_cols + ["IS_PLAYOFF"]],
+    playoff_games[common_cols + ["IS_PLAYOFF"]]
+], ignore_index=True)
+
+print(f"Joined regular season and playoffs on {len(common_cols)} common columns: {common_cols}")
+print(f"Combined shape: {games.shape}")
+
+# Drop any duplicate rows except for columns that might legitimately differ between duplicates
+# (Adjust the excluded columns list as needed)
+games = games.drop_duplicates()
+
+# %% Ran into duplicates between playoff and normal
+# Sort so that playoff rows come first
+games = games.sort_values("IS_PLAYOFF", ascending=False)
+
+# Drop duplicates ignoring the IS_PLAYOFF column
+games = games.drop_duplicates(subset=[c for c in games.columns if c != "IS_PLAYOFF"], keep="first")
 
 # %% Inspecting the data
 def explore_dataframe(df, num_rows=5):
@@ -18,9 +64,6 @@ def explore_dataframe(df, num_rows=5):
 explore_dataframe(games)
 
 # %% Ensuring every game ID appears twice
-# dropping identical rows (besides win_streak, rolling_point since they were stuffed by the duplicate games
-games = games.drop_duplicates(subset=games.columns[:-3])
-
 game_id_counts = games['GAME_ID'].value_counts()
 exceptions = game_id_counts[game_id_counts != 2]
 
@@ -29,9 +72,21 @@ if exceptions.empty:
 else:
     print("Exceptions found:")
     print(exceptions)
+    print(f"{len(exceptions)} exceptions found")
+
+
+
+# %% getting rid of unecessary teams
+name_map = {
+    "Los Angeles Clippers": "LA Clippers",
+    "New Jersey Nets": "Brooklyn Nets",
+    "New Orleans Hornets": "New Orleans Pelicans",
+    "Charlotte Bobcats": "Charlotte Hornets"
+}
+
+games["TEAM_NAME"] = games["TEAM_NAME"].replace(name_map)
 
 # %% Creating a results DF
-# Create results table
 results = []
 
 for game_id, group in games.groupby("GAME_ID"):
@@ -57,7 +112,6 @@ for game_id, group in games.groupby("GAME_ID"):
         "GAME_DATE": row1["GAME_DATE"],  # same for both rows
         "WIN_TEAM": win_team,
         "LOSE_TEAM": lose_team,
-        "DRAW": 0,
         "POINTS_W": points_w,
         "POINTS_L": points_l
     })
@@ -66,6 +120,7 @@ for game_id, group in games.groupby("GAME_ID"):
 results_df = pd.DataFrame(results)
 
 print(results_df.head())
+
 # %% Glicko
 # Install package if needed
 # pip install glicko2
@@ -162,4 +217,45 @@ plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
 plt.tight_layout()
 plt.savefig("glicko_ratings_over_time.png", dpi=300)
 print("✅ Plot saved as glicko_ratings_over_time.png")
+
+# %%
+def glicko_expected_score(rating_A, rating_B, rd_B):
+    """
+    Compute expected win probability of player A against player B using the Glicko expected score formula.
+    """
+    q = np.log(10) / 400
+    g = 1 / np.sqrt(1 + (3 * q ** 2 * rd_B ** 2) / (np.pi ** 2))
+    E = 1 / (1 + 10 ** (-g * (rating_A - rating_B) / 400))
+    return E
+
+
+# Function to compute win probability between two teams at specified dates
+def compute_win_probability(team_A_name, date_A, team_B_name, date_B):
+    """
+    Compute win probability of team_A (at date_A) vs team_B (at date_B)
+    """
+    date_A = pd.to_datetime(date_A)
+    date_B = pd.to_datetime(date_B)
+
+    rating_row_A = full_ratings[(full_ratings["TEAM"] == team_A_name) & (full_ratings["GAME_DATE"] == date_A)]
+    rating_row_B = full_ratings[(full_ratings["TEAM"] == team_B_name) & (full_ratings["GAME_DATE"] == date_B)]
+
+    if rating_row_A.empty or rating_row_B.empty:
+        print("Rating not found for one or both teams on the specified dates.")
+        return None
+
+    rating_A = rating_row_A["RATING"].values[0]
+    rating_B = rating_row_B["RATING"].values[0]
+
+    player_A = players[team_A_name]
+    player_B = players[team_B_name]
+
+    prob_A_wins = glicko_expected_score(rating_A, rating_B, player_B.getRd())
+    print(f"Win probability of {team_A_name} (on {date_A.date()}) vs {team_B_name} (on {date_B.date()}): {prob_A_wins:.3f}")
+    return prob_A_wins
+
+# Example usage
+
+
+
 
