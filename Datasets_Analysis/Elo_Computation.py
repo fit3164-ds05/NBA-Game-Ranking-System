@@ -1,9 +1,39 @@
 # %% importing dataset and libraries
+from pathlib import Path
+import os
+
 import pandas as pd
 import numpy as np
 from glicko2 import Player
-games_original = pd.read_csv("Datasets_Analysis/Datasets/games.csv")
-playoff_games = pd.read_csv("Datasets_Analysis/Datasets/playoffs.csv")
+
+# Resolve paths dynamically so this works no matter the working directory
+try:
+    _base_dir = Path(__file__).resolve().parent
+except NameError:
+    # Fallback for environments that do not define __file__
+    _base_dir = Path.cwd()
+
+
+def _find_root(start: Path, marker: str = "Datasets_Analysis", max_up: int = 5) -> Path:
+    """Walk up the directory tree to find the project root that contains `marker`."""
+    p = start
+    for _ in range(max_up):
+        if (p / marker).exists():
+            return p
+        p = p.parent
+    return start
+
+
+_project_root = _find_root(_base_dir)
+_data_dir = _project_root / "Datasets_Analysis" / "Datasets"
+
+games_csv = _data_dir / "games.csv"
+playoffs_csv = _data_dir / "playoffs.csv"
+
+print(f"Using data files from: {games_csv} and {playoffs_csv}")
+
+games_original = pd.read_csv(games_csv)
+playoff_games = pd.read_csv(playoffs_csv)
 
 # %% inspecting the columns in each
 common_cols = sorted(set(games_original.columns).intersection(set(playoff_games.columns)))

@@ -11,6 +11,8 @@ frontend/node_modules/
 # Byte-compiled cache
 **/__pycache__/
 **/*.py[cod]
+*.pyc
+__pycache__/
 
 # SQLite DB
 backend/*.sqlite3
