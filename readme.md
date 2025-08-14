@@ -4,7 +4,7 @@ A modular, data-driven engine for producing up-to-date NBA team rankings and hea
 
 ---
 
-## 🔍 High-Level Overview
+## High-Level Overview
 
 1. **Data & Models**  
    - Ingests final game results plus box-score features (shooting %, passes, home/away, win-streaks, injuries).  
