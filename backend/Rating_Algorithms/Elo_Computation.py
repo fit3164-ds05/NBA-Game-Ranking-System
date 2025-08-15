@@ -231,7 +231,10 @@ plt.show()
 
 # %% Export ratings data and plot
 # Export full_ratings DataFrame to CSV
-full_ratings.to_csv("full_ratings.csv", index=False)
+output_csv = Path(__file__).resolve().parents[1] / "data" / "full_ratings.csv"
+output_csv.parent.mkdir(parents=True, exist_ok=True)
+full_ratings.to_csv(output_csv, index=False)
+print(f"Exported ratings to {output_csv}")
 print("✅ full_ratings exported to full_ratings.csv")
 
 # Save the plot as an image

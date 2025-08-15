@@ -8,92 +8,108 @@ This module integrates with the backend services of the NBA Game Ranking System,
 allowing other parts of the application to access team ratings and make predictions.
 """
 
-from functools import lru_cache
-import os
-from pathlib import Path
-import pandas as pd
-import math
+"""
+ratings.py
+Loads precomputed team ratings from CSV and provides helpers used by the API.
+Default CSV location is backend/data/full_ratings.csv.
+Set RATINGS_CSV to override the path at runtime.
+"""
 
-# Resolve CSV path relative to backend folder, with optional environment override
+import os
+import math
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional, List
+
+import pandas as pd
+
+# Resolve backend folder then point to backend/data/full_ratings.csv by default
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-# CSV_PATH = Path(os.getenv("RATINGS_CSV", str(BACKEND_DIR / "Datasets_Analysis" / "full_ratings.csv")))
-CSV_PATH = Path(os.getenv("RATINGS_CSV", str(BACKEND_DIR.parent / "Datasets_Analysis" / "full_ratings.csv")))
+DEFAULT_CSV = BACKEND_DIR / "data" / "full_ratings.csv"
+CSV_PATH = Path(os.getenv("RATINGS_CSV", str(DEFAULT_CSV)))
+
 
 @lru_cache(maxsize=1)
 def load_full() -> pd.DataFrame:
     """
-    Load the full ratings dataset from a CSV file.
-    Uses caching to avoid reloading the data multiple times.
-    Parses the game date and adds a year column for easy filtering.
+    Read the ratings CSV once and cache the DataFrame.
+    Ensures a YEAR column exists derived from GAME_DATE.
     """
-    # Ensure the CSV file exists
     if not CSV_PATH.exists():
-        raise FileNotFoundError(f"Ratings CSV not found at {CSV_PATH}. "
-                                f"Set RATINGS_CSV environment variable or move the file to this location.")
-    # Read the CSV file with game dates parsed as datetime objects
+        raise FileNotFoundError(
+            f"Ratings CSV not found at {CSV_PATH}. "
+            f"Place the file at backend/data/full_ratings.csv "
+            f"or set RATINGS_CSV to an absolute path."
+        )
+
     df = pd.read_csv(CSV_PATH, parse_dates=["GAME_DATE"])
-    # Add a YEAR column extracted from the GAME_DATE for filtering by season
-    df["YEAR"] = df["GAME_DATE"].dt.year
+    if "YEAR" not in df.columns:
+        df["YEAR"] = df["GAME_DATE"].dt.year
     return df
 
-def teams() -> list[str]:
-    """
-    Return a sorted list of all unique team names present in the dataset.
-    Useful for populating dropdowns or validating team inputs.
-    """
-    df = load_full()
-    # Extract unique team names, drop any missing values, and sort alphabetically
-    return sorted(df["TEAM"].dropna().unique().tolist())
 
-def seasons_for_team(team: str) -> list[int]:
+def teams() -> List[str]:
     """
-    Get a list of seasons (years) in which the specified team has ratings.
-    The list is sorted from most recent to oldest season.
+    Return all unique team names sorted alphabetically.
     """
     df = load_full()
-    # Filter the dataframe for the given team and get unique years they played
-    yrs = df.loc[df["TEAM"] == team, "YEAR"].dropna().unique().tolist()
-    # Sort years descending so the most recent seasons come first
-    return sorted(int(y) for y in yrs)[::-1]
+    vals = df["TEAM"].dropna().unique().tolist()
+    return sorted(vals)
 
-def latest_rating_in_season(team: str, year: int) -> float | None:
+
+def seasons_for_team(team: str) -> List[int]:
     """
-    Retrieve the latest rating for a given team in a specified season.
-    Returns None if no rating data is available for that team and year.
+    Return all seasons available for a team sorted from newest to oldest.
     """
     df = load_full()
-    # Filter data for the team and season
-    sub = df[(df["TEAM"] == team) & (df["YEAR"] == year)]
+    vals = (
+        df.loc[df["TEAM"] == team, "YEAR"]
+        .dropna()
+        .astype(int)
+        .unique()
+        .tolist()
+    )
+    return sorted(vals, reverse=True)
+
+
+def latest_rating_in_season(team: str, year: int) -> Optional[float]:
+    """
+    Return the team's most recent rating within that season.
+    If no rows match, return None.
+    """
+    df = load_full()
+    sub = df[(df["TEAM"] == team) & (df["YEAR"] == int(year))].sort_values("GAME_DATE")
     if sub.empty:
-        # No data found for the team in that season
         return None
-    # Sort by game date to get the most recent rating
-    sub = sub.sort_values("GAME_DATE")
-    # Return the rating from the last game of the season
-    return float(sub.iloc[-1]["RATING"])
+    # If your CSV has a column named RATING use that. Adjust here if the name differs.
+    col = "RATING"
+    if col not in sub.columns:
+        raise KeyError(f"Column '{col}' not found in ratings CSV")
+    return float(sub.iloc[-1][col])
+
 
 def predict_prob(home_team: str, home_year: int, away_team: str, away_year: int) -> dict:
     """
-    Predict the probability that the home team will win against the away team,
-    based on their latest ratings in their respective seasons.
-    Returns a dictionary containing ratings, rating difference, win probability,
-    and predicted margin of victory.
+    Compute win probability and a simple margin proxy from rating difference.
+    Uses an Elo style logistic with scale 400 and margin proxy diff divided by 25.
     """
-    # Get the latest ratings for both teams in their respective seasons
-    r_home = latest_rating_in_season(home_team, home_year)
-    r_away = latest_rating_in_season(away_team, away_year)
-    if r_home is None or r_away is None:
-        # If either rating is missing, return an error message
-        return {"error": "Missing rating for the provided team or season"}
-    # Calculate the rating difference (home - away)
-    diff = r_home - r_away
-    # Calculate the probability of home team winning using Elo formula
+    hr = latest_rating_in_season(home_team, home_year)
+    ar = latest_rating_in_season(away_team, away_year)
+
+    if hr is None:
+        return {"error": f"No rating found for {home_team} in {home_year}"}
+    if ar is None:
+        return {"error": f"No rating found for {away_team} in {away_year}"}
+
+    diff = hr - ar
+    # Elo style probability for home
     p_home = 1.0 / (1.0 + math.pow(10.0, -diff / 400.0))
-    # Estimate margin of victory as a simple linear function of rating difference
+    # Simple linear margin proxy
     margin = diff / 25.0
+
     return {
-        "home_rating": r_home,
-        "away_rating": r_away,
+        "home_rating": hr,
+        "away_rating": ar,
         "rating_diff": diff,
         "home_win_prob": p_home,
         "predicted_margin": margin,
