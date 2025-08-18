@@ -15,11 +15,10 @@ import matplotlib.pyplot as plt
 # Elo_Computation.py lives in backend/Rating_Algorithms/, so:
 #   _base_dir            -> backend/Rating_Algorithms
 #   _backend_dir         -> backend
-#   _project_root        -> repo root (one level above backend)
-_base_dir = Path(__file__).resolve().parent
-_backend_dir = _base_dir.parent
-_project_root = _backend_dir.parent
-_data_dir = _project_root / "backend" / "Data"
+#   _data_dir            -> backend/Data (inputs)
+_base_dir = Path(__file__).resolve().parent            # backend/Rating_Algorithms
+_backend_dir = _base_dir.parent                        # backend
+_data_dir = _backend_dir / "Data"                      # backend/Data (inputs)
 
 # Output directories for exports
 _out_data_dir = _backend_dir / "data"

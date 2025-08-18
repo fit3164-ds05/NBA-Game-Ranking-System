@@ -1,22 +1,22 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
-import os, sys
+import os
 from app.routes import api_bp
-
 
 def create_app():
     app = Flask(__name__)
-    # Enable CORS for all routes so the frontend can call the API during development
-    CORS(app)
-
-    # Mount the API blueprint at /api so routes in routes.py appear under /api
-    # For example health will be at GET /api/
+    allowed = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else "*"
+    CORS(app, resources={r"/*": {"origins": allowed}}, supports_credentials=True)
     app.register_blueprint(api_bp, url_prefix="/api")
 
-    return app
+    @app.get("/health")
+    def health():
+        return jsonify(status="ok")
 
+    return app
 
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.getenv("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False)
