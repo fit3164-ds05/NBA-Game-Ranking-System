@@ -1,5 +1,8 @@
 .DS_Store
 
+# System files
+.DS_Store
+
 # Python venv
 .venv/
 venv/
@@ -19,12 +22,14 @@ backend/*.sqlite3
 
 # Env files
 *.env
-
-backend/.venv/
-backend/__pycache__/
-frontend/node_modules/
-Datasets_Analysis/
 .env
-*.env
 
+# Datasets
+Datasets_Analysis/
+
+# Backend data
 backend/data/
+
+# Test temporary CSVs
+tmp/*.csv
+tests/*.csv
