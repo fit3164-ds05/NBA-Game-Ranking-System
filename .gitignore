@@ -33,3 +33,10 @@ backend/data/
 # Test temporary CSVs
 tmp/*.csv
 tests/*.csv
+
+# Test and coverage artefacts
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml
+pytest.ini
