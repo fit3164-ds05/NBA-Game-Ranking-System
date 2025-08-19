@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getTeams, getSeasons, predictGame } from "../lib/api";
+import RatingChart from "../components/RatingChart";
 
 // Simple reusable label component for form fields
 function FieldLabel({ children }) {
@@ -377,6 +378,8 @@ export default function GamePrediction() {
             {error}
           </div>
         )}
+
+        <RatingChart teams={[homeTeam, awayTeam].filter(Boolean)} />
 
         {/* Prediction result display */}
         <div className="bg-white border rounded-2xl p-4 shadow-sm">

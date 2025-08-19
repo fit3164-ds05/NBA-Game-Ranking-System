@@ -48,6 +48,34 @@ def load_full() -> pd.DataFrame:
     return df
 
 
+def clear_cache():
+    """
+    Clear the cached ratings DataFrame.
+    """
+    load_full.cache_clear()
+
+
+def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
+    """
+    Return a DataFrame with rating time series filtered by teams and date range.
+    """
+    df = load_full().copy()
+    df = df.sort_values("GAME_DATE")
+    df["date"] = df["GAME_DATE"].dt.strftime("%Y-%m-%d")
+
+    if teams:
+        df = df[df["TEAM"].isin(teams)]
+
+    if start:
+        df = df[df["date"] >= start]
+
+    if end:
+        df = df[df["date"] <= end]
+
+    out = df.loc[:, ["date", "TEAM", "RATING"]].rename(columns={"TEAM": "team", "RATING": "rating"})
+    return out
+
+
 def teams() -> List[str]:
     """
     Return all unique team names sorted alphabetically.

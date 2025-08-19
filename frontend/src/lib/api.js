@@ -59,3 +59,38 @@ export async function predictGame({ home_team, home_season, away_team, away_seas
   });
   return data; // { inputs, home_rating, away_rating, rating_diff, home_win_prob, predicted_margin, model_version }
 }
+
+// Ratings time series for the chart
+export async function getRatingsSeries({ teams = [], start, end, limit, offset } = {}) {
+  const params = {};
+  if (Array.isArray(teams) && teams.length) params.teams = teams.join(",");
+  if (start) params.start = start;
+  if (end) params.end = end;
+  if (typeof limit === "number") params.limit = String(limit);
+  if (typeof offset === "number") params.offset = String(offset);
+
+  const res = await api.get("/ratings/series", { params });
+
+  // Some backends may accidentally emit NaN which is invalid JSON.
+  // Axios may then treat the payload as a string. Handle both shapes safely.
+  let payload = res.data;
+
+  if (typeof payload === "string") {
+    try {
+      // Replace bare NaN tokens with null so JSON.parse succeeds
+      const sanitised = payload.replace(/\bNaN\b/g, "null");
+      payload = JSON.parse(sanitised);
+    } catch {
+      // If parsing fails, return an empty array rather than breaking the UI
+      return [];
+    }
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data; // expected shape: { data: [...] }
+  }
+  if (Array.isArray(payload)) {
+    return payload; // already an array
+  }
+  return [];
+}
