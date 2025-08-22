@@ -29,6 +29,7 @@ flask-cors==6.0.1
 fonttools==4.59.0
 fqdn==1.5.1
 glicko2==2.1.0
+gunicorn>=21.2,<22
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1

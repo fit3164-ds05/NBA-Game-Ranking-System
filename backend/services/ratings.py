@@ -1,15 +1,5 @@
 # services/ratings.py
 """
-This module provides functions to load and process NBA team ratings data,
-which are used to predict game outcomes based on historical team performance.
-It reads rating data from a CSV file, extracts team and season information,
-and calculates winning probabilities using an Elo rating system approach.
-This module integrates with the backend services of the NBA Game Ranking System,
-allowing other parts of the application to access team ratings and make predictions.
-"""
-
-"""
-ratings.py
 Loads precomputed team ratings from CSV and provides helpers used by the API.
 Default CSV location is backend/data/full_ratings.csv.
 Set RATINGS_CSV to override the path at runtime.
@@ -23,11 +13,17 @@ from typing import Optional, List
 
 import pandas as pd
 
-# Resolve backend folder then point to backend/data/full_ratings.csv by default
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_CSV = BACKEND_DIR / "data" / "full_ratings.csv"
-CSV_PATH = Path(os.getenv("RATINGS_CSV", str(DEFAULT_CSV)))
+# Build a robust path to the ratings CSV
+def _default_ratings_path() -> Path:
+    # services/ -> app/ -> project root (/app in Docker)
+    root = Path(__file__).resolve().parents[1]
+    return root / "data" / "full_ratings.csv"
 
+def get_ratings_csv_path() -> Path:
+    env = os.getenv("RATINGS_CSV")
+    if env:
+        return Path(env).expanduser().resolve()
+    return _default_ratings_path()
 
 @lru_cache(maxsize=1)
 def load_full() -> pd.DataFrame:
@@ -35,25 +31,26 @@ def load_full() -> pd.DataFrame:
     Read the ratings CSV once and cache the DataFrame.
     Ensures a YEAR column exists derived from GAME_DATE.
     """
-    if not CSV_PATH.exists():
+    csv_path = get_ratings_csv_path()
+    if not csv_path.exists():
         raise FileNotFoundError(
-            f"Ratings CSV not found at {CSV_PATH}. "
-            f"Place the file at backend/data/full_ratings.csv "
-            f"or set RATINGS_CSV to an absolute path."
+            f"Ratings CSV not found at {csv_path}. "
+            "Place the file at backend/data/full_ratings.csv (note case sensitive 'data'), "
+            "or set RATINGS_CSV to an absolute path."
         )
 
-    df = pd.read_csv(CSV_PATH, parse_dates=["GAME_DATE"])
-    if "YEAR" not in df.columns:
+    df = pd.read_csv(csv_path, parse_dates=["GAME_DATE"])
+    if "YEAR" not in df.columns and "GAME_DATE" in df.columns:
         df["YEAR"] = df["GAME_DATE"].dt.year
     return df
 
+def resolved_csv_path() -> str:
+    """Return the absolute CSV path the service will use for diagnostics."""
+    return str(get_ratings_csv_path())
 
 def clear_cache():
-    """
-    Clear the cached ratings DataFrame.
-    """
+    """Clear the cached ratings DataFrame."""
     load_full.cache_clear()
-
 
 def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
     """
@@ -75,20 +72,14 @@ def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, e
     out = df.loc[:, ["date", "TEAM", "RATING"]].rename(columns={"TEAM": "team", "RATING": "rating"})
     return out
 
-
 def teams() -> List[str]:
-    """
-    Return all unique team names sorted alphabetically.
-    """
+    """Return all unique team names sorted alphabetically."""
     df = load_full()
     vals = df["TEAM"].dropna().unique().tolist()
     return sorted(vals)
 
-
 def seasons_for_team(team: str) -> List[int]:
-    """
-    Return all seasons available for a team sorted from newest to oldest.
-    """
+    """Return all seasons available for a team sorted from newest to oldest."""
     df = load_full()
     vals = (
         df.loc[df["TEAM"] == team, "YEAR"]
@@ -98,7 +89,6 @@ def seasons_for_team(team: str) -> List[int]:
         .tolist()
     )
     return sorted(vals, reverse=True)
-
 
 def latest_rating_in_season(team: str, year: int) -> Optional[float]:
     """
@@ -114,7 +104,6 @@ def latest_rating_in_season(team: str, year: int) -> Optional[float]:
     if col not in sub.columns:
         raise KeyError(f"Column '{col}' not found in ratings CSV")
     return float(sub.iloc[-1][col])
-
 
 def predict_prob(home_team: str, home_year: int, away_team: str, away_year: int) -> dict:
     """
