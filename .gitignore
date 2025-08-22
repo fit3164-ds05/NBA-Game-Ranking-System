@@ -39,6 +39,7 @@ backend/*.sqlite3
 # Env files
 *.env
 .env
+!.env.example
 
 # Datasets
 Datasets_Analysis/
