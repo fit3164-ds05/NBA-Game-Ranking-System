@@ -5,18 +5,37 @@ It acts as a bridge between the frontend and backend logic, mapping incoming HTT
 to Python functions that return JSON responses. Each route corresponds to a specific endpoint,
 handling data retrieval, validation, and prediction logic as needed.
 """
+import os
 from flask import Blueprint, jsonify, request
-from services.ratings import teams, seasons_for_team, predict_prob
+from services.ratings import teams, seasons_for_team, predict_prob, load_full, resolved_csv_path
 from services import ratings
 
 api_bp = Blueprint("api", __name__)
 
 @api_bp.get("/")
 def health():
-    # Health check endpoint
-    # URL: GET /
-    # Returns: JSON indicating the service is running
-    return jsonify(status="ok")
+    # Enhanced health with build and data diagnostics
+    version = os.getenv("GIT_SHA") or os.getenv("RAILWAY_GIT_COMMIT_SHA") or "unknown"
+    csv_path = resolved_csv_path()
+    csv_rows = None
+    csv_error = None
+    try:
+        # keep this light by not materialising the whole DataFrame if already cached
+        df = load_full()
+        csv_rows = int(getattr(df, "shape", [0])[0])
+    except Exception as e:
+        csv_error = str(e)
+
+    payload = {
+        "status": "ok",
+        "version": version,
+        "csv_path": csv_path,
+    }
+    if csv_rows is not None:
+        payload["csv_rows"] = csv_rows
+    if csv_error:
+        payload["csv_error"] = csv_error
+    return jsonify(payload)
 
 @api_bp.get("/teams")
 def get_teams():
@@ -123,3 +142,17 @@ def ratings_series():
         sliced = records[offset:]
 
     return jsonify(data=sliced, total=total, offset=offset, limit=limit)
+
+
+# Self test endpoint for integration diagnostics
+@api_bp.get("/selftest")
+def selftest():
+    """
+    Performs a quick integration check.
+    Returns ok true if the ratings CSV can be loaded, else ok false with error details.
+    """
+    try:
+        df = load_full()
+        return jsonify(ok=True, rows=int(df.shape[0]), csv_path=resolved_csv_path())
+    except Exception as e:
+        return jsonify(ok=False, error=str(e), csv_path=resolved_csv_path()), 500
