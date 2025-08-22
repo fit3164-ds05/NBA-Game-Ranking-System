@@ -1,13 +1,26 @@
+# Ignore typical Python build artifacts and local envs
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.log
+.pytest_cache/
+.mypy_cache/
+.coverage
+.venv/
+venv/
+env/
 .env
-.venv
-venv
-.git
+.env.*
+*.egg-info/
+
+# VCS and build outputs
+.git/
 .gitignore
-node_modules
-dist
-build
+dist/
+build/
+node_modules/
+
+# IMPORTANT: keep ratings data in build context
+!data/
+!data/full_ratings.csv
