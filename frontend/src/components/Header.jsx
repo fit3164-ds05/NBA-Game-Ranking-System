@@ -28,10 +28,10 @@ export default function Header({title}){
         `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
         >Historical Ratings</NavLink>
 
-        <NavLink to="/dashboardhome"
+        <NavLink to="/teamstats"
         className={({isActive}) =>
         `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
-        >Statistics Dashboard</NavLink>
+        >Team & Player Stats</NavLink>
 
         <NavLink to="/gameprediction"
         className={({isActive}) =>
