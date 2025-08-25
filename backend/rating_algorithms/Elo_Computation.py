@@ -1,4 +1,4 @@
-
+]
 
 # Output directories for exports
 _out_data_dir = _backend_dir / "data"
@@ -19,7 +19,6 @@ ENGINES_TO_RUN = [
 
 
 def run_engine(engine_name: str, factory) -> pd.DataFrame:
-
     pred_correct_flags = []
     for _, row in results_df.iterrows():
         win = row["WIN_TEAM"]
@@ -60,11 +59,9 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
     full_ratings = ratings_df.set_index(["GAME_DATE", "TEAM"]).reindex(full_index)
     full_ratings = full_ratings.groupby("TEAM").ffill().reset_index()
 
-
     csv_path = _out_data_dir / f"ratings_{engine_name}.csv"
     full_ratings.to_csv(str(csv_path), index=False)
     print(f"✅ {engine_name} full_ratings exported to {csv_path}")
-
 
     plt.figure(figsize=(14, 8))
     for team in all_teams:
