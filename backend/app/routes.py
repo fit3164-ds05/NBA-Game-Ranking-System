@@ -9,6 +9,7 @@ import os
 from flask import Blueprint, jsonify, request
 from services.ratings import teams, seasons_for_team, predict_prob, load_full, resolved_csv_path
 from services import ratings
+from services.team_stats import load_team_stats_csv, load_team_season_stats_csv
 
 api_bp = Blueprint("api", __name__)
 
@@ -142,6 +143,29 @@ def ratings_series():
         sliced = records[offset:]
 
     return jsonify(data=sliced, total=total, offset=offset, limit=limit)
+
+
+@api_bp.get("/teamstats/overall")
+def team_stats_overall():
+    """Return aggregated stats for each team across all seasons."""
+    df = load_team_stats_csv()
+    team = request.args.get("team")
+    if team:
+        df = df[df["team_name"] == team]
+    return jsonify(data=df.to_dict(orient="records"))
+
+
+@api_bp.get("/teamstats/season")
+def team_stats_season():
+    """Return per-season stats, optionally filtered by team or season."""
+    df = load_team_season_stats_csv()
+    team = request.args.get("team")
+    season = request.args.get("season")
+    if team:
+        df = df[df["team_name"] == team]
+    if season:
+        df = df[df["SEASON_YEAR"] == season]
+    return jsonify(data=df.to_dict(orient="records"))
 
 
 # Self test endpoint for integration diagnostics

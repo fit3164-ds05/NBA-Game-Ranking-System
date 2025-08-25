@@ -1,10 +1,41 @@
-]
+
+from pathlib import Path
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from data_prep import (
+    load_joined_games,
+    explore_dataframe,
+    summarize_games,
+    build_results,
+)
+from engines import (
+    RatingEngine,
+    GlickoEngine,
+    EloEngine,
+    MarginHomeElo,
+    TrueSkillEngine,
+)
+
+# Resolve directories relative to this file
+_base_dir = Path(__file__).resolve().parent
+_backend_dir = _base_dir.parent
+_data_dir = _backend_dir / "data"
+
+
 
 # Output directories for exports
 _out_data_dir = _backend_dir / "data"
 _out_visuals_dir = _out_data_dir / "visuals"
 _out_data_dir.mkdir(parents=True, exist_ok=True)
 _out_visuals_dir.mkdir(parents=True, exist_ok=True)
+
+
+# Load and explore data
+games = load_joined_games(_data_dir)
+explore_dataframe(games)
+summarize_games(games)
+results_df = build_results(games)
 
 
 results_df["GAME_DATE"] = pd.to_datetime(results_df["GAME_DATE"])
@@ -19,6 +50,11 @@ ENGINES_TO_RUN = [
 
 
 def run_engine(engine_name: str, factory) -> pd.DataFrame:
+
+    """Run an engine through all matches, save CSV and plot, and return the ratings DataFrame."""
+    engine: RatingEngine = factory()
+
+
     pred_correct_flags = []
     for _, row in results_df.iterrows():
         win = row["WIN_TEAM"]
@@ -38,6 +74,7 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
             rd_lose = None
 
 
+
         ctx = {
             "home_team": row.get("HOME_TEAM", None),
             "margin": row.get("MARGIN", None),
@@ -47,6 +84,11 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
             engine.record_game_ctx(win, lose, gdate, **ctx)
         else:
             engine.record_game(win, lose, gdate)
+
+
+    results_df[f"PRED_CORRECT_{engine_name}"] = pred_correct_flags
+    ratings_df = pd.DataFrame(engine.history)
+
 
 
     all_dates = pd.date_range(start=ratings_df["GAME_DATE"].min(),
@@ -100,6 +142,11 @@ except Exception as e:
     print(f"Could not compute mean correctness summary: {e}")
 
 
+
+def compute_win_probability(team_A_name, date_A, team_B_name, date_B, engine: RatingEngine):
+    """Compute win probability of team A vs team B using the latest full_ratings."""
+
+
     date_A = pd.to_datetime(date_A)
     date_B = pd.to_datetime(date_B)
 
@@ -113,7 +160,6 @@ except Exception as e:
     rating_A = float(rating_row_A["RATING"].values[0])
     rating_B = float(rating_row_B["RATING"].values[0])
 
-
     rd_A = None
     rd_B = None
     try:
@@ -124,5 +170,13 @@ except Exception as e:
         rd_B = engine.get_uncertainty(team_B_name)
     except Exception:
         pass
+
+
+    prob_A_wins = engine.win_prob(rating_A, rating_B, rd_A, rd_B)
+    print(
+        f"Win probability of {team_A_name} (on {date_A.date()}) vs {team_B_name} (on {date_B.date()}): {prob_A_wins:.3f}"
+    )
+    return prob_A_wins
+
 
 
