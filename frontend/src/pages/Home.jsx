@@ -25,8 +25,8 @@ export default function Home() {
             onClick={() => navigate("/historicalranking")}
           />
           <Picbutton
-            title="Statistics Dashboard"
-            onClick={() => navigate("/dashboardhome")}
+            title="Team & Player Stats"
+            onClick={() => navigate("/teamstats")}
           />
           <Picbutton
             title="Game Predictions"
@@ -47,8 +47,8 @@ export default function Home() {
 
             <div className="border-4 border-gray-400 rounded-lg p-4 flex flex-col items-center">
               <img src={Dash} alt="Dashboard icon" className="w-20 h-20 mb-2" />
-              <p className="text-center font-semibold">Statistics Dashboard</p>
-              <p>Writing about Statistics Dashboard</p>
+              <p className="text-center font-semibold">Team & Player Stats</p>
+              <p>Writing about Team & Player Stats</p>
             </div>
 
             <div className="border-4 border-gray-400 rounded-lg p-4 flex flex-col items-center">

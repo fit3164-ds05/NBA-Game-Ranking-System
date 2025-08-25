@@ -23,15 +23,15 @@ export default function Header({title}){
       </h1>
 
       <nav className="space-x-4">
-        <NavLink to="/historicalratings"
+        <NavLink to="/historicalranking"
         className={({isActive}) =>
         `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
         >Historical Ratings</NavLink>
 
-        <NavLink to="/dashboardhome"
+        <NavLink to="/teamstats"
         className={({isActive}) =>
         `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
-        >Statistics Dashboard</NavLink>
+        >Team & Player Stats</NavLink>
 
         <NavLink to="/gameprediction"
         className={({isActive}) =>
