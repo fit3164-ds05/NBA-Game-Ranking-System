@@ -23,7 +23,6 @@ _backend_dir = _base_dir.parent
 _data_dir = _backend_dir / "data"
 
 
-
 # Output directories for exports
 _out_data_dir = _backend_dir / "data"
 _out_visuals_dir = _out_data_dir / "visuals"
@@ -37,6 +36,8 @@ explore_dataframe(games)
 summarize_games(games)
 results_df = build_results(games)
 
+
+# Engine-driven rating computation for multiple engines
 
 results_df["GAME_DATE"] = pd.to_datetime(results_df["GAME_DATE"])
 results_df = results_df.sort_values(by="GAME_DATE").reset_index(drop=True)
@@ -54,13 +55,11 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
     """Run an engine through all matches, save CSV and plot, and return the ratings DataFrame."""
     engine: RatingEngine = factory()
 
-
     pred_correct_flags = []
     for _, row in results_df.iterrows():
         win = row["WIN_TEAM"]
         lose = row["LOSE_TEAM"]
         gdate = row["GAME_DATE"]
-
 
         r_win = float(engine.get_rating(win))
         r_lose = float(engine.get_rating(lose))
@@ -73,6 +72,9 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
         except Exception:
             rd_lose = None
 
+
+        p_win = engine.win_prob(r_win, r_lose, rd_win, rd_lose)
+        pred_correct_flags.append(1 if p_win >= 0.5 else 0)
 
 
         ctx = {
@@ -88,7 +90,6 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
 
     results_df[f"PRED_CORRECT_{engine_name}"] = pred_correct_flags
     ratings_df = pd.DataFrame(engine.history)
-
 
 
     all_dates = pd.date_range(start=ratings_df["GAME_DATE"].min(),
@@ -146,7 +147,6 @@ except Exception as e:
 def compute_win_probability(team_A_name, date_A, team_B_name, date_B, engine: RatingEngine):
     """Compute win probability of team A vs team B using the latest full_ratings."""
 
-
     date_A = pd.to_datetime(date_A)
     date_B = pd.to_datetime(date_B)
 
@@ -177,6 +177,4 @@ def compute_win_probability(team_A_name, date_A, team_B_name, date_B, engine: Ra
         f"Win probability of {team_A_name} (on {date_A.date()}) vs {team_B_name} (on {date_B.date()}): {prob_A_wins:.3f}"
     )
     return prob_A_wins
-
-
 

@@ -23,7 +23,7 @@ export default function Header({title}){
       </h1>
 
       <nav className="space-x-4">
-        <NavLink to="/historicalratings"
+        <NavLink to="/historicalranking"
         className={({isActive}) =>
         `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
         >Historical Ratings</NavLink>
