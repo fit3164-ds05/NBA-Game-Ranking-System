@@ -16,8 +16,37 @@ A modular, data-driven engine for producing up-to-date NBA team rankings and hea
    - **Front-end**: React SPA (or static HTML fallback) fetches data and renders interactive charts.  
    - **Automated Updates**: Weekly batch jobs retrain models and refresh rating artefacts.
 
-3. **Deployment Paths**  
+3. **Deployment Paths**
    - **Free**: GitHub Pages for UI + PythonAnywhere free tier for Flask API and scheduled scripts.  
    - **Low-Cost**: Dockerised Flask + Gunicorn behind Nginx on a USD 5/month droplet; React on GitHub Pages.
 
----
+ ---
+
+## Getting Started
+
+### Backend (Flask API)
+
+```bash
+cd backend
+pip install -r requirements.txt
+flask --app main run
+```
+
+### Frontend (React)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Tests
+
+Backend tests use `pytest`:
+
+```bash
+cd backend
+pytest
+```
+
+Static HTML demos live under `demo/` at the repository root.
