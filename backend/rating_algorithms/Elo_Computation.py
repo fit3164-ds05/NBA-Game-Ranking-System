@@ -1,3 +1,4 @@
+
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -21,11 +22,13 @@ _base_dir = Path(__file__).resolve().parent
 _backend_dir = _base_dir.parent
 _data_dir = _backend_dir / "data"
 
+
 # Output directories for exports
 _out_data_dir = _backend_dir / "data"
 _out_visuals_dir = _out_data_dir / "visuals"
 _out_data_dir.mkdir(parents=True, exist_ok=True)
 _out_visuals_dir.mkdir(parents=True, exist_ok=True)
+
 
 # Load and explore data
 games = load_joined_games(_data_dir)
@@ -33,7 +36,9 @@ explore_dataframe(games)
 summarize_games(games)
 results_df = build_results(games)
 
+
 # Engine-driven rating computation for multiple engines
+
 results_df["GAME_DATE"] = pd.to_datetime(results_df["GAME_DATE"])
 results_df = results_df.sort_values(by="GAME_DATE").reset_index(drop=True)
 
@@ -46,8 +51,10 @@ ENGINES_TO_RUN = [
 
 
 def run_engine(engine_name: str, factory) -> pd.DataFrame:
+
     """Run an engine through all matches, save CSV and plot, and return the ratings DataFrame."""
     engine: RatingEngine = factory()
+
     pred_correct_flags = []
     for _, row in results_df.iterrows():
         win = row["WIN_TEAM"]
@@ -65,8 +72,10 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
         except Exception:
             rd_lose = None
 
+
         p_win = engine.win_prob(r_win, r_lose, rd_win, rd_lose)
         pred_correct_flags.append(1 if p_win >= 0.5 else 0)
+
 
         ctx = {
             "home_team": row.get("HOME_TEAM", None),
@@ -78,13 +87,16 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
         else:
             engine.record_game(win, lose, gdate)
 
+
     results_df[f"PRED_CORRECT_{engine_name}"] = pred_correct_flags
     ratings_df = pd.DataFrame(engine.history)
+
 
     all_dates = pd.date_range(start=ratings_df["GAME_DATE"].min(),
                               end=ratings_df["GAME_DATE"].max(),
                               freq="D")
     all_teams = ratings_df["TEAM"].unique()
+
 
     full_index = pd.MultiIndex.from_product([all_dates, all_teams], names=["GAME_DATE", "TEAM"])
     full_ratings = ratings_df.set_index(["GAME_DATE", "TEAM"]).reindex(full_index)
@@ -118,6 +130,7 @@ _results_path = _out_data_dir / "results_with_predictions.csv"
 results_df.to_csv(str(_results_path), index=False)
 print("✅ results_with_predictions.csv saved with per-engine correctness columns")
 
+
 try:
     _df_acc = pd.read_csv(str(_results_path))
     _acc_cols = [c for c in _df_acc.columns if c.startswith("PRED_CORRECT_")]
@@ -130,8 +143,10 @@ except Exception as e:
     print(f"Could not compute mean correctness summary: {e}")
 
 
+
 def compute_win_probability(team_A_name, date_A, team_B_name, date_B, engine: RatingEngine):
     """Compute win probability of team A vs team B using the latest full_ratings."""
+
     date_A = pd.to_datetime(date_A)
     date_B = pd.to_datetime(date_B)
 
@@ -156,8 +171,10 @@ def compute_win_probability(team_A_name, date_A, team_B_name, date_B, engine: Ra
     except Exception:
         pass
 
+
     prob_A_wins = engine.win_prob(rating_A, rating_B, rd_A, rd_B)
     print(
         f"Win probability of {team_A_name} (on {date_A.date()}) vs {team_B_name} (on {date_B.date()}): {prob_A_wins:.3f}"
     )
     return prob_A_wins
+
