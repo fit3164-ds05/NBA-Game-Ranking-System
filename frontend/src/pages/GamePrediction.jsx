@@ -269,6 +269,14 @@ export default function GamePrediction() {
     }
   }
 
+  // Build per-team highlighted years for the RatingChart
+  const selectedYearsByTeam = useMemo(() => {
+    const map = {};
+    if (homeTeam && typeof homeSeason === "number") map[homeTeam] = String(homeSeason);
+    if (awayTeam && typeof awaySeason === "number") map[awayTeam] = String(awaySeason);
+    return map;
+  }, [homeTeam, homeSeason, awayTeam, awaySeason]);
+
   // ===== Render =====
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -379,7 +387,7 @@ export default function GamePrediction() {
           </div>
         )}
 
-        <RatingChart teams={[homeTeam, awayTeam].filter(Boolean)} />
+        <RatingChart teams={[homeTeam, awayTeam].filter(Boolean)} selectedYearsByTeam={selectedYearsByTeam} />
 
         {/* Prediction result display */}
         <div className="bg-white border rounded-2xl p-4 shadow-sm">
