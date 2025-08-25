@@ -12,13 +12,13 @@ import matplotlib.pyplot as plt
 
 
 # Resolve key directories relative to this file location
-# Elo_Computation.py lives in backend/Rating_Algorithms/, so:
-#   _base_dir            -> backend/Rating_Algorithms
+# Elo_Computation.py lives in backend/rating_algorithms/, so:
+#   _base_dir            -> backend/rating_algorithms
 #   _backend_dir         -> backend
-#   _data_dir            -> backend/Data (inputs)
-_base_dir = Path(__file__).resolve().parent            # backend/Rating_Algorithms
+#   _data_dir            -> backend/data (inputs)
+_base_dir = Path(__file__).resolve().parent            # backend/rating_algorithms
 _backend_dir = _base_dir.parent                        # backend
-_data_dir = _backend_dir / "Data"                      # backend/Data (inputs)
+_data_dir = _backend_dir / "data"                      # backend/data (inputs)
 
 # Output directories for exports
 _out_data_dir = _backend_dir / "data"

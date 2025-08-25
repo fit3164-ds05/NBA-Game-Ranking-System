@@ -44,8 +44,7 @@ backend/*.sqlite3
 # Datasets
 Datasets_Analysis/
 
-# Backend data
-backend/data/
+# Backend data (tracked)
 
 # Test temporary CSVs
 tmp/*.csv
