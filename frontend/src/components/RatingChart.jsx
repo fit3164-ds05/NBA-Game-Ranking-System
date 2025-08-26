@@ -116,6 +116,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
             const ySel = String(ySelRaw);
             const hd = pivotData.map((row) => {
               const out = { date: row.date };
+              // mark highlight rows so tooltips can ignore them
+              out.__isHighlight = row.date === ySel;
               out[team] = row.date === ySel ? (row[team] ?? null) : null;
               return out;
             });
@@ -188,6 +190,34 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     );
   };
 
+  // New CustomTooltip component
+  const CustomTooltip = ({ active, label, payload }) => {
+    if (!active || !payload || payload.length === 0) return null;
+    // filter out highlight points and null/undefined values
+    const filtered = payload.filter(p => !p?.payload?.__isHighlight && p.value != null);
+    // deduplicate by team name (p.name), keep first occurrence
+    const map = new Map();
+    for (const p of filtered) {
+      if (!map.has(p.name)) {
+        map.set(p.name, p);
+      }
+    }
+    if (map.size === 0) return null;
+    return (
+      <div style={{ backgroundColor: 'white', border: '1px solid #ccc', padding: 8, borderRadius: 4 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{label}</div>
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          {Array.from(map.values()).map((p) => (
+            <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
+              <span>{p.name}: </span>
+              <span>{Number(p.value).toFixed(2)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white border rounded-2xl p-4 shadow-sm mb-4">
       <h2 className="text-lg font-semibold mb-4">Team Ratings Over Time</h2>
@@ -238,7 +268,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
               tickFormatter={(val) => val.toFixed(2)}
               allowDecimals={true}
             />
-            <Tooltip />
+            <Tooltip content={<CustomTooltip />} />
             <Legend
               content={() => (
                 <ul style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, margin: 0 }}>
@@ -276,7 +306,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                   strokeWidth={5}
                   isAnimationActive={false}
                   dot={{ r: 5 }}
-                  activeDot={{ r: 6 }}
+                  activeDot={false}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   legendType="none"

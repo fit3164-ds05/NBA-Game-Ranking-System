@@ -9,6 +9,7 @@ SEASON_TYPE = "Regular Season"  # or "Playoffs"
 gamelog = leaguegamelog.LeagueGameLog(season=SEASON,
                                       season_type_all_star=SEASON_TYPE)
 df = gamelog.get_data_frames()[0]
+print(df.columns)
 
 # Keep the essentials and compute points against from plus minus
 out = df.loc[:, ["GAME_ID", "GAME_DATE", "TEAM_ID", "TEAM_NAME",

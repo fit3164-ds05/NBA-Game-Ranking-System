@@ -3,8 +3,6 @@
 // for the outcome of the matchup. It integrates with API helpers in lib/api.js.
 // Rules enforced:
 // - The same team can be picked for home and away, but the seasons must differ.
-// - Seasons can be linked (selecting a season for one team sets it for the other)
-//   unless the same team is selected.
 
 import { useEffect, useMemo, useState } from "react";
 import { getTeams, getSeasons, predictGame } from "../lib/api";
@@ -93,8 +91,6 @@ export default function GamePrediction() {
   const [homeSeason, setHomeSeason] = useState();
   const [awaySeason, setAwaySeason] = useState();
 
-  const [linkSeasons, setLinkSeasons] = useState(true); // Whether seasons are linked across both teams
-
   const [loading, setLoading] = useState(false); // Prediction request in progress
   const [loadingTeams, setLoadingTeams] = useState(true); // Initial team list loading
   const [error, setError] = useState(""); // Error message for UI
@@ -102,7 +98,6 @@ export default function GamePrediction() {
 
   // Derived: whether the same team is picked
   const sameTeam = homeTeam && awayTeam && homeTeam === awayTeam;
-  const canLinkSeasons = !sameTeam;
 
   // ===== Load teams on mount =====
   useEffect(() => {
@@ -145,7 +140,6 @@ export default function GamePrediction() {
         // Auto-select first season if none is chosen
         if (!homeSeason && list?.length) {
           setHomeSeason(list[0]);
-          if (linkSeasons && canLinkSeasons) setAwaySeason(list[0]);
         }
       } catch (e) {
         setError(e.message || "Failed to load seasons for home team");
@@ -170,7 +164,6 @@ export default function GamePrediction() {
         // Auto-select first season if none is chosen
         if (!awaySeason && list?.length) {
           setAwaySeason(list[0]);
-          if (linkSeasons && canLinkSeasons) setHomeSeason(list[0]);
         }
       } catch (e) {
         setError(e.message || "Failed to load seasons for away team");
@@ -185,12 +178,10 @@ export default function GamePrediction() {
   // ===== Season change handlers =====
   function onHomeSeasonChange(year) {
     setHomeSeason(year);
-    if (linkSeasons && canLinkSeasons) setAwaySeason(year);
   }
 
   function onAwaySeasonChange(year) {
     setAwaySeason(year);
-    if (linkSeasons && canLinkSeasons) setHomeSeason(year);
   }
 
   // ===== Season disabling logic =====
@@ -227,7 +218,6 @@ export default function GamePrediction() {
     setAwaySeasons([]);
     setHomeSeason(undefined);
     setAwaySeason(undefined);
-    setLinkSeasons(true);
     setError("");
     setResult(null);
   }
@@ -307,7 +297,6 @@ export default function GamePrediction() {
             season={homeSeason}
             onTeam={(t) => {
               setHomeTeam(t);
-              if (!canLinkSeasons && linkSeasons) setLinkSeasons(false);
               setHomeSeason(undefined);
               setHomeSeasons([]);
             }}
@@ -324,7 +313,6 @@ export default function GamePrediction() {
             season={awaySeason}
             onTeam={(t) => {
               setAwayTeam(t);
-              if (!canLinkSeasons && linkSeasons) setLinkSeasons(false);
               setAwaySeason(undefined);
               setAwaySeasons([]);
             }}
@@ -353,22 +341,6 @@ export default function GamePrediction() {
               Reset
             </button>
           </div>
-
-          {/* Link seasons toggle */}
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              checked={linkSeasons && canLinkSeasons}
-              onChange={(e) => setLinkSeasons(e.target.checked && canLinkSeasons)}
-            />
-            Link seasons
-            {!canLinkSeasons && (
-              <span className="text-gray-500">
-                Not available when the same team is selected
-              </span>
-            )}
-          </label>
 
           {/* Submit button */}
           <button
