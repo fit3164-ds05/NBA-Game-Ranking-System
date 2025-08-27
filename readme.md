@@ -16,8 +16,31 @@ A modular, data-driven engine for producing up-to-date NBA team rankings and hea
    - **Front-end**: React SPA (or static HTML fallback) fetches data and renders interactive charts.  
    - **Automated Updates**: Weekly batch jobs retrain models and refresh rating artefacts.
 
-3. **Deployment Paths**  
-   - **Free**: GitHub Pages for UI + PythonAnywhere free tier for Flask API and scheduled scripts.  
+3. **Deployment Paths**
+   - **Free**: GitHub Pages for UI + PythonAnywhere free tier for Flask API and scheduled scripts.
    - **Low-Cost**: Dockerised Flask + Gunicorn behind Nginx on a USD 5/month droplet; React on GitHub Pages.
+
+## Running the ranking pipeline
+
+1. Install Python dependencies:
+
+   ```bash
+   pip install -r requirementsbackup.txt
+   ```
+
+2. Execute the rating workflow. The script will scrape the latest season's
+   games from the NBA Stats API if cached files are missing, then compute and
+   export Elo/Glicko/TrueSkill ratings:
+
+   ```bash
+   python backend/Rating_Algorithms/elo_computation.py
+   ```
+
+   Outputs are written to `backend/data` with plots saved under
+   `backend/data/visuals`.
+
+3. To refresh or pull different seasons, adjust the call to
+   `load_games(seasons=["2023-24"], refresh=True)` in
+   `backend/Rating_Algorithms/elo_computation.py`.
 
 ---

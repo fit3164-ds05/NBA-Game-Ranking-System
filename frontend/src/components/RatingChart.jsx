@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  Brush,
 } from "recharts";
 
 export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }) {
@@ -314,6 +315,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                 />
               ));
             })}
+            <Brush dataKey="date" height={20} stroke="#8884d8" />
           </LineChart>
         </ResponsiveContainer>
       )}
