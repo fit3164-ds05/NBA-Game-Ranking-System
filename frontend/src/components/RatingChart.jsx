@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import * as d3 from "d3";
 import { getRatingsSeries } from "../lib/api";
+
 import {
   LineChart,
   Line,
@@ -13,213 +15,140 @@ import {
   Brush,
 } from "recharts";
 
-export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+
+export default function RatingChart({ teams = [], model }) {
+  const wrapperRef = useRef(null);
+  const svgRef = useRef(null);
   const [data, setData] = useState([]);
-  const [displayedTeams, setDisplayedTeams] = useState([]);
-  const [highlightDataByTeam, setHighlightDataByTeam] = useState({});
+  const [dims, setDims] = useState({ width: 0, height: 0 });
 
-  // Build a set of highlighted years from either a global selectedYear or per-team selections
-  const selectedYearsSet = React.useMemo(() => {
-    const s = new Set();
-    if (selectedYear) s.add(String(selectedYear));
-    if (selectedYearsByTeam) {
-      Object.values(selectedYearsByTeam).forEach((val) => {
-        if (Array.isArray(val)) {
-          val.forEach((y) => { if (y !== undefined && y !== null) s.add(String(y)); });
-        } else if (val !== undefined && val !== null) {
-          s.add(String(val));
-        }
-      });
-    }
-    return s;
-  }, [selectedYear, selectedYearsByTeam]);
-
+  // handle resize
   useEffect(() => {
-    console.log("[RatingChart] selectedYearsSet:", Array.from(selectedYearsSet));
-  }, [selectedYearsSet]);
-
-  const baseTeamColor = (idx) => `hsl(${(idx * 60) % 360}, 70%, 50%)`;
-  const highlightTeamColor = (idx) => `hsl(${(idx * 60) % 360}, 90%, 35%)`;
-  const yearsForTeam = (team) => {
-    if (selectedYearsByTeam && selectedYearsByTeam[team] != null) {
-      const v = selectedYearsByTeam[team];
-      return Array.isArray(v) ? v.map(String) : [String(v)];
+    function handleResize() {
+      if (wrapperRef.current) {
+        setDims({ width: wrapperRef.current.clientWidth, height: 400 });
+      }
     }
-    if (selectedYear != null) return [String(selectedYear)];
-    return [];
-  };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  const yearToTeams = React.useMemo(() => {
-    const map = new Map();
-    displayedTeams.forEach((team, idx) => {
-      yearsForTeam(team).forEach((y) => {
-        if (!map.has(y)) map.set(y, []);
-        map.get(y).push({ team, idx });
-      });
-    });
-    return map;
-  }, [displayedTeams, selectedYearsByTeam, selectedYear]);
-
-  const isHighlightedYear = (yearStr) => {
-    if (!yearStr || selectedYearsSet.size === 0) return false;
-    return selectedYearsSet.has(String(yearStr));
-  };
-
-  useEffect(() => {
-    setDisplayedTeams(teams || []);
-  }, [teams]);
-
+  // fetch data when teams or model change
   useEffect(() => {
     if (!teams || teams.length === 0) {
       setData([]);
-      setDisplayedTeams([]);
       return;
     }
-    setLoading(true);
-    setError(null);
-    getRatingsSeries({ teams })
+    getRatingsSeries({ teams, model })
       .then((res) => {
-        console.log("[RatingChart] teams prop:", teams);
-        console.log("[RatingChart] raw response from getRatingsSeries:", res);
-        console.log("[RatingChart] total records:", res.length);
-        if (res.length > 0) {
-          console.log("[RatingChart] sample record:", res[0]);
-        }
-        // res.data is an array of { date, team, rating }
-        // pivot it by date: { date, TeamA: rating, TeamB: rating, ... }
-        const pivotMap = new Map();
+        const map = new Map();
         res.forEach(({ date, team, rating }) => {
-          const year = String(date).slice(0, 4); // <-- Only the year
-          if (!pivotMap.has(year)) {
-            pivotMap.set(year, { date: year });
-          }
-          pivotMap.get(year)[team] = rating;
+          const entry = map.get(date) || { date };
+          entry[team] = rating;
+          map.set(date, entry);
         });
-        let pivotData = Array.from(pivotMap.values()).sort(
-          (a, b) => Number(a.date) - Number(b.date)
-        );
-        // Ensure all selected years exist as X-axis categories, even if teams lack values for that year
-        const existingYears = new Set(pivotData.map((r) => r.date));
-        const missingYears = Array.from(selectedYearsSet).filter((y) => !existingYears.has(y));
-        if (missingYears.length > 0) {
-          const blanks = missingYears.map((y) => ({ date: y }));
-          pivotData = pivotData.concat(blanks).sort((a, b) => Number(a.date) - Number(b.date));
-        }
-        setData(pivotData);
-        // Build per-team highlight datasets based on each team's selected year
-        const m = {};
-        (teams || []).forEach((team) => {
-          const years = yearsForTeam(team);
-          if (years.length === 0) return;
-          years.forEach((ySelRaw) => {
-            const ySel = String(ySelRaw);
-            const hd = pivotData.map((row) => {
-              const out = { date: row.date };
-              // mark highlight rows so tooltips can ignore them
-              out.__isHighlight = row.date === ySel;
-              out[team] = row.date === ySel ? (row[team] ?? null) : null;
-              return out;
-            });
-            const hasCategory = pivotData.some((r) => r.date === ySel);
-            const hasValue = pivotData.some((r) => r.date === ySel && r[team] != null);
-            if (hasCategory && !hasValue) {
-              const idx = pivotData.findIndex((r) => r.date === ySel);
-              let anchor = null;
-              for (let i = idx - 1; i >= 0; i--) { if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; } }
-              if (anchor === null) { for (let i = idx + 1; i < pivotData.length; i++) { if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; } } }
-              if (anchor !== null) { hd[idx][team] = anchor; }
-            }
-            if (!m[team]) m[team] = [];
-            m[team].push({ year: ySel, data: hd });
-          });
-        });
-        setHighlightDataByTeam(m);
-        setDisplayedTeams(teams);
-        console.log("[RatingChart] pivotData sample:", pivotData.slice(0, 5));
-        console.log("[RatingChart] highlightDataByTeam sample:", m);
+        const arr = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+        setData(arr);
       })
-      .catch((err) => {
-        setError(err.message || "Failed to load rating data");
-        setData([]);
-        setDisplayedTeams([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [teams, selectedYear, selectedYearsByTeam]);
+      .catch((e) => console.error("failed to fetch ratings", e));
+  }, [teams, model]);
 
-  const uniqueTeams = React.useMemo(
-    () => Array.from(new Set(displayedTeams)),
-    [displayedTeams]
-  );
+  // draw chart
+  useEffect(() => {
+    if (!data.length || !dims.width || teams.length === 0) return;
 
-  const yDomain = React.useMemo(() => {
-    if (!data || data.length === 0 || !uniqueTeams || uniqueTeams.length === 0) {
-      return ["auto", "auto"];
+    const margin = { top: 10, right: 30, bottom: 30, left: 60 };
+    const width = dims.width - margin.left - margin.right;
+    const height = dims.height - margin.top - margin.bottom;
+
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+    const g = svg
+      .attr("width", dims.width)
+      .attr("height", dims.height)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const parseDate = d3.timeParse("%Y-%m-%d");
+    const allDates = data.map((d) => parseDate(d.date));
+
+    const x = d3.scaleTime().domain(d3.extent(allDates)).range([0, width]);
+
+    const y = d3
+      .scaleLinear()
+      .domain([
+        d3.min(teams, (t) => d3.min(data, (d) => (d[t] != null ? d[t] : Infinity))),
+        d3.max(teams, (t) => d3.max(data, (d) => (d[t] != null ? d[t] : -Infinity))),
+      ])
+      .nice()
+      .range([height, 0]);
+
+    const color = d3.scaleOrdinal(d3.schemeTableau10).domain(teams);
+
+    const xAxis = g
+      .append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x));
+
+    g.append("g").attr("class", "y-axis").call(d3.axisLeft(y));
+
+    g
+      .append("defs")
+      .append("clipPath")
+      .attr("id", "clip")
+      .append("rect")
+      .attr("width", width)
+      .attr("height", height);
+
+    const lineGen = d3
+      .line()
+      .x((d) => x(parseDate(d.date)))
+      .y((d) => y(d.value));
+
+    const lineGroup = g.append("g").attr("clip-path", "url(#clip)");
+
+    teams.forEach((team) => {
+      const series = data
+        .map((row) => ({ date: row.date, value: row[team] }))
+        .filter((d) => d.value != null);
+      lineGroup
+        .append("path")
+        .datum(series)
+        .attr("fill", "none")
+        .attr("stroke", color(team))
+        .attr("stroke-width", 1.5)
+        .attr("class", "line")
+        .attr("d", lineGen);
+    });
+
+    const brush = d3.brushX().extent([
+      [0, 0],
+      [width, height],
+    ]);
+
+    const brushGroup = g.append("g").attr("class", "brush").call(brush.on("end", updateChart));
+
+    function updateChart(event) {
+      const extent = event.selection;
+      if (!extent) return;
+      const [x0, x1] = extent.map(x.invert);
+      x.domain([x0, x1]);
+      lineGroup.selectAll(".line").attr("d", (d) => lineGen(d));
+      xAxis.call(d3.axisBottom(x));
+      brushGroup.call(brush.move, null);
     }
-    const values = [];
-    for (const row of data) {
-      for (const team of uniqueTeams) {
-        const v = row[team];
-        if (typeof v === "number" && Number.isFinite(v)) values.push(v);
-      }
-    }
-    if (values.length === 0) return ["auto", "auto"];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min;
-    const pad = span > 0 ? span * 0.08 : Math.max(10, Math.abs(max) * 0.08);
-    return [min - pad, max + pad];
-  }, [data, uniqueTeams]);
 
-  // Custom tick that boldens ticks that fall within the selected years
-  const YearAwareTick = (props) => {
-    const { x, y, payload } = props;
-    const d = payload && payload.value;
-    const bold = isHighlightedYear(d);
-    return (
-      <g transform={`translate(${x},${y})`}>
-        {bold && (
-          <rect x={-18} y={2} width={36} height={18} rx={4} ry={4} fill="#fff7cc" />
-        )}
-        <text dy={16} textAnchor="middle" fontWeight={bold ? 700 : 400} fill={bold ? "#92400e" : "#333"}>
-          {d}
-        </text>
-      </g>
-    );
-  };
-
-  // New CustomTooltip component
-  const CustomTooltip = ({ active, label, payload }) => {
-    if (!active || !payload || payload.length === 0) return null;
-    // filter out highlight points and null/undefined values
-    const filtered = payload.filter(p => !p?.payload?.__isHighlight && p.value != null);
-    // deduplicate by team name (p.name), keep first occurrence
-    const map = new Map();
-    for (const p of filtered) {
-      if (!map.has(p.name)) {
-        map.set(p.name, p);
-      }
-    }
-    if (map.size === 0) return null;
-    return (
-      <div style={{ backgroundColor: 'white', border: '1px solid #ccc', padding: 8, borderRadius: 4 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{label}</div>
-        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-          {Array.from(map.values()).map((p) => (
-            <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
-              <span>{p.name}: </span>
-              <span>{Number(p.value).toFixed(2)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
+    svg.on("dblclick", () => {
+      x.domain(d3.extent(allDates));
+      lineGroup.selectAll(".line").attr("d", (d) => lineGen(d));
+      xAxis.call(d3.axisBottom(x));
+    });
+  }, [data, teams, dims]);
 
   return (
+
     <div className="bg-white border rounded-2xl p-4 shadow-sm mb-4">
       <h2 className="text-lg font-semibold mb-4">Team Ratings Over Time</h2>
       {loading && <p>Loading rating data...</p>}

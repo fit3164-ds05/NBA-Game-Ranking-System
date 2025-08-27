@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import RatingChart from "../components/RatingChart";
+
 import { getTeams } from "../lib/api";
+
 
 /**
  * HistoricalRanking page
@@ -14,6 +16,7 @@ export default function HistoricalRanking() {
   const [selected, setSelected] = useState([]); // Currently selected teams
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [error, setError] = useState("");
+
 
   // Load teams on mount
   useEffect(() => {
@@ -36,6 +39,7 @@ export default function HistoricalRanking() {
       active = false;
     };
   }, []);
+
 
   function toggleTeam(team) {
     setSelected((prev) =>
@@ -95,10 +99,12 @@ export default function HistoricalRanking() {
 
       {/* Rating chart */}
       <div>
+
         {loadingTeams && <p>Loading teams...</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
         {!loadingTeams && !error && (
           <RatingChart teams={selected} />
+
         )}
       </div>
     </div>

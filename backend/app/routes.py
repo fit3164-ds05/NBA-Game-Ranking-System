@@ -7,7 +7,15 @@ handling data retrieval, validation, and prediction logic as needed.
 """
 import os
 from flask import Blueprint, jsonify, request
-from services.ratings import teams, seasons_for_team, predict_prob, load_full, resolved_csv_path
+from services.ratings import (
+    teams,
+    seasons_for_team,
+    predict_prob,
+    load_model,
+    resolved_csv_path,
+    get_series as ratings_get_series,
+    available_models,
+)
 from services import ratings
 
 api_bp = Blueprint("api", __name__)
@@ -21,7 +29,7 @@ def health():
     csv_error = None
     try:
         # keep this light by not materialising the whole DataFrame if already cached
-        df = load_full()
+        df = load_model()
         csv_rows = int(getattr(df, "shape", [0])[0])
     except Exception as e:
         csv_error = str(e)
@@ -107,6 +115,7 @@ def ratings_series():
       teams=Team1,Team2
       start=YYYY-MM-DD
       end=YYYY-MM-DD
+      model=<model_name>
       offset=integer
       limit=integer
     """
@@ -117,9 +126,10 @@ def ratings_series():
 
     start = request.args.get("start")
     end = request.args.get("end")
+    model = request.args.get("model")
 
     try:
-        df = ratings.get_series(teams=wanted, start=start, end=end)
+        df = ratings_get_series(teams=wanted, start=start, end=end, model=model)
     except FileNotFoundError as e:
         return jsonify(error=str(e)), 500
 
@@ -144,6 +154,16 @@ def ratings_series():
     return jsonify(data=sliced, total=total, offset=offset, limit=limit)
 
 
+@api_bp.get("/ratings/models")
+def ratings_models():
+    """Return the list of available rating model names."""
+    try:
+        models = available_models()
+        return jsonify(models=models)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
+
 # Self test endpoint for integration diagnostics
 @api_bp.get("/selftest")
 def selftest():
@@ -152,7 +172,7 @@ def selftest():
     Returns ok true if the ratings CSV can be loaded, else ok false with error details.
     """
     try:
-        df = load_full()
+        df = load_model()
         return jsonify(ok=True, rows=int(df.shape[0]), csv_path=resolved_csv_path())
     except Exception as e:
         return jsonify(ok=False, error=str(e), csv_path=resolved_csv_path()), 500

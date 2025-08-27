@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 
-export default function Header({title}){
+export default function Header(){
     const baseStyles = "px-4 py-2 rounded transition-colors duration-200";
     const activeStyles = "bg-gray-800 text-white"; // dark when active
     const inactiveStyles = "bg-amber-600 text-gray-800 hover:bg-gray-300"; // when inactive
