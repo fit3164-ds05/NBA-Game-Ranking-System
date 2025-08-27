@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Brush,
+  ReferenceArea,
 } from "recharts";
 
 export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }) {
@@ -19,35 +20,37 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
   const [data, setData] = useState([]);
   const [displayedTeams, setDisplayedTeams] = useState([]);
   const [highlightDataByTeam, setHighlightDataByTeam] = useState({});
+  const [activeTeam, setActiveTeam] = useState(null);
+  const [refAreaLeft, setRefAreaLeft] = useState(null);
+  const [refAreaRight, setRefAreaRight] = useState(null);
+  const [xDomain, setXDomain] = useState(["auto", "auto"]);
 
   // Build a set of highlighted years from either a global selectedYear or per-team selections
   const selectedYearsSet = React.useMemo(() => {
     const s = new Set();
-    if (selectedYear) s.add(String(selectedYear));
+    if (selectedYear != null) s.add(Number(selectedYear));
     if (selectedYearsByTeam) {
       Object.values(selectedYearsByTeam).forEach((val) => {
         if (Array.isArray(val)) {
-          val.forEach((y) => { if (y !== undefined && y !== null) s.add(String(y)); });
+          val.forEach((y) => {
+            if (y !== undefined && y !== null) s.add(Number(y));
+          });
         } else if (val !== undefined && val !== null) {
-          s.add(String(val));
+          s.add(Number(val));
         }
       });
     }
     return s;
   }, [selectedYear, selectedYearsByTeam]);
 
-  useEffect(() => {
-    console.log("[RatingChart] selectedYearsSet:", Array.from(selectedYearsSet));
-  }, [selectedYearsSet]);
-
   const baseTeamColor = (idx) => `hsl(${(idx * 60) % 360}, 70%, 50%)`;
   const highlightTeamColor = (idx) => `hsl(${(idx * 60) % 360}, 90%, 35%)`;
   const yearsForTeam = (team) => {
     if (selectedYearsByTeam && selectedYearsByTeam[team] != null) {
       const v = selectedYearsByTeam[team];
-      return Array.isArray(v) ? v.map(String) : [String(v)];
+      return Array.isArray(v) ? v.map(Number) : [Number(v)];
     }
-    if (selectedYear != null) return [String(selectedYear)];
+    if (selectedYear != null) return [Number(selectedYear)];
     return [];
   };
 
@@ -62,9 +65,9 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     return map;
   }, [displayedTeams, selectedYearsByTeam, selectedYear]);
 
-  const isHighlightedYear = (yearStr) => {
-    if (!yearStr || selectedYearsSet.size === 0) return false;
-    return selectedYearsSet.has(String(yearStr));
+  const isHighlightedYear = (yearNum) => {
+    if (yearNum == null || selectedYearsSet.size === 0) return false;
+    return selectedYearsSet.has(Number(yearNum));
   };
 
   useEffect(() => {
@@ -81,17 +84,9 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     setError(null);
     getRatingsSeries({ teams })
       .then((res) => {
-        console.log("[RatingChart] teams prop:", teams);
-        console.log("[RatingChart] raw response from getRatingsSeries:", res);
-        console.log("[RatingChart] total records:", res.length);
-        if (res.length > 0) {
-          console.log("[RatingChart] sample record:", res[0]);
-        }
-        // res.data is an array of { date, team, rating }
-        // pivot it by date: { date, TeamA: rating, TeamB: rating, ... }
         const pivotMap = new Map();
         res.forEach(({ date, team, rating }) => {
-          const year = String(date).slice(0, 4); // <-- Only the year
+          const year = Number(String(date).slice(0, 4));
           if (!pivotMap.has(year)) {
             pivotMap.set(year, { date: year });
           }
@@ -100,7 +95,6 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
         let pivotData = Array.from(pivotMap.values()).sort(
           (a, b) => Number(a.date) - Number(b.date)
         );
-        // Ensure all selected years exist as X-axis categories, even if teams lack values for that year
         const existingYears = new Set(pivotData.map((r) => r.date));
         const missingYears = Array.from(selectedYearsSet).filter((y) => !existingYears.has(y));
         if (missingYears.length > 0) {
@@ -108,16 +102,14 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
           pivotData = pivotData.concat(blanks).sort((a, b) => Number(a.date) - Number(b.date));
         }
         setData(pivotData);
-        // Build per-team highlight datasets based on each team's selected year
         const m = {};
         (teams || []).forEach((team) => {
           const years = yearsForTeam(team);
           if (years.length === 0) return;
           years.forEach((ySelRaw) => {
-            const ySel = String(ySelRaw);
+            const ySel = Number(ySelRaw);
             const hd = pivotData.map((row) => {
               const out = { date: row.date };
-              // mark highlight rows so tooltips can ignore them
               out.__isHighlight = row.date === ySel;
               out[team] = row.date === ySel ? (row[team] ?? null) : null;
               return out;
@@ -127,8 +119,14 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
             if (hasCategory && !hasValue) {
               const idx = pivotData.findIndex((r) => r.date === ySel);
               let anchor = null;
-              for (let i = idx - 1; i >= 0; i--) { if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; } }
-              if (anchor === null) { for (let i = idx + 1; i < pivotData.length; i++) { if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; } } }
+              for (let i = idx - 1; i >= 0; i--) {
+                if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; }
+              }
+              if (anchor === null) {
+                for (let i = idx + 1; i < pivotData.length; i++) {
+                  if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; }
+                }
+              }
               if (anchor !== null) { hd[idx][team] = anchor; }
             }
             if (!m[team]) m[team] = [];
@@ -137,8 +135,6 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
         });
         setHighlightDataByTeam(m);
         setDisplayedTeams(teams);
-        console.log("[RatingChart] pivotData sample:", pivotData.slice(0, 5));
-        console.log("[RatingChart] highlightDataByTeam sample:", m);
       })
       .catch((err) => {
         setError(err.message || "Failed to load rating data");
@@ -191,12 +187,14 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     );
   };
 
-  // New CustomTooltip component
-  const CustomTooltip = ({ active, label, payload }) => {
+  const CustomTooltip = ({ active, label, payload, activeTeam }) => {
     if (!active || !payload || payload.length === 0) return null;
-    // filter out highlight points and null/undefined values
-    const filtered = payload.filter(p => !p?.payload?.__isHighlight && p.value != null);
-    // deduplicate by team name (p.name), keep first occurrence
+    let filtered = payload.filter(
+      (p) => !p?.payload?.__isHighlight && p.value != null
+    );
+    if (activeTeam) {
+      filtered = filtered.filter((p) => p.name === activeTeam);
+    }
     const map = new Map();
     for (const p of filtered) {
       if (!map.has(p.name)) {
@@ -205,9 +203,16 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     }
     if (map.size === 0) return null;
     return (
-      <div style={{ backgroundColor: 'white', border: '1px solid #ccc', padding: 8, borderRadius: 4 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{label}</div>
-        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+      <div
+        style={{
+          backgroundColor: "white",
+          border: "1px solid #ccc",
+          padding: 8,
+          borderRadius: 4,
+        }}
+      >
+        <div style={{ fontWeight: "bold", marginBottom: 4 }}>{label}</div>
+        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {Array.from(map.values()).map((p) => (
             <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
               <span>{p.name}: </span>
@@ -217,6 +222,44 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
         </ul>
       </div>
     );
+  };
+
+  const handleLineClick = (team) => {
+    setActiveTeam((prev) => (prev === team ? null : team));
+  };
+
+  const onMouseDown = (e) => {
+    if (e && e.activeLabel != null) {
+      setRefAreaLeft(e.activeLabel);
+      setRefAreaRight(e.activeLabel);
+    }
+  };
+
+  const onMouseMove = (e) => {
+    if (!refAreaLeft || e.activeLabel == null) return;
+    setRefAreaRight(e.activeLabel);
+  };
+
+  const onMouseUp = () => {
+    if (refAreaLeft == null || refAreaRight == null) {
+      setRefAreaLeft(null);
+      setRefAreaRight(null);
+      return;
+    }
+    if (refAreaLeft === refAreaRight) {
+      setRefAreaLeft(null);
+      setRefAreaRight(null);
+      return;
+    }
+    let [left, right] = [refAreaLeft, refAreaRight];
+    if (left > right) [left, right] = [right, left];
+    setXDomain([left, right]);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  };
+
+  const zoomOut = () => {
+    setXDomain(["auto", "auto"]);
   };
 
   return (
@@ -229,8 +272,20 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
       )}
       {!loading && !error && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
+          <LineChart
+            data={data}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
+            onDoubleClick={zoomOut}
+          >
             <CartesianGrid strokeDasharray="3 3" />
+            <ReferenceArea
+              x1={refAreaLeft}
+              x2={refAreaRight}
+              ifOverflow="extendDomain"
+              strokeOpacity={0.3}
+            />
             {false && uniqueTeams.map((team, idx) => (
               yearsForTeam(team).map((y) => {
                 const group = yearToTeams.get(y) || [];
@@ -263,20 +318,49 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                 );
               })
             ))}
-            <XAxis dataKey="date" type="category" tick={<YearAwareTick />} allowDuplicatedCategory={false} />
+            <XAxis
+              dataKey="date"
+              type="number"
+              domain={xDomain}
+              tick={<YearAwareTick />}
+              allowDuplicatedCategory={false}
+            />
             <YAxis
               domain={yDomain}
               tickFormatter={(val) => val.toFixed(2)}
               allowDecimals={true}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip activeTeam={activeTeam} />} />
             <Legend
               content={() => (
-                <ul style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, margin: 0 }}>
+                <ul
+                  style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, margin: 0 }}
+                >
                   {uniqueTeams.map((team, idx) => (
-                    <li key={team} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <li
+                      key={team}
+                      onClick={() => handleLineClick(team)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        cursor: "pointer",
+                        opacity:
+                          activeTeam && activeTeam !== team ? 0.3 : 1,
+                      }}
+                    >
                       <svg width="14" height="14" viewBox="0 0 14 14">
-                        <line x1="1" y1="7" x2="13" y2="7" stroke={baseTeamColor(idx)} strokeWidth="3" />
+                        <line
+                          x1="1"
+                          y1="7"
+                          x2="13"
+                          y2="7"
+                          stroke={baseTeamColor(idx)}
+                          strokeWidth="3"
+                          strokeOpacity={
+                            activeTeam && activeTeam !== team ? 0.3 : 1
+                          }
+                        />
                       </svg>
                       <span>{team}</span>
                     </li>
@@ -290,8 +374,11 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                 type="monotone"
                 dataKey={team}
                 stroke={baseTeamColor(idx)}
-                strokeWidth={2}
+                strokeWidth={activeTeam === team ? 4 : 2}
+                strokeOpacity={activeTeam && activeTeam !== team ? 0.1 : 1}
                 dot={false}
+                onClick={() => handleLineClick(team)}
+                cursor="pointer"
               />
             ))}
             {uniqueTeams.flatMap((team, idx) => {
@@ -304,7 +391,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                   dataKey={team}
                   data={data}
                   stroke={highlightTeamColor(idx)}
-                  strokeWidth={5}
+                  strokeWidth={activeTeam === team ? 6 : 5}
+                  strokeOpacity={activeTeam && activeTeam !== team ? 0.05 : 1}
                   isAnimationActive={false}
                   dot={{ r: 5 }}
                   activeDot={false}
@@ -312,6 +400,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                   strokeLinecap="round"
                   legendType="none"
                   name={undefined}
+                  onClick={() => handleLineClick(team)}
+                  cursor="pointer"
                 />
               ));
             })}
