@@ -1,15 +1,18 @@
 from pathlib import Path
+
 import pandas as pd
 
 
 def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
     """Load and join regular season and playoff games into a single DataFrame.
 
+
     Parameters
     ----------
     data_dir:
         Optional override of the directory containing ``games.csv`` and
         ``playoffs.csv``. By default the repository's ``Data`` folder is used.
+
 
     Returns
     -------
@@ -25,6 +28,7 @@ def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
 
     games_csv = data_path / "games.csv"
     playoffs_csv = data_path / "playoffs.csv"
+
 
     games_original = pd.read_csv(games_csv)
     playoff_games = pd.read_csv(playoffs_csv)
