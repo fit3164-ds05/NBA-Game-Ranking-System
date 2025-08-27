@@ -7,20 +7,16 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  ReferenceLine,
-  Brush,
   ReferenceArea,
 } from "recharts";
 
-export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }) {
+export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, highlightedTeams = [], onToggleTeam, showTooltip = true }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState([]);
   const [displayedTeams, setDisplayedTeams] = useState([]);
   const [highlightDataByTeam, setHighlightDataByTeam] = useState({});
-  const [activeTeam, setActiveTeam] = useState(null);
   const [refAreaLeft, setRefAreaLeft] = useState(null);
   const [refAreaRight, setRefAreaRight] = useState(null);
   const [xDomain, setXDomain] = useState(["auto", "auto"]);
@@ -53,17 +49,6 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     if (selectedYear != null) return [Number(selectedYear)];
     return [];
   };
-
-  const yearToTeams = React.useMemo(() => {
-    const map = new Map();
-    displayedTeams.forEach((team, idx) => {
-      yearsForTeam(team).forEach((y) => {
-        if (!map.has(y)) map.set(y, []);
-        map.get(y).push({ team, idx });
-      });
-    });
-    return map;
-  }, [displayedTeams, selectedYearsByTeam, selectedYear]);
 
   const isHighlightedYear = (yearNum) => {
     if (yearNum == null || selectedYearsSet.size === 0) return false;
@@ -146,14 +131,23 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
       });
   }, [teams, selectedYear, selectedYearsByTeam]);
 
+  useEffect(() => {
+    if (data && data.length > 0) {
+      const years = data.map((d) => Number(d.date));
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      setXDomain([minYear, maxYear]);
+    }
+  }, [data]);
+
   const uniqueTeams = React.useMemo(
     () => Array.from(new Set(displayedTeams)),
     [displayedTeams]
   );
 
-  const yDomain = React.useMemo(() => {
+  const yAxisConfig = React.useMemo(() => {
     if (!data || data.length === 0 || !uniqueTeams || uniqueTeams.length === 0) {
-      return ["auto", "auto"];
+      return { domain: ["auto", "auto"], ticks: undefined };
     }
     const values = [];
     for (const row of data) {
@@ -162,12 +156,14 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
         if (typeof v === "number" && Number.isFinite(v)) values.push(v);
       }
     }
-    if (values.length === 0) return ["auto", "auto"];
+    if (values.length === 0) return { domain: ["auto", "auto"], ticks: undefined };
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const span = max - min;
-    const pad = span > 0 ? span * 0.08 : Math.max(10, Math.abs(max) * 0.08);
-    return [min - pad, max + pad];
+    const minTick = Math.floor(min / 100) * 100;
+    const maxTick = Math.ceil(max / 100) * 100;
+    const ticks = [];
+    for (let y = minTick; y <= maxTick; y += 100) ticks.push(y);
+    return { domain: [minTick, maxTick], ticks };
   }, [data, uniqueTeams]);
 
   // Custom tick that boldens ticks that fall within the selected years
@@ -187,13 +183,13 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
     );
   };
 
-  const CustomTooltip = ({ active, label, payload, activeTeam }) => {
+  const CustomTooltip = ({ active, label, payload }) => {
     if (!active || !payload || payload.length === 0) return null;
     let filtered = payload.filter(
       (p) => !p?.payload?.__isHighlight && p.value != null
     );
-    if (activeTeam) {
-      filtered = filtered.filter((p) => p.name === activeTeam);
+    if (highlightedTeams.length > 0) {
+      filtered = filtered.filter((p) => highlightedTeams.includes(p.name));
     }
     const map = new Map();
     for (const p of filtered) {
@@ -216,16 +212,12 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
           {Array.from(map.values()).map((p) => (
             <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
               <span>{p.name}: </span>
-              <span>{Number(p.value).toFixed(2)}</span>
+              <span>{Number(p.value).toFixed(0)}</span>
             </li>
           ))}
         </ul>
       </div>
     );
-  };
-
-  const handleLineClick = (team) => {
-    setActiveTeam((prev) => (prev === team ? null : team));
   };
 
   const onMouseDown = (e) => {
@@ -259,7 +251,12 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
   };
 
   const zoomOut = () => {
-    setXDomain(["auto", "auto"]);
+    if (data && data.length > 0) {
+      const years = data.map((d) => Number(d.date));
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      setXDomain([minYear, maxYear]);
+    }
   };
 
   return (
@@ -285,105 +282,46 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
               x2={refAreaRight}
               ifOverflow="extendDomain"
               strokeOpacity={0.3}
+              fillOpacity={0.1}
             />
-            {false && uniqueTeams.map((team, idx) => (
-              yearsForTeam(team).map((y) => {
-                const group = yearToTeams.get(y) || [];
-                const count = group.length;
-                const conflictIdx = Math.max(0, group.findIndex(g => g.team === team));
-                const px = count > 1 ? (conflictIdx - (count - 1) / 2) * 7 : 0;
-                return (
-                  <ReferenceLine
-                    key={`ref-${team}-${y}`}
-                    x={y}
-                    ifOverflow="extendDomain"
-                    stroke={baseTeamColor(idx)}
-                    strokeDasharray="4 4"
-                    strokeWidth={2}
-                    label={count > 1 ? {
-                      position: "top",
-                      content: (props) => {
-                        const { viewBox } = props || {};
-                        if (!viewBox) return null;
-                        const x = (viewBox.x || 0) + px;
-                        const yTop = (viewBox.y || 0);
-                        return (
-                          <g>
-                            <line x1={x} y1={yTop} x2={x} y2={yTop + 12} stroke={baseTeamColor(idx)} strokeWidth={3} />
-                          </g>
-                        );
-                      }
-                    } : undefined}
-                  />
-                );
-              })
-            ))}
             <XAxis
               dataKey="date"
               type="number"
               domain={xDomain}
               tick={<YearAwareTick />}
               allowDuplicatedCategory={false}
+              allowDataOverflow
             />
             <YAxis
-              domain={yDomain}
-              tickFormatter={(val) => val.toFixed(2)}
-              allowDecimals={true}
+              domain={yAxisConfig.domain}
+              ticks={yAxisConfig.ticks}
+              tickFormatter={(val) => val.toFixed(0)}
+              allowDecimals={false}
+              allowDataOverflow
             />
-            <Tooltip content={<CustomTooltip activeTeam={activeTeam} />} />
-            <Legend
-              content={() => (
-                <ul
-                  style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, margin: 0 }}
-                >
-                  {uniqueTeams.map((team, idx) => (
-                    <li
-                      key={team}
-                      onClick={() => handleLineClick(team)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        cursor: "pointer",
-                        opacity:
-                          activeTeam && activeTeam !== team ? 0.3 : 1,
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 14 14">
-                        <line
-                          x1="1"
-                          y1="7"
-                          x2="13"
-                          y2="7"
-                          stroke={baseTeamColor(idx)}
-                          strokeWidth="3"
-                          strokeOpacity={
-                            activeTeam && activeTeam !== team ? 0.3 : 1
-                          }
-                        />
-                      </svg>
-                      <span>{team}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            />
-            {uniqueTeams.map((team, idx) => (
-              <Line
-                key={team}
-                type="monotone"
-                dataKey={team}
-                stroke={baseTeamColor(idx)}
-                strokeWidth={activeTeam === team ? 4 : 2}
-                strokeOpacity={activeTeam && activeTeam !== team ? 0.1 : 1}
-                dot={false}
-                onClick={() => handleLineClick(team)}
-                cursor="pointer"
-              />
-            ))}
+            {showTooltip && <Tooltip content={<CustomTooltip />} />}
+            {uniqueTeams.map((team, idx) => {
+              const highlighted = highlightedTeams.includes(team);
+              const faded = highlightedTeams.length > 0 && !highlighted;
+              return (
+                <Line
+                  key={team}
+                  type="monotone"
+                  dataKey={team}
+                  stroke={baseTeamColor(idx)}
+                  strokeWidth={highlighted ? 4 : 2}
+                  strokeOpacity={faded ? 0.1 : 1}
+                  dot={false}
+                  onClick={() => onToggleTeam && onToggleTeam(team)}
+                  cursor="pointer"
+                />
+              );
+            })}
             {uniqueTeams.flatMap((team, idx) => {
               const arr = highlightDataByTeam[team];
               if (!arr || arr.length === 0) return [];
+              const highlighted = highlightedTeams.includes(team);
+              const faded = highlightedTeams.length > 0 && !highlighted;
               return arr.map(({ year, data }) => (
                 <Line
                   key={`${team}__highlight__${year}`}
@@ -391,8 +329,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                   dataKey={team}
                   data={data}
                   stroke={highlightTeamColor(idx)}
-                  strokeWidth={activeTeam === team ? 6 : 5}
-                  strokeOpacity={activeTeam && activeTeam !== team ? 0.05 : 1}
+                  strokeWidth={highlighted ? 6 : 5}
+                  strokeOpacity={faded ? 0.05 : 1}
                   isAnimationActive={false}
                   dot={{ r: 5 }}
                   activeDot={false}
@@ -400,12 +338,11 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam }
                   strokeLinecap="round"
                   legendType="none"
                   name={undefined}
-                  onClick={() => handleLineClick(team)}
+                  onClick={() => onToggleTeam && onToggleTeam(team)}
                   cursor="pointer"
                 />
               ));
             })}
-            <Brush dataKey="date" height={20} stroke="#8884d8" />
           </LineChart>
         </ResponsiveContainer>
       )}
