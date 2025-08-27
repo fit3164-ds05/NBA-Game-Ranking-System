@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 
-export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, highlightedTeams = [], onToggleTeam }) {
+export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, highlightedTeams = [], onToggleTeam, showTooltip = true }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -133,14 +133,23 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
       });
   }, [teams, selectedYear, selectedYearsByTeam]);
 
+  useEffect(() => {
+    if (data && data.length > 0) {
+      const years = data.map((d) => Number(d.date));
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      setXDomain([minYear, maxYear]);
+    }
+  }, [data]);
+
   const uniqueTeams = React.useMemo(
     () => Array.from(new Set(displayedTeams)),
     [displayedTeams]
   );
 
-  const yDomain = React.useMemo(() => {
+  const yAxisConfig = React.useMemo(() => {
     if (!data || data.length === 0 || !uniqueTeams || uniqueTeams.length === 0) {
-      return ["auto", "auto"];
+      return { domain: ["auto", "auto"], ticks: undefined };
     }
     const values = [];
     for (const row of data) {
@@ -149,12 +158,14 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
         if (typeof v === "number" && Number.isFinite(v)) values.push(v);
       }
     }
-    if (values.length === 0) return ["auto", "auto"];
+    if (values.length === 0) return { domain: ["auto", "auto"], ticks: undefined };
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const span = max - min;
-    const pad = span > 0 ? span * 0.08 : Math.max(10, Math.abs(max) * 0.08);
-    return [min - pad, max + pad];
+    const minTick = Math.floor(min / 100) * 100;
+    const maxTick = Math.ceil(max / 100) * 100;
+    const ticks = [];
+    for (let y = minTick; y <= maxTick; y += 100) ticks.push(y);
+    return { domain: [minTick, maxTick], ticks };
   }, [data, uniqueTeams]);
 
   // Custom tick that boldens ticks that fall within the selected years
@@ -203,7 +214,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
           {Array.from(map.values()).map((p) => (
             <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
               <span>{p.name}: </span>
-              <span>{Number(p.value).toFixed(2)}</span>
+              <span>{Number(p.value).toFixed(0)}</span>
             </li>
           ))}
         </ul>
@@ -242,7 +253,12 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
   };
 
   const zoomOut = () => {
-    setXDomain(["auto", "auto"]);
+    if (data && data.length > 0) {
+      const years = data.map((d) => Number(d.date));
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      setXDomain([minYear, maxYear]);
+    }
   };
 
   return (
@@ -279,6 +295,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
               allowDataOverflow
             />
             <YAxis
+
               domain={yDomain}
               tickFormatter={(val) => val.toFixed(2)}
               allowDecimals={true}
@@ -286,6 +303,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
             />
 
             <Tooltip content={<CustomTooltip />} />
+
 
             {uniqueTeams.map((team, idx) => {
               const highlighted = highlightedTeams.includes(team);
