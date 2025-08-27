@@ -1,59 +1,18 @@
 from pathlib import Path
-from datetime import date
 
 import pandas as pd
-from nba_api.stats.endpoints import leaguegamelog
 
 
-def _current_season() -> str:
-    """Return the current NBA season in ``YYYY-YY`` format."""
-    today = date.today()
-    start_year = today.year if today.month >= 7 else today.year - 1
-    end_year = (start_year + 1) % 100
-    return f"{start_year}-{end_year:02d}"
-
-
-def fetch_games(season: str, season_type: str = "Regular Season") -> pd.DataFrame:
-    """Fetch games for a given season and season type from ``nba_api``."""
-    gamelog = leaguegamelog.LeagueGameLog(
-        season=season, season_type_all_star=season_type
-    )
-    df = gamelog.get_data_frames()[0]
-    cols = [
-        "GAME_ID",
-        "GAME_DATE",
-        "TEAM_ID",
-        "TEAM_NAME",
-        "TEAM_ABBREVIATION",
-        "MATCHUP",
-        "WL",
-        "PTS",
-    ]
-    df = df.loc[:, cols].copy()
-    df["WL"] = df["WL"].map({"W": 1, "L": 0}).astype(int)
-    return df
-
-
-def load_games(
-    data_dir: str | Path | None = None,
-    seasons: list[str] | None = None,
-    refresh: bool = False,
-) -> pd.DataFrame:
+def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
     """Load and join regular season and playoff games into a single DataFrame.
 
-    If the expected CSV files are missing or ``refresh`` is ``True``, data is
-    scraped from ``nba_api`` for the provided ``seasons`` and cached locally.
 
     Parameters
     ----------
     data_dir:
         Optional override of the directory containing ``games.csv`` and
         ``playoffs.csv``. By default the repository's ``Data`` folder is used.
-    seasons:
-        Iterable of season strings in ``YYYY-YY`` format used when scraping via
-        the API. Defaults to the current season.
-    refresh:
-        If ``True``, force re-download of data even if cached files exist.
+
 
     Returns
     -------
@@ -70,13 +29,6 @@ def load_games(
     games_csv = data_path / "games.csv"
     playoffs_csv = data_path / "playoffs.csv"
 
-    if refresh or not (games_csv.exists() and playoffs_csv.exists()):
-        seasons = seasons or [_current_season()]
-        reg_frames = [fetch_games(season, "Regular Season") for season in seasons]
-        po_frames = [fetch_games(season, "Playoffs") for season in seasons]
-        data_path.mkdir(parents=True, exist_ok=True)
-        pd.concat(reg_frames).to_csv(games_csv, index=False)
-        pd.concat(po_frames).to_csv(playoffs_csv, index=False)
 
     games_original = pd.read_csv(games_csv)
     playoff_games = pd.read_csv(playoffs_csv)
