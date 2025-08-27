@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
-import Layout from '../components/Layout'
-import axios from 'axios';
+import Layout from '../components/Layout';
 
 function About() {
-
   return (
-  <div>About Page</div>)
+    <Layout>
+      <div>About Page</div>
+    </Layout>
+  );
 }
 
-export default About
+export default About;

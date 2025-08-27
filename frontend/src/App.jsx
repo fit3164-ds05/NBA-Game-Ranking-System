@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
 import './index.css';
 import Layout from './components/Layout';
-import axios from 'axios';
 
 import { Routes, Route } from 'react-router-dom';
 import About from './pages/About';
@@ -12,9 +10,7 @@ import GamePrediction from './pages/GamePrediction';
 import HistoricalRanking from './pages/HistoricalRanking';
 
 function App() {
-
   return (
-    <>
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -25,8 +21,7 @@ function App() {
         <Route path="/historicalranking" element={<HistoricalRanking />} />
       </Routes>
     </Layout>
-    </>
-  )
+  );
 }
 
-export default App
+export default App;

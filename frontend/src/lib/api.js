@@ -61,13 +61,14 @@ export async function predictGame({ home_team, home_season, away_team, away_seas
 }
 
 // Ratings time series for the chart
-export async function getRatingsSeries({ teams = [], start, end, limit, offset } = {}) {
+export async function getRatingsSeries({ teams = [], start, end, limit, offset, model } = {}) {
   const params = {};
   if (Array.isArray(teams) && teams.length) params.teams = teams.join(",");
   if (start) params.start = start;
   if (end) params.end = end;
   if (typeof limit === "number") params.limit = String(limit);
   if (typeof offset === "number") params.offset = String(offset);
+  if (model) params.model = model;
 
   const res = await api.get("/ratings/series", { params });
 
@@ -93,4 +94,10 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset }
     return payload; // already an array
   }
   return [];
+}
+
+// List available rating models
+export async function getRatingModels() {
+  const { data } = await api.get("/ratings/models");
+  return data?.models ?? [];
 }

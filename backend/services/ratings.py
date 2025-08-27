@@ -1,8 +1,14 @@
 # services/ratings.py
 """
 Loads precomputed team ratings from CSV and provides helpers used by the API.
-Default CSV location is backend/data/full_ratings.csv.
-Set RATINGS_CSV to override the path at runtime.
+
+Multiple rating models can be supported by placing CSV files named
+``ratings_<model>.csv`` inside ``backend/data``.  The default model is
+``elo`` which maps to ``ratings_elo.csv``.  A helper is exposed to list
+available models and each data-loading function accepts a ``model``
+argument so callers can request ratings for a specific engine.
+
+Set ``RATINGS_CSV`` to override the path for the default model at runtime.
 """
 
 import os
@@ -13,30 +19,30 @@ from typing import Optional, List
 
 import pandas as pd
 
-# Build a robust path to the ratings CSV
-def _default_ratings_path() -> Path:
-    # services/ -> app/ -> project root (/app in Docker)
+# Build a robust path to the ratings CSV for a given model
+def _default_ratings_path(model: Optional[str] = None) -> Path:
+    """Return the default CSV path for ``model`` inside ``backend/data``."""
     root = Path(__file__).resolve().parents[1]
+    if model:
+        return root / "data" / f"ratings_{model}.csv"
     return root / "data" / "full_ratings.csv"
 
-def get_ratings_csv_path() -> Path:
-    env = os.getenv("RATINGS_CSV")
-    if env:
-        return Path(env).expanduser().resolve()
-    return _default_ratings_path()
 
-@lru_cache(maxsize=1)
-def load_full() -> pd.DataFrame:
-    """
-    Read the ratings CSV once and cache the DataFrame.
-    Ensures a YEAR column exists derived from GAME_DATE.
-    """
-    csv_path = get_ratings_csv_path()
+def get_ratings_csv_path(model: Optional[str] = None) -> Path:
+    """Resolve the CSV path, honouring RATINGS_CSV for the default model."""
+    env = os.getenv("RATINGS_CSV")
+    if env and model is None:
+        return Path(env).expanduser().resolve()
+    return _default_ratings_path(model)
+
+@lru_cache(maxsize=None)
+def load_model(model: Optional[str] = None) -> pd.DataFrame:
+    """Load a ratings CSV for ``model`` and cache the DataFrame."""
+    csv_path = get_ratings_csv_path(model)
     if not csv_path.exists():
         raise FileNotFoundError(
             f"Ratings CSV not found at {csv_path}. "
-            "Place the file at backend/data/full_ratings.csv (note case sensitive 'data'), "
-            "or set RATINGS_CSV to an absolute path."
+            "Place the file at backend/data/ratings_<model>.csv or set RATINGS_CSV."
         )
 
     df = pd.read_csv(csv_path, parse_dates=["GAME_DATE"])
@@ -44,19 +50,40 @@ def load_full() -> pd.DataFrame:
         df["YEAR"] = df["GAME_DATE"].dt.year
     return df
 
-def resolved_csv_path() -> str:
+
+# Backwards compatibility for older callers/tests expecting load_full()
+def load_full() -> pd.DataFrame:  # pragma: no cover - simple wrapper
+    return load_model()
+
+# expose cache_clear for compatibility
+load_full.cache_clear = load_model.cache_clear
+
+def resolved_csv_path(model: Optional[str] = None) -> str:
     """Return the absolute CSV path the service will use for diagnostics."""
-    return str(get_ratings_csv_path())
+    return str(get_ratings_csv_path(model))
 
 def clear_cache():
-    """Clear the cached ratings DataFrame."""
-    load_full.cache_clear()
+    """Clear the cached ratings DataFrames."""
+    load_model.cache_clear()
 
-def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
-    """
-    Return a DataFrame with rating time series filtered by teams and date range.
-    """
-    df = load_full().copy()
+
+def available_models() -> List[str]:
+    """Return a list of rating model names based on available CSV files."""
+    root = Path(__file__).resolve().parents[1] / "data"
+    models = []
+    for p in root.glob("ratings_*.csv"):
+        name = p.stem.split("ratings_")[-1]
+        models.append(name)
+    return sorted(models)
+
+def get_series(
+    teams: Optional[List[str]] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    model: Optional[str] = None,
+) -> pd.DataFrame:
+    """Return a DataFrame with rating time series filtered by teams/date/model."""
+    df = load_model(model).copy()
     df = df.sort_values("GAME_DATE")
     df["date"] = df["GAME_DATE"].dt.strftime("%Y-%m-%d")
 
@@ -74,13 +101,13 @@ def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, e
 
 def teams() -> List[str]:
     """Return all unique team names sorted alphabetically."""
-    df = load_full()
+    df = load_model()
     vals = df["TEAM"].dropna().unique().tolist()
     return sorted(vals)
 
 def seasons_for_team(team: str) -> List[int]:
     """Return all seasons available for a team sorted from newest to oldest."""
-    df = load_full()
+    df = load_model()
     vals = (
         df.loc[df["TEAM"] == team, "YEAR"]
         .dropna()
@@ -95,7 +122,7 @@ def latest_rating_in_season(team: str, year: int) -> Optional[float]:
     Return the team's most recent rating within that season.
     If no rows match, return None.
     """
-    df = load_full()
+    df = load_model()
     sub = df[(df["TEAM"] == team) & (df["YEAR"] == int(year))].sort_values("GAME_DATE")
     if sub.empty:
         return None
