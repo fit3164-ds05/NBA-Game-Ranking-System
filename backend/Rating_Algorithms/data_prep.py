@@ -7,6 +7,7 @@ def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
     """Load and join regular season and playoff games into a single DataFrame.
 
 
+
     Parameters
     ----------
     data_dir:
@@ -28,6 +29,7 @@ def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
 
     games_csv = data_path / "games.csv"
     playoffs_csv = data_path / "playoffs.csv"
+
 
 
     games_original = pd.read_csv(games_csv)
