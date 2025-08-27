@@ -2,6 +2,20 @@ import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { getRatingsSeries } from "../lib/api";
 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ReferenceLine,
+  Brush,
+} from "recharts";
+
+
 export default function RatingChart({ teams = [], model }) {
   const wrapperRef = useRef(null);
   const svgRef = useRef(null);
@@ -134,19 +148,105 @@ export default function RatingChart({ teams = [], model }) {
   }, [data, teams, dims]);
 
   return (
-    <div ref={wrapperRef} className="w-full">
-      <svg ref={svgRef}></svg>
-      {teams.length > 0 && (
-        <div className="flex flex-wrap gap-4 mt-2">
-          {teams.map((t, idx) => (
-            <div key={t} className="flex items-center gap-1 text-sm">
-              <span
-                style={{ backgroundColor: d3.schemeTableau10[idx % 10], width: 12, height: 12 }}
-              ></span>
-              <span>{t}</span>
-            </div>
-          ))}
-        </div>
+
+    <div className="bg-white border rounded-2xl p-4 shadow-sm mb-4">
+      <h2 className="text-lg font-semibold mb-4">Team Ratings Over Time</h2>
+      {loading && <p>Loading rating data...</p>}
+      {error && <p className="text-red-600">Error: {error}</p>}
+      {!loading && !error && data.length === 0 && (
+        <p>No rating data available for selected teams.</p>
+      )}
+      {!loading && !error && data.length > 0 && (
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            {false && uniqueTeams.map((team, idx) => (
+              yearsForTeam(team).map((y) => {
+                const group = yearToTeams.get(y) || [];
+                const count = group.length;
+                const conflictIdx = Math.max(0, group.findIndex(g => g.team === team));
+                const px = count > 1 ? (conflictIdx - (count - 1) / 2) * 7 : 0;
+                return (
+                  <ReferenceLine
+                    key={`ref-${team}-${y}`}
+                    x={y}
+                    ifOverflow="extendDomain"
+                    stroke={baseTeamColor(idx)}
+                    strokeDasharray="4 4"
+                    strokeWidth={2}
+                    label={count > 1 ? {
+                      position: "top",
+                      content: (props) => {
+                        const { viewBox } = props || {};
+                        if (!viewBox) return null;
+                        const x = (viewBox.x || 0) + px;
+                        const yTop = (viewBox.y || 0);
+                        return (
+                          <g>
+                            <line x1={x} y1={yTop} x2={x} y2={yTop + 12} stroke={baseTeamColor(idx)} strokeWidth={3} />
+                          </g>
+                        );
+                      }
+                    } : undefined}
+                  />
+                );
+              })
+            ))}
+            <XAxis dataKey="date" type="category" tick={<YearAwareTick />} allowDuplicatedCategory={false} />
+            <YAxis
+              domain={yDomain}
+              tickFormatter={(val) => val.toFixed(2)}
+              allowDecimals={true}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              content={() => (
+                <ul style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, margin: 0 }}>
+                  {uniqueTeams.map((team, idx) => (
+                    <li key={team} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14">
+                        <line x1="1" y1="7" x2="13" y2="7" stroke={baseTeamColor(idx)} strokeWidth="3" />
+                      </svg>
+                      <span>{team}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            />
+            {uniqueTeams.map((team, idx) => (
+              <Line
+                key={team}
+                type="monotone"
+                dataKey={team}
+                stroke={baseTeamColor(idx)}
+                strokeWidth={2}
+                dot={false}
+              />
+            ))}
+            {uniqueTeams.flatMap((team, idx) => {
+              const arr = highlightDataByTeam[team];
+              if (!arr || arr.length === 0) return [];
+              return arr.map(({ year, data }) => (
+                <Line
+                  key={`${team}__highlight__${year}`}
+                  type="monotone"
+                  dataKey={team}
+                  data={data}
+                  stroke={highlightTeamColor(idx)}
+                  strokeWidth={5}
+                  isAnimationActive={false}
+                  dot={{ r: 5 }}
+                  activeDot={false}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  legendType="none"
+                  name={undefined}
+                />
+              ));
+            })}
+            <Brush dataKey="date" height={20} stroke="#8884d8" />
+          </LineChart>
+        </ResponsiveContainer>
       )}
     </div>
   );

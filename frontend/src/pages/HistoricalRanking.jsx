@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import RatingChart from "../components/RatingChart";
-import { getTeams, getRatingModels } from "../lib/api";
+
+import { getTeams } from "../lib/api";
+
 
 /**
  * HistoricalRanking page
@@ -14,8 +16,7 @@ export default function HistoricalRanking() {
   const [selected, setSelected] = useState([]); // Currently selected teams
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [error, setError] = useState("");
-  const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState("");
+
 
   // Load teams on mount
   useEffect(() => {
@@ -39,19 +40,6 @@ export default function HistoricalRanking() {
     };
   }, []);
 
-  // Load rating models
-  useEffect(() => {
-    async function loadModels() {
-      try {
-        const list = await getRatingModels();
-        setModels(list);
-        if (list.length > 0) setSelectedModel(list[0]);
-      } catch (e) {
-        console.error("Failed to load rating models", e);
-      }
-    }
-    loadModels();
-  }, []);
 
   function toggleTeam(team) {
     setSelected((prev) =>
@@ -111,27 +99,12 @@ export default function HistoricalRanking() {
 
       {/* Rating chart */}
       <div>
-        {/* Model selector */}
-        {models.length > 0 && (
-          <div className="mb-4">
-            <label className="mr-2 text-sm">Model:</label>
-            <select
-              className="border px-2 py-1 rounded"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-            >
-              {models.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+
         {loadingTeams && <p>Loading teams...</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
         {!loadingTeams && !error && (
-          <RatingChart teams={selected} model={selectedModel} />
+          <RatingChart teams={selected} />
+
         )}
       </div>
     </div>
