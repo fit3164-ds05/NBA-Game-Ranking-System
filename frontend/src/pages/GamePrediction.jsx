@@ -362,6 +362,9 @@ export default function GamePrediction() {
         <RatingChart
           teams={[homeTeam, awayTeam].filter(Boolean)}
           selectedYearsByTeam={selectedYearsByTeam}
+
+          showTooltip={false}
+
         />
 
         {/* Prediction result display */}

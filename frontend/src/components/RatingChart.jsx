@@ -11,7 +11,9 @@ import {
   ReferenceArea,
 } from "recharts";
 
+
 export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, highlightedTeams = [], onToggleTeam, showTooltip = true }) {
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState([]);
@@ -293,13 +295,16 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
               allowDataOverflow
             />
             <YAxis
-              domain={yAxisConfig.domain}
-              ticks={yAxisConfig.ticks}
-              tickFormatter={(val) => val.toFixed(0)}
-              allowDecimals={false}
+
+              domain={yDomain}
+              tickFormatter={(val) => val.toFixed(2)}
+              allowDecimals={true}
               allowDataOverflow
             />
-            {showTooltip && <Tooltip content={<CustomTooltip />} />}
+
+            <Tooltip content={<CustomTooltip />} />
+
+
             {uniqueTeams.map((team, idx) => {
               const highlighted = highlightedTeams.includes(team);
               const faded = highlightedTeams.length > 0 && !highlighted;
