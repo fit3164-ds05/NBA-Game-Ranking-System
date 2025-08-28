@@ -21,7 +21,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
   const [highlightDataByTeam, setHighlightDataByTeam] = useState({});
   const [refAreaLeft, setRefAreaLeft] = useState(null);
   const [refAreaRight, setRefAreaRight] = useState(null);
-  const [xDomain, setXDomain] = useState(["auto", "auto"]);
+  // Default the chart to start at 2010 on the x-axis
+  const [xDomain, setXDomain] = useState([2010, "auto"]);
 
   // Build a set of highlighted years from either a global selectedYear or per-team selections
   const selectedYearsSet = React.useMemo(() => {
@@ -157,6 +158,21 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
     return [min - pad, max + pad];
   }, [data, uniqueTeams]);
 
+  // Generate ticks on the y-axis at whole multiples of 100
+  const yTicks = React.useMemo(() => {
+    if (!Array.isArray(yDomain) || yDomain.some((v) => typeof v !== "number")) {
+      return undefined;
+    }
+    const [min, max] = yDomain;
+    const start = Math.floor(min / 100) * 100;
+    const end = Math.ceil(max / 100) * 100;
+    const ticks = [];
+    for (let t = start; t <= end; t += 100) {
+      ticks.push(t);
+    }
+    return ticks;
+  }, [yDomain]);
+
   // Custom tick that boldens ticks that fall within the selected years
   const YearAwareTick = (props) => {
     const { x, y, payload } = props;
@@ -203,7 +219,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
           {Array.from(map.values()).map((p) => (
             <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
               <span>{p.name}: </span>
-              <span>{Number(p.value).toFixed(2)}</span>
+              <span>{Number(p.value).toFixed(0)}</span>
             </li>
           ))}
         </ul>
@@ -242,7 +258,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
   };
 
   const zoomOut = () => {
-    setXDomain(["auto", "auto"]);
+    // Reset to show data starting at 2010 when zooming out
+    setXDomain([2010, "auto"]);
   };
 
   return (
@@ -280,8 +297,9 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
             />
             <YAxis
               domain={yDomain}
-              tickFormatter={(val) => val.toFixed(2)}
-              allowDecimals={true}
+              ticks={yTicks}
+              tickFormatter={(val) => Number(val).toFixed(0)}
+              allowDecimals={false}
               allowDataOverflow
             />
 
