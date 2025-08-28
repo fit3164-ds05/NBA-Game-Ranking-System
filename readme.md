@@ -25,7 +25,7 @@ A modular, data-driven engine for producing up-to-date NBA team rankings and hea
 1. Install Python dependencies:
 
    ```bash
-   pip install -r requirementsbackup.txt
+   pip install -r requirements.txt
    ```
 
 2. Execute the rating workflow. The script will scrape the latest season's
