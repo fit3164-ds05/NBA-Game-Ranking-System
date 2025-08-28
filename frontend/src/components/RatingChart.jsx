@@ -22,7 +22,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
   const [refAreaLeft, setRefAreaLeft] = useState(null);
   const [refAreaRight, setRefAreaRight] = useState(null);
   // Default the chart to start at 2010 on the x-axis
-  const [xDomain, setXDomain] = useState([2010, "auto"]);
+  const [xDomain, setXDomain] = useState([2010, 2024]);
 
   // Build a set of highlighted years from either a global selectedYear or per-team selections
   const selectedYearsSet = React.useMemo(() => {
@@ -259,7 +259,7 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
 
   const zoomOut = () => {
     // Reset to show data starting at 2010 when zooming out
-    setXDomain([2010, "auto"]);
+    setXDomain([2010, 2024]);
   };
 
   return (
