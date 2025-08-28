@@ -359,7 +359,11 @@ export default function GamePrediction() {
           </div>
         )}
 
-        <RatingChart teams={[homeTeam, awayTeam].filter(Boolean)} selectedYearsByTeam={selectedYearsByTeam} />
+        <RatingChart
+          teams={[homeTeam, awayTeam].filter(Boolean)}
+          selectedYearsByTeam={selectedYearsByTeam}
+          showTooltip={false}
+        />
 
         {/* Prediction result display */}
         <div className="bg-white border rounded-2xl p-4 shadow-sm">
