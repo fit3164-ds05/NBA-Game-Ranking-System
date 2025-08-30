@@ -72,6 +72,10 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
     results_df[f"PRED_CORRECT_{engine_name}"] = pred_correct_flags
 
     ratings_df = pd.DataFrame(engine.history)
+    ratings_df = (
+        ratings_df.sort_values("GAME_DATE")
+        .drop_duplicates(["GAME_DATE", "TEAM"], keep="last")
+    )
     all_dates = pd.date_range(
         start=ratings_df["GAME_DATE"].min(),
         end=ratings_df["GAME_DATE"].max(),
