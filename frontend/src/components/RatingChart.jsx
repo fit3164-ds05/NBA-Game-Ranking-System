@@ -21,8 +21,9 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
   const [highlightDataByTeam, setHighlightDataByTeam] = useState({});
   const [refAreaLeft, setRefAreaLeft] = useState(null);
   const [refAreaRight, setRefAreaRight] = useState(null);
-  // Default the chart to start at 2010 on the x-axis
-  const [xDomain, setXDomain] = useState([2010, 2024]);
+  // Initialise the x-axis domain; will expand to full data range once loaded
+  const [xDomain, setXDomain] = useState([0, 0]);
+  const [defaultDomain, setDefaultDomain] = useState([0, 0]);
 
   // Build a set of highlighted years from either a global selectedYear or per-team selections
   const selectedYearsSet = React.useMemo(() => {
@@ -83,6 +84,13 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
         let pivotData = Array.from(pivotMap.values()).sort(
           (a, b) => Number(a.date) - Number(b.date)
         );
+        const years = pivotData.map((r) => Number(r.date)).filter((y) => !isNaN(y));
+        if (years.length) {
+          const minYear = Math.min(...years);
+          const maxYear = Math.max(...years);
+          setXDomain([minYear, maxYear]);
+          setDefaultDomain([minYear, maxYear]);
+        }
         const existingYears = new Set(pivotData.map((r) => r.date));
         const missingYears = Array.from(selectedYearsSet).filter((y) => !existingYears.has(y));
         if (missingYears.length > 0) {
@@ -258,8 +266,8 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
   };
 
   const zoomOut = () => {
-    // Reset to show data starting at 2010 when zooming out
-    setXDomain([2010, 2024]);
+    // Reset to the full data range when zooming out
+    setXDomain(defaultDomain);
   };
 
   return (
