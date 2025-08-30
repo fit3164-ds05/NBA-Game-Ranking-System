@@ -27,6 +27,9 @@ def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
     games_csv = data_path / "enlarged_dataset.csv"
     games = pd.read_csv(games_csv)
 
+    games = games.drop_duplicates(subset="GAME_ID")
+
+
     if "SEASON_TYPE" in games.columns:
         games["IS_PLAYOFF"] = (
             games["SEASON_TYPE"].astype(str).str.contains("Playoff", case=False).astype(int)
