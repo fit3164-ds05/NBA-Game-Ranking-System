@@ -72,6 +72,10 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
     results_df[f"PRED_CORRECT_{engine_name}"] = pred_correct_flags
 
     ratings_df = pd.DataFrame(engine.history)
+    ratings_df = (
+        ratings_df.sort_values("GAME_DATE")
+        .drop_duplicates(["GAME_DATE", "TEAM"], keep="last")
+    )
     all_dates = pd.date_range(
         start=ratings_df["GAME_DATE"].min(),
         end=ratings_df["GAME_DATE"].max(),
@@ -104,8 +108,13 @@ def run_engine(engine_name: str, factory) -> pd.DataFrame:
 
 
 # Run all engines and keep the last full_ratings for downstream helpers
+DEFAULT_ENGINE_FOR_APP = "elo"
 for _name, _factory in ENGINES_TO_RUN:
     full_ratings = run_engine(_name, _factory)
+    if _name == DEFAULT_ENGINE_FOR_APP:
+        default_csv = _out_data_dir / "full_ratings.csv"
+        full_ratings.to_csv(str(default_csv), index=False)
+        print(f"✅ default full_ratings exported to {default_csv}")
 
 _results_path = _out_data_dir / "results_with_predictions.csv"
 results_df.to_csv(str(_results_path), index=False)
