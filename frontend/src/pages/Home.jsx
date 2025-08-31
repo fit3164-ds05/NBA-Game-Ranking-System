@@ -19,14 +19,20 @@ export default function Home() {
           <Picbutton
             title="Historical Ratings"
             onClick={() => navigate("/historicalranking")}
+            icon={Stats}
+            alt_text = "Stats icon"
           />
           <Picbutton
             title="Statistics Dashboard"
             onClick={() => navigate("/dashboardhome")}
+            icon = {Dash}
+            alt_text = "Dashboard icon"
           />
           <Picbutton
             title="Game Predictions"
             onClick={() => navigate("/gameprediction")}
+            icon = {Predictions}
+            alt_text = "Predictions icon"
           />
         </div>
 
@@ -34,23 +40,21 @@ export default function Home() {
         <div className="w-full border-b-4 border-white mb-6"/>
 
         <Explanationcard title="Features" colour="amber-600">
-          <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12">
-            <div className="border-4 border-gray-400 rounded-lg p-4 flex flex-col items-center">
-              <img src={Stats} alt="Stats icon" className="w-20 h-20 mb-2" />
-              <p className="text-center font-semibold">Historical Ratings</p>
-              <p> Writing about Historical Ratings </p>
+          <div className="w-full grid grid-cols-1 gap-6 mt-12">
+
+            <div className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 p-6 text-white shadow-lg transform transition hover:scale-105">
+              <h3 className="text-xl font-semibold mb-2">Historical Ratings</h3>
+              <p className="text-sm opacity-90">Explore player and team ratings over time to analyze performance trends and historical context.</p>
             </div>
 
-            <div className="border-4 border-gray-400 rounded-lg p-4 flex flex-col items-center">
-              <img src={Dash} alt="Dashboard icon" className="w-20 h-20 mb-2" />
-              <p className="text-center font-semibold">Statistics Dashboard</p>
-              <p>Writing about Statistics Dashboard</p>
+            <div className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 p-6 text-white shadow-lg transform transition hover:scale-105">
+              <h3 className="text-xl font-semibold mb-2">Statistics Dashboard</h3>
+              <p className="text-sm opacity-90">Visualize key statistics and metrics with dynamic charts and interactive data representations tailored to an avid NBA fan.</p>
             </div>
 
-            <div className="border-4 border-gray-400 rounded-lg p-4 flex flex-col items-center">
-              <img src={Predictions} alt="Predictions icon" className="w-20 h-20 mb-2"/>
-              <p className="text-center font-semibold">Predictions</p>
-              <p>Writing about Predictions</p>
+            <div className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 p-6 text-white shadow-lg transform transition hover:scale-105">
+              <h3 className="text-xl font-semibold mb-2">Game Predictions</h3>
+              <p className="text-sm opacity-90">Get data-driven predictions for upcoming games based on historical data and advanced analytics.</p>
             </div>
           </div>
         </Explanationcard>
