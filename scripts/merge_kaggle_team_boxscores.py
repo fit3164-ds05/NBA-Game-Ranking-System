@@ -175,10 +175,18 @@ def build_dataset() -> pd.DataFrame:
             side.append(pd.NA)
     base["SIDE"] = side
 
+    # Derive HOME_TEAM_ID and AWAY_TEAM_ID per GAME_ID from TEAM_ID using SIDE
+    try:
+        home_ids = base[base["SIDE"] == "HOME"][["GAME_ID","TEAM_ID"]].rename(columns={"TEAM_ID":"HOME_TEAM_ID"})
+        away_ids = base[base["SIDE"] == "AWAY"][["GAME_ID","TEAM_ID"]].rename(columns={"TEAM_ID":"AWAY_TEAM_ID"})
+        base = base.merge(home_ids, on="GAME_ID", how="left").merge(away_ids, on="GAME_ID", how="left")
+    except Exception:
+        pass
+
     # Order columns: keys/meta then categories
     key_cols = [
         "GAME_ID","TEAM_ID","TEAM_ABBREVIATION","GAME_DATE","SEASON_TYPE","YEAR",
-        "HOME_TEAM_ABBREVIATION","AWAY_TEAM_ABBREVIATION","SIDE"
+        "HOME_TEAM_ABBREVIATION","AWAY_TEAM_ABBREVIATION","HOME_TEAM_ID","AWAY_TEAM_ID","SIDE"
     ]
     cat_order = [
         [c for c in base.columns if c.startswith("TRAD_")],

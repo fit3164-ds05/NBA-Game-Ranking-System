@@ -17,7 +17,7 @@ import pandas as pd
 def _default_ratings_path() -> Path:
     # services/ -> app/ -> project root (/app in Docker)
     root = Path(__file__).resolve().parents[1]
-    return root / "data" / "full_ratings.csv"
+    return root / "Data" / "full_ratings.csv"
 
 def get_ratings_csv_path() -> Path:
     env = os.getenv("RATINGS_CSV")
