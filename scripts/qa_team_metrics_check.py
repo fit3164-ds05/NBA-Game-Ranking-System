@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 import pandas as pd
 
 
@@ -42,18 +43,19 @@ def _season_type_norm(s: str) -> str:
 def _abbr_norm(s: str) -> str:
     if not isinstance(s, str):
         return s
-    m = {
-        # Common historical variants to current conventions
-        "PHO": "PHX",
-        "BRK": "BKN",
-        "NOK": "NOH",  # 2005-07 split season designation
-        # Keep historical distincts as-is; adjust here if needed to match enlarged
-    }
-    return m.get(s.upper(), s.upper())
+    # Prefer your project mapping if available
+    try:
+        sys.path.append(str(Path("backend/Rating_Algorithms").resolve()))
+        import teamdictionary as _td  # type: ignore
+        return _td.normalize_team_abbrev(s)
+    except Exception:
+        pass
+    return s.upper()
 
 
 def load_metrics() -> pd.DataFrame:
-    df = pd.read_csv(TEAM_METRICS)
+    # Read with low_memory=False to avoid dtype fragmentation
+    df = pd.read_csv(TEAM_METRICS, low_memory=False)
     # Ensure expected keys exist
     for c in [
         "GAME_ID","TEAM_ID","TEAM_ABBREVIATION","GAME_DATE","SEASON_TYPE","YEAR",
@@ -69,10 +71,13 @@ def load_metrics() -> pd.DataFrame:
         df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce").dt.strftime("%Y-%m-%d")
     except Exception:
         pass
-    # Numeric conversions
+    # Numeric conversions (coerce only; avoid failing casts)
     for c in ["GAME_ID","TEAM_ID","YEAR","TRAD_PTS"]:
         if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+            try:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+            except Exception:
+                pass
     return df
 
 
@@ -83,7 +88,7 @@ def load_enlarged() -> pd.DataFrame:
         "HOME_TEAM_ABBREVIATION","AWAY_TEAM_ABBREVIATION",
         "HOME_PTS","AWAY_PTS","WINNER_TEAM_ID","WINNER_TEAM_ABBREVIATION"
     ]
-    df = pd.read_csv(ENLARGED, usecols=[c for c in usecols if c is not None])
+    df = pd.read_csv(ENLARGED, usecols=[c for c in usecols if c is not None], low_memory=False)
     df["SEASON_TYPE"] = df["SEASON_TYPE"].apply(_season_type_norm)
     for c in ["HOME_TEAM_ABBREVIATION","AWAY_TEAM_ABBREVIATION","WINNER_TEAM_ABBREVIATION"]:
         if c in df.columns:
@@ -94,7 +99,10 @@ def load_enlarged() -> pd.DataFrame:
         pass
     for c in ["GAME_ID","YEAR","HOME_TEAM_ID","AWAY_TEAM_ID","HOME_PTS","AWAY_PTS","WINNER_TEAM_ID"]:
         if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+            try:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+            except Exception:
+                pass
     return df
 
 
@@ -108,12 +116,21 @@ def build_join_key(df_like_game: pd.DataFrame) -> pd.Series:
 
 
 def build_join_key_ids(df_like_game: pd.DataFrame) -> pd.Series:
-    return (
-        df_like_game["GAME_DATE"].astype(str)
-        + "|" + df_like_game["HOME_TEAM_ID"].astype("Int64").astype(str)
-        + "|" + df_like_game["AWAY_TEAM_ID"].astype("Int64").astype(str)
-        + "|" + df_like_game["SEASON_TYPE" ].astype(str)
-    )
+    # Build only where both IDs are present and numeric
+    home = pd.to_numeric(df_like_game.get("HOME_TEAM_ID"), errors="coerce")
+    away = pd.to_numeric(df_like_game.get("AWAY_TEAM_ID"), errors="coerce")
+    mask = home.notna() & away.notna()
+    parts = pd.Series([None] * len(df_like_game), dtype=object, index=df_like_game.index)
+    if mask.any():
+        hs = home.loc[mask].astype("int64").astype(str)
+        as_ = away.loc[mask].astype("int64").astype(str)
+        parts.loc[mask] = (
+            df_like_game.loc[mask, "GAME_DATE"].astype(str)
+            + "|" + hs
+            + "|" + as_
+            + "|" + df_like_game.loc[mask, "SEASON_TYPE"].astype(str)
+        )
+    return parts
 
 
 def main():
@@ -200,23 +217,63 @@ def main():
         pts_mis = pd.DataFrame()
     pts_mis.to_csv(QA_DIR / "points_mismatch_rows.csv", index=False)
 
-    # Winner agreement by JOIN_KEY: team with max TRAD_PTS equals WINNER_TEAM_ID/ABBR
-    def _winner_ok(g: pd.DataFrame) -> bool:
+    # Detailed diagnosis: does TRAD_PTS match either home or away if SIDE were flipped?
+    if not pts_mis.empty:
+        diag = pts_mis.copy()
         try:
-            idx = g["TRAD_PTS"].astype("Float64").idxmax()
+            tp = diag["TRAD_PTS"].astype("Float64")
+            hp = diag["HOME_PTS"].astype("Float64") if "HOME_PTS" in diag.columns else pd.NA
+            ap = diag["AWAY_PTS"].astype("Float64") if "AWAY_PTS" in diag.columns else pd.NA
+            expected = []
+            for i in range(len(diag)):
+                side = diag.iloc[i].get("SIDE")
+                e = None
+                if pd.notna(hp.iloc[i]) and tp.iloc[i] == hp.iloc[i]:
+                    e = "HOME"
+                elif pd.notna(ap.iloc[i]) and tp.iloc[i] == ap.iloc[i]:
+                    e = "AWAY"
+                expected.append(e)
+            diag["EXPECTED_SIDE_FROM_POINTS"] = expected
+            diag["SWAP_NEEDED"] = (diag["EXPECTED_SIDE_FROM_POINTS"].notna() & (diag["EXPECTED_SIDE_FROM_POINTS"] != diag["SIDE"]))
         except Exception:
-            return False
-        if pd.isna(idx):
-            return False
-        row = g.loc[idx]
-        # Compare id if available, else abbreviation
-        ok_id = ("TEAM_ID" in g.columns) and (row.get("TEAM_ID") == row.get("WINNER_TEAM_ID"))
-        ok_ab = ("TEAM_ABBREVIATION" in g.columns) and (row.get("TEAM_ABBREVIATION") == row.get("WINNER_TEAM_ABBREVIATION"))
-        return bool(ok_id or ok_ab)
+            pass
+        keep_cols = [c for c in [
+            "GAME_ID","GAME_DATE","SEASON_TYPE","TEAM_ID","TEAM_ABBREVIATION","SIDE",
+            "TRAD_PTS","HOME_PTS","AWAY_PTS","EXPECTED_SIDE_FROM_POINTS","SWAP_NEEDED"
+        ] if c in diag.columns]
+        diag[keep_cols].to_csv(QA_DIR / "points_mismatch_diagnosis.csv", index=False)
 
-    winner_grp = met_rows.groupby("JOIN_KEY", dropna=True)
-    winner_ok = winner_grp.apply(_winner_ok)
-    disagree_keys = list(winner_ok.index[~winner_ok.astype(bool)])
+        # Also prepare a points_overrides CSV to align TRAD_PTS to canonical HOME/away points
+        try:
+            overrides = []
+            for _, row in diag.iterrows():
+                gid = str(row.get("GAME_ID"))
+                tid = row.get("TEAM_ID")
+                side = row.get("SIDE")
+                if side == "HOME" and pd.notna(row.get("HOME_PTS")):
+                    new_pts = float(row.get("HOME_PTS"))
+                elif side == "AWAY" and pd.notna(row.get("AWAY_PTS")):
+                    new_pts = float(row.get("AWAY_PTS"))
+                else:
+                    continue
+                overrides.append({"GAME_ID": gid, "TEAM_ID": tid, "TRAD_PTS": new_pts})
+            if overrides:
+                pd.DataFrame(overrides).to_csv(QA_DIR / "points_overrides.csv", index=False)
+        except Exception:
+            pass
+
+    # Winner agreement by JOIN_KEY: check row with max TRAD_PTS
+    disagree_keys = []
+    if "TRAD_PTS" in met_rows.columns:
+        try:
+            idxs = met_rows.groupby("JOIN_KEY", dropna=True)["TRAD_PTS"].idxmax()
+            winners = met_rows.loc[idxs]
+            ok_id = (winners.get("TEAM_ID") == winners.get("WINNER_TEAM_ID")) if "WINNER_TEAM_ID" in winners.columns else False
+            ok_ab = (winners.get("TEAM_ABBREVIATION") == winners.get("WINNER_TEAM_ABBREVIATION")) if "WINNER_TEAM_ABBREVIATION" in winners.columns else False
+            ok = (ok_id | ok_ab).fillna(False)
+            disagree_keys = list(winners.loc[~ok, "JOIN_KEY"].astype(str).values)
+        except Exception:
+            disagree_keys = []
     disagree_df = _split_keys(disagree_keys)
     disagree_df.to_csv(QA_DIR / "winner_disagreement_games.csv", index=False)
 
@@ -230,6 +287,48 @@ def main():
         .fillna(0).astype(int).reset_index()
     )
     cov.to_csv(QA_DIR / "coverage_by_year.csv", index=False)
+
+    # Additional diagnostics: missing/extra by year and season type
+    def _by_year(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+        try:
+            df2 = df.copy()
+            df2["YEAR"] = pd.to_datetime(df2["GAME_DATE"], errors="coerce").dt.year
+            return df2.groupby(["YEAR","SEASON_TYPE"]).size().rename("count").reset_index()
+        except Exception:
+            return df
+    _by_year(missing_df).to_csv(QA_DIR / "missing_by_year.csv", index=False)
+    _by_year(extra_df).to_csv(QA_DIR / "extra_by_year.csv", index=False)
+
+    # Swap home/away probe: would swapping teams fix some missing games?
+    if not missing_df.empty:
+        swap = missing_df.copy()
+        swap = swap.rename(columns={
+            "HOME_TEAM_ABBREVIATION":"AWAY_TEAM_ABBREVIATION",
+            "AWAY_TEAM_ABBREVIATION":"HOME_TEAM_ABBREVIATION",
+        })
+        swap_key = build_join_key(swap)
+        swap_hits = set(swap_key) & (m_games if isinstance(next(iter(m_games), None), str) else set())
+        # Compose report for those that would match after swap
+        swap_rows = missing_df.loc[missing_df.index[missing_df.apply(lambda r: (f"{r['GAME_DATE']}|{r['AWAY_TEAM_ABBREVIATION']}|{r['HOME_TEAM_ABBREVIATION']}|{r['SEASON_TYPE']}") in (m_games if isinstance(next(iter(m_games), None), str) else set()), axis=1)]]
+        swap_rows.to_csv(QA_DIR / "swap_home_away_candidates.csv", index=False)
+
+    # Date shift probe: try +/- 1 day for missing games
+    if not missing_df.empty:
+        from datetime import timedelta
+        miss = missing_df.copy()
+        try:
+            miss_dt = pd.to_datetime(miss["GAME_DATE"], errors="coerce")
+            for delta, name in [(timedelta(days=-1), "minus1"), (timedelta(days=1), "plus1")]:
+                shifted = miss.copy()
+                shifted["GAME_DATE"] = (miss_dt + delta).dt.strftime("%Y-%m-%d")
+                shifted_key = build_join_key(shifted)
+                # Find which shifted keys exist in metrics
+                hits = shifted_key[shifted_key.isin(m_keys["JOIN_KEY"])].index
+                shifted.loc[hits][["GAME_DATE","HOME_TEAM_ABBREVIATION","AWAY_TEAM_ABBREVIATION","SEASON_TYPE"]].to_csv(QA_DIR / f"date_shift_candidates_{name}.csv", index=False)
+        except Exception:
+            pass
 
     # Console summary
     print("=== QA Summary ===")
