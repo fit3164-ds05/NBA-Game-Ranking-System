@@ -23,7 +23,8 @@ RUN if [ -d /tmp/buildctx/backend ]; then \
     fi
 
 # Install Python deps (requirements.txt is now in /app)
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt \
+ && python -m pip show gunicorn || true
 
 # Ensure data dir exists, copy ratings CSV from either location, and assert presence
 RUN mkdir -p /app/data && \
@@ -41,4 +42,4 @@ RUN echo "DEBUG: Listing /app/data" && ls -la /app/data || true
 
 EXPOSE 5055
 # Rely on gunicorn.conf.py to set bind from PORT env; avoid shell var expansion issues
-CMD ["gunicorn", "main:app", "-c", "gunicorn.conf.py", "--preload", "--workers", "1", "--threads", "4", "--timeout", "180", "--graceful-timeout", "30"]
+CMD ["python", "-m", "gunicorn", "main:app", "-c", "gunicorn.conf.py", "--preload", "--workers", "1", "--threads", "4", "--timeout", "180", "--graceful-timeout", "30"]
