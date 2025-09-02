@@ -9,7 +9,8 @@ import axios from "axios";
 // Create one axios instance for the whole app
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
-  timeout: 15000,
+  // Increase default timeout to accommodate cold-start CSV load
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT_MS || 60000),
 });
 
 // Optional: unify success and error handling
