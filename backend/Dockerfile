@@ -1,9 +1,9 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PORT=5055
-ENV RATINGS_CSV=/app/data/full_ratings.csv
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=5055 \
+    RATINGS_CSV=/app/data/full_ratings.csv
 
 WORKDIR /app
 
@@ -11,19 +11,34 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+# Copy the entire build context to a temp folder so this works whether the
+# context is repo root or backend/. Then stage files into /app explicitly.
+COPY . /tmp/buildctx
+
+# If the context contains a backend/ dir, use that as the app root; otherwise use the context root
+RUN if [ -d /tmp/buildctx/backend ]; then \
+      cp -r /tmp/buildctx/backend/* /app/; \
+    else \
+      cp -r /tmp/buildctx/* /app/; \
+    fi
+
+# Install Python deps (requirements.txt is now in /app)
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Ensure data dir exists, copy ratings CSV from either location, and assert presence
+RUN mkdir -p /app/data && \
+    if [ -f /tmp/buildctx/backend/data/full_ratings.csv ]; then \
+      cp /tmp/buildctx/backend/data/full_ratings.csv /app/data/full_ratings.csv; \
+    elif [ -f /tmp/buildctx/data/full_ratings.csv ]; then \
+      cp /tmp/buildctx/data/full_ratings.csv /app/data/full_ratings.csv; \
+    else \
+      echo "ERROR: full_ratings.csv not found in build context (expected backend/data or data)" && exit 1; \
+    fi
 
-COPY . .
-
-# Ensure data dir exists, then list contents and fail the build if CSV is missing
-RUN mkdir -p /app/data
+# Debug listings (remove if noisy)
 RUN echo "DEBUG: Listing /app" && ls -la /app || true
 RUN echo "DEBUG: Listing /app/data" && ls -la /app/data || true
-RUN test -f /app/data/full_ratings.csv || (echo "ERROR: /app/data/full_ratings.csv missing in Docker build context" && exit 1)
-
-# COPY data/full_ratings.csv /app/data/full_ratings.csv
 
 EXPOSE 5055
 CMD ["sh", "-c", "gunicorn 'main:app' --workers 1 --threads 2 --timeout 120 --graceful-timeout 20 --bind 0.0.0.0:${PORT}"]
+
