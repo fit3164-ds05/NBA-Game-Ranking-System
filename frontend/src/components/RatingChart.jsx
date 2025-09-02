@@ -97,6 +97,28 @@ export default function RatingChart({ teams, selectedYear, selectedYearsByTeam, 
           const blanks = missingYears.map((y) => ({ date: y }));
           pivotData = pivotData.concat(blanks).sort((a, b) => Number(a.date) - Number(b.date));
         }
+        // Post-process to break flat segments (no change over time).
+        // For each team series, if a value equals the previous non-null value,
+        // set it to null so Recharts does not draw a horizontal line.
+        if (teams && teams.length > 0 && pivotData.length > 0) {
+          const processed = pivotData.map((row) => ({ ...row }));
+          const EPS = 1e-9;
+          teams.forEach((team) => {
+            let prev = null;
+            for (let i = 0; i < processed.length; i++) {
+              const v = processed[i][team];
+              if (v == null || Number.isNaN(v)) continue;
+              if (prev != null && Math.abs(v - prev) <= EPS) {
+                // same as previous -> null out to break the flat line segment
+                processed[i][team] = null;
+              } else {
+                prev = v;
+              }
+            }
+          });
+          pivotData = processed;
+        }
+
         setData(pivotData);
         const m = {};
         (teams || []).forEach((team) => {
