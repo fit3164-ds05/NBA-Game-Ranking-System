@@ -40,4 +40,5 @@ RUN echo "DEBUG: Listing /app" && ls -la /app || true
 RUN echo "DEBUG: Listing /app/data" && ls -la /app/data || true
 
 EXPOSE 5055
-CMD ["sh", "-c", "gunicorn 'main:app' --preload --workers 1 --threads 4 --timeout 180 --graceful-timeout 30 --bind 0.0.0.0:${PORT}"]
+# Rely on gunicorn.conf.py to set bind from PORT env; avoid shell var expansion issues
+CMD ["gunicorn", "main:app", "-c", "gunicorn.conf.py", "--preload", "--workers", "1", "--threads", "4", "--timeout", "180", "--graceful-timeout", "30"]
