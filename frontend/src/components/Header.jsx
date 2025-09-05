@@ -18,8 +18,8 @@ export default function Header({title}){
      rounded-2xl pointer-events-auto"
     >
 
-      <h1 className="text-2xl font-bold">
-        <Link to="/">NBA GAME RANKING SYSTEM</Link>
+      <h1 className="text-2xl font-bold text-gray-600">
+        <Link to="/">NBA DATA DRIBBLE</Link>
       </h1>
 
       <nav className="space-x-4">

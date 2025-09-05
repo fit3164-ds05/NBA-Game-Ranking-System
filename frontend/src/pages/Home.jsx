@@ -11,7 +11,7 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen">
-    <div className="fixed inset-0 z-0 bg-home-nba bg-cover bg-center" />      
+    <div className="fixed inset-0 z-0 bg-home-steph bg-cover bg-center" />      
       <main className="relative z-10 w-full max-w-7xl mx-auto px-4 py-12 flex flex-col items-center">
 
         {/* three-button grid */}
