@@ -13,7 +13,7 @@ export default function Header({title}){
       className="sticky top-3 z-50 w-full max-w-7xl mx-auto mt-0
      flex justify-between items-center
      px-6 py-4
-     bg-grey-600/70 text-white
+     bg-gray-200/80 text-white
      backdrop-blur-md shadow-lg
      rounded-2xl pointer-events-auto"
     >
