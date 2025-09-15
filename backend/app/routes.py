@@ -9,6 +9,11 @@ import os
 from flask import Blueprint, jsonify, request
 from services.ratings import teams, seasons_for_team, predict_prob, load_full, resolved_csv_path
 from services import ratings
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from nba_api.stats.endpoints import commonallplayers, playergamelog, shotchartdetail
+import time
+
 
 api_bp = Blueprint("api", __name__)
 
@@ -142,6 +147,76 @@ def ratings_series():
         sliced = records[offset:]
 
     return jsonify(data=sliced, total=total, offset=offset, limit=limit)
+
+# ------------------------------------------- SHOT CHARTS AND PLAYER GAMES -------------------------------------------
+cache_time = 7*24*3600  # 7 days in seconds
+def ttl_cache(ttl_seconds=cache_time):
+    def deco(fn):
+        store = {}
+        # Finds the cached value if it exists and is still valid
+        # Otherwise calls the function and caches the result
+        def wrapped(*args, **kwargs):
+            key = (fn.__name__, args, tuple(sorted(kwargs.items())))
+            now = time.time()
+            if key in store:
+                val, ts = store[key]
+                if now - ts < ttl_seconds:
+                    return val
+            val = fn(*args, **kwargs)
+            store[key] = (val, now)
+            return val
+        return wrapped
+    return deco
+
+limiter = Limiter(key_func=get_remote_address, app=None, default_limits=["60 per minute"])
+
+def season_default():
+    return os.getenv("NBA_SEASON", "2024-25")
+
+def season_type_default():
+    return os.getenv("NBA_SEASON_TYPE", "Regular Season")  # "Regular Season", "Playoffs", etc.
+
+# -------- 1) Player search (typeahead) --------
+@ttl_cache(ttl_seconds=cache_time)  # cache full index for a day
+def _players_index(season: str):
+    # Includes active + historical to keep search flexible
+    df = commonallplayers.CommonAllPlayers(is_only_current_season=0, season=season).get_data_frames()[0]
+    return df.to_dict(orient="records")
+
+@api_bp.get("/nba/players/search")
+@limiter.limit("30/minute")
+def players_search():
+    q = (request.args.get("q") or "").strip().lower()
+    season = request.args.get("season", season_default())
+
+    data = _players_index(season)
+
+    if not q:
+        # Return some active suggestions by default
+        out = [
+            {
+                "playerId": p["PERSON_ID"],
+                "name": p["DISPLAY_FIRST_LAST"],
+                "active": p["ROSTERSTATUS"] == "Active",
+                "team": p["TEAM_NAME"],
+            }
+            for p in data if p["ROSTERSTATUS"] == "Active"
+        ][:20]
+        return jsonify(out)
+
+    out = [
+        {
+            "playerId": p["PERSON_ID"],
+            "name": p["DISPLAY_FIRST_LAST"],
+            "active": p["ROSTERSTATUS"] == "Active",
+            "team": p["TEAM_NAME"],
+        }
+        for p in data
+        if q in p["DISPLAY_FIRST_LAST"].lower()
+    ][:20]
+    return jsonify(out)
+
+# ------------------------------------------------- SHOT CHARTS -------------------------------------------------
 
 
 # Self test endpoint for integration diagnostics
