@@ -1,6 +1,30 @@
 import { useEffect, useState } from "react";
 import RatingChart from "../components/RatingChart";
 import { getTeams } from "../lib/api";
+import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
+
+function pickTextColor(background) {
+  if (!background) return "#1f2937";
+  if (background.startsWith("hsl")) {
+    const match = background.match(/hsl\(([-\d.]+),\s*([-\d.]+)%?,\s*([-\d.]+)%?\)/i);
+    if (match) {
+      const lightness = Number(match[3]);
+      return lightness >= 60 ? "#1f2937" : "#ffffff";
+    }
+    return "#1f2937";
+  }
+  if (background.startsWith("#")) {
+    const hex = background.slice(1);
+    const num = parseInt(hex.length === 3 ? hex.replace(/(.)/g, "$1$1") : hex, 16);
+    if (Number.isNaN(num)) return "#1f2937";
+    const r = (num >> 16) & 0xff;
+    const g = (num >> 8) & 0xff;
+    const b = num & 0xff;
+    const luminance = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+    return luminance > 0.64 ? "#1f2937" : "#ffffff";
+  }
+  return "#1f2937";
+}
 
 /**
  * HistoricalRanking page
@@ -58,15 +82,27 @@ export default function HistoricalRanking() {
       <div className="flex flex-wrap gap-2">
         {teams.map((team) => {
           const active = highlighted.includes(team);
+          const teamColor = active ? getTeamColor(team) : null;
+          const borderColor = active ? getTeamHighlightColor(team) : null;
+          const textColor = active ? pickTextColor(teamColor) : undefined;
           return (
             <button
               key={team}
               onClick={() => toggleTeam(team)}
               className={`px-3 py-1 rounded border text-sm transition-colors duration-150 ${
                 active
-                  ? "bg-amber-600 text-white border-amber-600"
+                  ? "shadow-sm"
                   : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100"
               }`}
+              style={
+                active
+                  ? {
+                      backgroundColor: teamColor,
+                      borderColor,
+                      color: textColor,
+                    }
+                  : undefined
+              }
             >
               {team}
             </button>
@@ -97,10 +133,14 @@ export default function HistoricalRanking() {
         {loadingTeams && <p>Loading teams...</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
         {!loadingTeams && !error && (
-          <RatingChart teams={teams} highlightedTeams={highlighted} onToggleTeam={toggleTeam} />
+          <RatingChart
+            teams={teams}
+            highlightedTeams={highlighted}
+            onToggleTeam={toggleTeam}
+            onSelectTeam={toggleTeam}
+          />
         )}
       </div>
     </div>
   );
 }
-
