@@ -132,16 +132,18 @@ def ratings_series():
     except ValueError:
         return jsonify(error="offset and limit must be integers"), 400
 
-    records = df.to_dict(orient="records")
-    total = len(records)
+    # Slice before serializing to JSON to avoid converting the entire dataset
+    total = int(df.shape[0])
     if offset < 0:
         offset = 0
     if limit is not None and limit >= 0:
-        sliced = records[offset: offset + limit]
+        sliced_df = df.iloc[offset: offset + limit]
     else:
-        sliced = records[offset:]
+        sliced_df = df.iloc[offset:]
 
-    return jsonify(data=sliced, total=total, offset=offset, limit=limit)
+    records = sliced_df.to_dict(orient="records")
+
+    return jsonify(data=records, total=total, offset=offset, limit=limit)
 
 
 # Self test endpoint for integration diagnostics

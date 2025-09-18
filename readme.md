@@ -4,6 +4,63 @@ A modular, data-driven engine for producing up-to-date NBA team rankings and hea
 
 ---
 
+## Fast Data Files (Parquet/Arrow)
+
+- Parquet offers faster reads and smaller files with preserved types compared to CSV.
+- This repo now prefers Parquet but falls back to CSV automatically.
+
+How to convert existing CSVs to Parquet:
+
+```bash
+make convert
+```
+
+This writes sibling `.parquet` files next to each `.csv` and a report at `backend/data/qa/conversion_report.json`.
+
+Switching formats at runtime (Flask, scripts):
+
+```bash
+export DATA_FORMAT=parquet   # options: parquet, csv, feather
+export PARQUET_COMPRESSION=zstd  # or snappy
+```
+
+In code, load datasets via the unified loader:
+
+```python
+from backend.utils.data_loader import load_table
+df = load_table("backend/data/full_ratings")  # no extension required
+```
+
+Notes:
+- Colab typically ships with `pyarrow`; no extra steps needed.
+- If `zstd` codec isn’t available, conversion falls back to `snappy` automatically.
+- CSVs are not deleted; existing pipelines remain functional.
+- Feather/Arrow IPC is supported by the loader if `.feather` files are present.
+
+## XGBoost Models (Win Prob and Margin)
+
+- Features are built from pre-game rolling stats and a historical rating diff (home − away).
+- No leakage: features use `shift(1)` rolling windows per team prior to each game.
+- Two models:
+  - Classification (win probability): `scripts/train_xgb_classification.py`
+  - Regression (margin): `scripts/train_xgb_regression.py` with σ calibration from validation residuals
+
+Why σ calibration from validation residuals?
+- Residual spread varies with predicted |margin|; estimating σ on validation prevents overfitting and improves calibration.
+- We bucket σ by |μ| (e.g., 0–5, 5–10, 10–20, 20+) to capture heteroskedasticity. For win prob: `Phi(mu/sigma)` with bucketed σ when available.
+
+Switch rating source
+- Default: Elo; alternative: Glicko or TrueSkill.
+- Pass rating kind as script arg, e.g., `python scripts/train_xgb_classification.py trueskill`.
+
+Make targets
+```bash
+make train-cls       # train classification model
+make train-reg       # train regression model + calibration
+make tune            # small Optuna tuner (cls/reg)
+```
+
+
 ## High-Level Overview
 
 1. **Data & Models**  

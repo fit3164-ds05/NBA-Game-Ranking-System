@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DATA_FORMAT=parquet
 
 WORKDIR /app
 
@@ -21,10 +22,14 @@ COPY backend/ /app/
 RUN mkdir -p /app/data \
  && echo "DEBUG: Listing /app" && ls -la /app || true \
  && echo "DEBUG: Listing /app/data" && ls -la /app/data || true \
- && test -f /app/data/full_ratings.csv || (echo "ERROR: /app/data/full_ratings.csv missing in build context (expected at backend/data/full_ratings.csv)" && exit 1)
+ && (\
+      test -f /app/data/full_ratings.parquet \
+   || test -f /app/data/full_ratings.feather \
+   || test -f /app/data/full_ratings.csv \
+   || (echo "ERROR: Missing ratings data. Provide one of: full_ratings.parquet, full_ratings.feather, or full_ratings.csv in backend/data" && exit 1)\
+    )
 
 EXPOSE 5055
 
 # Use module form to avoid PATH issues; gunicorn.conf.py reads PORT env
 CMD ["python", "-m", "gunicorn", "main:app", "-c", "gunicorn.conf.py", "--preload", "--workers", "1", "--threads", "4", "--timeout", "180", "--graceful-timeout", "30"]
-
