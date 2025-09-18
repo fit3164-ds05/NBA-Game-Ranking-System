@@ -95,3 +95,11 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset }
   }
   return [];
 }
+
+// Player Dropdown
+export async function searchPlayers(query, season = "2024-25") {
+  const { data } = await api.get("/nba/players/search", {
+    params: { q: query, season },
+  });
+  return data ?? [];
+}
