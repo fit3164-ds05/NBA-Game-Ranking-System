@@ -254,6 +254,5 @@ combined_df.to_csv("2024-25.csv", index=False)
 # Save to CSV
 existing_df = pd.read_csv("nbagames_finalised.csv")
 final_combined = pd.concat([existing_df, combined_df], ignore_index=True)
-final_combined.to_csv("fullnbadata.csv", index=False)
-
+final_combined.to_csv("full_nba_data.csv", index=False)
 

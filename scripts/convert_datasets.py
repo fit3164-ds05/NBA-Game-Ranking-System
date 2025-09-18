@@ -15,7 +15,7 @@ Inventory (discovered in repo at authoring time):
     - backend/data/legacy/team_scoring.csv
     - backend/data/legacy/ratings_trueskill.csv
     - backend/data/legacy/team_traditional.csv
-    - backend/data/legacy/fullnbadata.csv
+    - backend/data/legacy/full_nba_data.csv
     - backend/data/legacy/results_with_predictions.csv
     - backend/data/legacy/team_fourfactors.csv
     - backend/data/legacy/ratings_margin_home_elo.csv
@@ -42,7 +42,7 @@ Inventory (discovered in repo at authoring time):
 
 # QUESTION: Any columns besides GAME_DATE that must be parsed as dates?
 # QUESTION: Should we also emit a compact sample CSV (first 10k rows) for debugging?
-# QUESTION: Do we also convert root-level CSVs (e.g., fullnbadata.csv)?
+# QUESTION: Do we also convert root-level CSVs (e.g., full_nba_data.csv)?
 """
 
 from __future__ import annotations

@@ -24,7 +24,7 @@ def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
     backend_dir = base_dir.parent
     data_path = Path(data_dir) if data_dir is not None else backend_dir / "Data"
 
-    games_csv = data_path / "fullnbadata.csv"
+    games_csv = data_path / "full_nba_data.csv"
     games = pd.read_csv(games_csv)
 
     games = games.drop_duplicates(subset="GAME_ID")
