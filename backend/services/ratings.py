@@ -1,8 +1,10 @@
 # services/ratings.py
 """
-Loads precomputed team ratings from CSV and provides helpers used by the API.
-Default CSV location is backend/data/full_ratings.csv.
-Set RATINGS_CSV to override the path at runtime.
+Loads precomputed team ratings and provides helpers used by the API.
+Prefers Parquet/Arrow if available, falling back to CSV.
+
+Default location is backend/data/full_ratings (any of .parquet/.feather/.csv).
+Set RATINGS_CSV to override the path (with or without extension) at runtime.
 """
 
 import os
@@ -12,12 +14,15 @@ from pathlib import Path
 from typing import Optional, List
 
 import pandas as pd
+# Import that works when backend/ is on sys.path (tests run from backend)
+from utils.data_loader import load_table  # type: ignore
 
 # Build a robust path to the ratings CSV
 def _default_ratings_path() -> Path:
     # services/ -> app/ -> project root (/app in Docker)
     root = Path(__file__).resolve().parents[1]
-    return root / "data" / "full_ratings.csv"
+    # Intentionally do not include extension so the loader can choose the best format
+    return root / "data" / "full_ratings"
 
 def get_ratings_csv_path() -> Path:
     env = os.getenv("RATINGS_CSV")
@@ -31,21 +36,19 @@ def load_full() -> pd.DataFrame:
     Read the ratings CSV once and cache the DataFrame.
     Ensures a YEAR column exists derived from GAME_DATE.
     """
-    csv_path = get_ratings_csv_path()
-    if not csv_path.exists():
-        raise FileNotFoundError(
-            f"Ratings CSV not found at {csv_path}. "
-            "Place the file at backend/data/full_ratings.csv (note case sensitive 'data'), "
-            "or set RATINGS_CSV to an absolute path."
-        )
-
-    df = pd.read_csv(csv_path, parse_dates=["GAME_DATE"])
+    base = get_ratings_csv_path()
+    # Use unified loader: it will try .parquet, .feather, then .csv on the same stem
+    # Keep parse_dates semantics for CSV by normalizing dtype after load if needed.
+    df = load_table(str(base))
+    if "GAME_DATE" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["GAME_DATE"]):
+        # Normalize to datetime if the source didn't carry datetime type (CSV fallback)
+        df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce")
     if "YEAR" not in df.columns and "GAME_DATE" in df.columns:
         df["YEAR"] = df["GAME_DATE"].dt.year
     return df
 
 def resolved_csv_path() -> str:
-    """Return the absolute CSV path the service will use for diagnostics."""
+    """Return the absolute base path the service will use for diagnostics."""
     return str(get_ratings_csv_path())
 
 def clear_cache():
@@ -55,21 +58,34 @@ def clear_cache():
 def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
     """
     Return a DataFrame with rating time series filtered by teams and date range.
-    """
-    df = load_full().copy()
-    df = df.sort_values("GAME_DATE")
-    df["date"] = df["GAME_DATE"].dt.strftime("%Y-%m-%d")
 
+    Performance: filter early and select minimal columns to reduce work on
+    multi-million-row tables. Only compute the formatted date for the subset.
+    """
+    df = load_full()
+
+    # Build a filtered view first (no full-frame copy)
+    sub = df
     if teams:
-        df = df[df["TEAM"].isin(teams)]
+        sub = sub[sub["TEAM"].isin(teams)]
 
     if start:
-        df = df[df["date"] >= start]
+        # Compare using datetime to avoid creating string dates for full frame
+        start_dt = pd.to_datetime(start, errors="coerce")
+        if pd.notna(start_dt):
+            sub = sub[sub["GAME_DATE"] >= start_dt]
 
     if end:
-        df = df[df["date"] <= end]
+        end_dt = pd.to_datetime(end, errors="coerce")
+        if pd.notna(end_dt):
+            sub = sub[sub["GAME_DATE"] <= end_dt]
 
-    out = df.loc[:, ["date", "TEAM", "RATING"]].rename(columns={"TEAM": "team", "RATING": "rating"})
+    # Only keep the columns we need and sort at the end
+    sub = sub.loc[:, ["GAME_DATE", "TEAM", "RATING"]].sort_values("GAME_DATE").copy()
+
+    # Derive presentation date on the subset only
+    sub["date"] = sub["GAME_DATE"].dt.strftime("%Y-%m-%d")
+    out = sub.loc[:, ["date", "TEAM", "RATING"]].rename(columns={"TEAM": "team", "RATING": "rating"})
     return out
 
 def teams() -> List[str]:

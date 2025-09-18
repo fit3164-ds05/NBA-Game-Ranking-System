@@ -46,6 +46,8 @@ Datasets_Analysis/
 
 # Backend data
 backend/data/qa
+*.parquet
+*.feather
 
 
 # Test temporary CSVs
