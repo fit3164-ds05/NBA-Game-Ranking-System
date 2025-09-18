@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PlayerDropdown from "../components/PlayerDropdown";
+import ShotChart from "../components/ShotChart";
 
 function DashboardHome() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -21,6 +22,7 @@ function DashboardHome() {
         )}
       </div>
     </div>
+
   );
 }
 
