@@ -12,6 +12,7 @@ from services import ratings
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from nba_api.stats.endpoints import commonallplayers, playergamelog, shotchartdetail
+from services.shotchart import search_players, get_player_seasons, has_games_in_season, get_player_shotchart, season_default, season_type_default
 import time
 
 api_bp = Blueprint("api", __name__)
@@ -151,72 +152,49 @@ def ratings_series():
 
 
 # ------------------------------------------- SHOT CHARTS AND PLAYER GAMES -------------------------------------------
-cache_time = 7*24*3600  # 7 days in seconds
-def ttl_cache(ttl_seconds=cache_time):
-    def deco(fn):
-        store = {}
-        # Finds the cached value if it exists and is still valid
-        # Otherwise calls the function and caches the result
-        def wrapped(*args, **kwargs):
-            key = (fn.__name__, args, tuple(sorted(kwargs.items())))
-            now = time.time()
-            if key in store:
-                val, ts = store[key]
-                if now - ts < ttl_seconds:
-                    return val
-            val = fn(*args, **kwargs)
-            store[key] = (val, now)
-            return val
-        return wrapped
-    return deco
-
-limiter = Limiter(key_func=get_remote_address, app=None, default_limits=["60 per minute"])
-
-def season_default():
-    return os.getenv("NBA_SEASON", "2024-25")
-
-def season_type_default():
-    return os.getenv("NBA_SEASON_TYPE", "Regular Season")  # "Regular Season", "Playoffs", etc.
-
-# -------- 1) Player search (typeahead) --------
-@ttl_cache(ttl_seconds=cache_time)  # cache full index for a day
-def _players_index(season: str):
-    # Includes active + historical to keep search flexible
-    df = commonallplayers.CommonAllPlayers(is_only_current_season=0, season=season).get_data_frames()[0]
-    return df.to_dict(orient="records")
-
+# -------- Player search --------
 @api_bp.get("/nba/players/search")
-@limiter.limit("30/minute")
 def players_search():
-    q = (request.args.get("q") or "").strip().lower()
+    q = request.args.get("q", "")
     season = request.args.get("season", season_default())
+    try:
+        results = search_players(q=q, season=season, limit=20)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    data = _players_index(season)
 
-    if not q:
-        # Return some active suggestions by default
-        out = [
-            {
-                "playerId": p["PERSON_ID"],
-                "name": p["DISPLAY_FIRST_LAST"],
-                "active": p["ROSTERSTATUS"] == "Active",
-                "team": p["TEAM_NAME"],
-            }
-            for p in data if p["ROSTERSTATUS"] == "Active"
-        ][:20]
-        return jsonify(out)
+# -------- Player seasons --------
+@api_bp.get("/nba/players/<int:player_id>/seasons")
+def player_seasons(player_id: int):
+    try:
+        seasons = get_player_seasons(player_id)
+        only_with_games = request.args.get("only_with_games", "false").lower() == "true"
+        if only_with_games:
+            seasons = [s for s in seasons if has_games_in_season(player_id, s)]
+        return jsonify(seasons)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    out = [
-        {
-            "playerId": p["PERSON_ID"],
-            "name": p["DISPLAY_FIRST_LAST"],
-            "active": p["ROSTERSTATUS"] == "Active",
-            "team": p["TEAM_NAME"],
-        }
-        for p in data
-        if q in p["DISPLAY_FIRST_LAST"].lower()
-    ][:20]
-    return jsonify(out)
+
+# -------- Player shot chart --------
+@api_bp.get("/nba/players/<int:player_id>/shots")
+def player_shots(player_id: int):
+    season = request.args.get("season")
+    if not season:
+        return jsonify({"error": "Missing required query param: season"}), 400
+
+    team_id = request.args.get("team_id", default=0, type=int)
+    measure = request.args.get("measure", default="FGA")
+
+    try:
+        payload = get_player_shotchart(player_id, season, team_id=team_id, measure=measure)
+        return jsonify(payload)
+    except KeyError:
+        return jsonify({"error": f"Invalid measure '{measure}'"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # ------------------------------------------------- SHOT CHARTS -------------------------------------------------
 

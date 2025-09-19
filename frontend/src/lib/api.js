@@ -96,10 +96,21 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset }
   return [];
 }
 
-// Player Dropdown
-export async function searchPlayers(query, season = "2024-25") {
-  const { data } = await api.get("/nba/players/search", {
-    params: { q: query, season },
+export async function searchPlayers(query, season) {
+  const { data } = await api.get("/nba/players/search", { params: { q: query, season } });
+  return data; // [{ playerId, name, active, team }]
+}
+
+export async function getPlayerSeasons(playerId, { onlyWithGames = true } = {}) {
+  const { data } = await api.get(`/nba/players/${playerId}/seasons`, {
+    params: { only_with_games: onlyWithGames },
   });
-  return data ?? [];
+  return data; // ["2024-25","2023-24",...]
+}
+
+export async function getPlayerShots(playerId, season, { teamId = 0, measure = "FGA" } = {}) {
+  const { data } = await api.get(`/nba/players/${playerId}/shots`, {
+    params: { season, team_id: teamId, measure },
+  });
+  return data; // { playerId, season, shots: [...] }
 }
