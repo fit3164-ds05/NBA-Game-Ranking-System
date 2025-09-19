@@ -6,7 +6,7 @@ to Python functions that return JSON responses. Each route corresponds to a spec
 handling data retrieval, validation, and prediction logic as needed.
 """
 import os
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from services.ratings import teams, seasons_for_team, predict_prob, load_full, resolved_csv_path
 from services import ratings
 from flask_limiter import Limiter
@@ -187,13 +187,28 @@ def player_shots(player_id: int):
     team_id = request.args.get("team_id", default=0, type=int)
     measure = request.args.get("measure", default="FGA")
 
+    # Normalise and validate measure to avoid unexpected KeyErrors downstream
+    measure = (measure or "FGA").upper().strip()
+    allowed_measures = {
+        "FGA", "FGM", "FG_PCT", "FG3A", "FG3M", "FG3_PCT",
+        "PTS", "FTM", "FTA", "FT_PCT"
+    }
+    if measure not in allowed_measures:
+        return jsonify({"error": f"Invalid measure '{measure}'. Allowed: {sorted(list(allowed_measures))}"}), 400
+
     try:
         payload = get_player_shotchart(player_id, season, team_id=team_id, measure=measure)
         return jsonify(payload)
-    except KeyError:
-        return jsonify({"error": f"Invalid measure '{measure}'"}), 400
+    except KeyError as ke:
+        # If the services layer signalled a bad measure or missing key, surface it cleanly
+        return jsonify({"error": f"Bad request: {str(ke)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Log full traceback server-side for debugging; return concise client error
+        current_app.logger.exception("/nba/players/%s/shots failed", player_id)
+        return jsonify({
+            "error": "Failed to load shot chart",
+            "detail": str(e)
+        }), 500
 
 
 # ------------------------------------------------- SHOT CHARTS -------------------------------------------------

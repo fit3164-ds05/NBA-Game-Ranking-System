@@ -6,6 +6,7 @@ from nba_api.stats.endpoints import playercareerstats, shotchartdetail, playerga
 from nba_api.stats.library.parameters import SeasonAll
 from nba_api.stats.library.parameters import ContextMeasureSimple
 import os
+import re
 
 # --- Best practices for nba_api ---
 #   - NBA API rate-limits & can be finicky; short sleeps between calls help.
@@ -13,6 +14,36 @@ import os
 #   - If you get 403s, consider adding tiny backoffs.
 
 SLEEP = 0.35  # be gentle to the API
+
+allowed_measures = {
+        "FGA", "FGM", "FG_PCT", "FG3A", "FG3M", "FG3_PCT",
+        "PTS", "FTM", "FTA", "FT_PCT"
+    }
+
+def resolve_context_measure(measure: str) -> str:
+    """
+    Convert a query like 'FG3_PCT' to the nba_api parameter value by
+    using ContextMeasureSimple's attributes (e.g., ContextMeasureSimple.fg3_pct).
+    """
+    if not measure:
+        measure = "FGA"
+
+    # Defensive: strip accidental suffixes like 'FGA:1' if any tooling adds them
+    # (browser logs sometimes show ':1' as a line hint; harmless to guard)
+    measure = re.split(r"[:;]", measure, 1)[0].strip().upper()
+
+    # Apply any aliases
+
+    if measure not in allowed_measures:
+        raise ValueError(f"Invalid measure '{measure}'. Allowed: {sorted(allowed_measures)}")
+
+    attr_name = measure.lower()  # 'FG3_PCT' -> 'fg3_pct'
+    try:
+        return getattr(ContextMeasureSimple, attr_name)  # returns e.g. 'FG3_PCT'
+    except AttributeError as _:
+        # In case nba_api changes attribute names
+        raise ValueError(f"Unsupported measure for nba_api: '{measure}'")
+
 
 def season_default():
     return os.getenv("NBA_SEASON", "2024-25")
@@ -88,12 +119,16 @@ def get_player_shotchart(
     # nba_api expects a bunch of parameters; the bare minimum below is often enough.
     # You can pass team_id=0 to include all teams that season (e.g., if traded).
     time.sleep(SLEEP)
+
+    context_measure = resolve_context_measure(measure)
+
+
     sc = shotchartdetail.ShotChartDetail(
         team_id=team_id or 0,
         player_id=player_id,
         season_type_all_star="Regular Season",
         season_nullable=season,  # e.g. '2024-25'
-        context_measure_simple=ContextMeasureSimple[measure],  # validates measure
+        context_measure_simple=context_measure,  # validates measure
         # Other useful filters you might later expose:
         # period=0, game_id_nullable=None, opponent_team_id=0, etc.
     )
