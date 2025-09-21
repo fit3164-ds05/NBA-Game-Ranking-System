@@ -3,7 +3,7 @@ import Header from './Header'
 
 export default function Layout({ children }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       <Header title="NBA DATA DRIBBLE" />
       <main className="p-8">
         {children}

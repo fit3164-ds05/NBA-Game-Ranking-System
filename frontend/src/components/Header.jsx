@@ -2,9 +2,9 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 
 export default function Header({title}){
-    const baseStyles = "px-4 py-2 rounded transition-colors duration-200";
+    const baseStyles = "px-4 py-2 rounded-full transition-colors duration-200";
     const activeStyles = "bg-gray-800 text-white"; // dark when active
-    const inactiveStyles = "bg-amber-600 text-gray-800 hover:bg-gray-300"; // when inactive
+    const inactiveStyles = "bg-amber-600 text-gray-800 hover:bg-amber-500"; // when inactive
 
 
 
@@ -13,12 +13,12 @@ export default function Header({title}){
       className="sticky top-3 z-50 w-full max-w-7xl mx-auto mt-0
      flex justify-between items-center
      px-6 py-4
-     bg-gray-200/80 text-white
+     bg-gray-300/30 text-white
      backdrop-blur-md shadow-lg
      rounded-2xl pointer-events-auto"
     >
 
-      <h1 className="text-2xl font-bold text-gray-600">
+      <h1 className="text-2xl font-bold text-gray-800">
         <Link to="/">NBA DATA DRIBBLE</Link>
       </h1>
 

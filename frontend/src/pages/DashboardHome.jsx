@@ -7,7 +7,7 @@ export default function DashboardHome() {
   const [measure, setMeasure] = useState("FGA");    // FGA | FGM | FG3A | FG3M | PTS
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 p-6">
+    <div className="min-h-screen w-full p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold">Player Shot Data</h1>

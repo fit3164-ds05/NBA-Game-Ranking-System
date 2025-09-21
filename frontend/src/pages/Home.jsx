@@ -10,12 +10,11 @@ export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative min-h-screen">
-    <div className="fixed inset-0 z-0 bg-home-steph bg-cover bg-center" />      
+    <div class="min-h-screen">
       <main className="relative z-10 w-full max-w-7xl mx-auto px-4 py-12 flex flex-col items-center">
-
+        <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center"> Welcome to NBA Data Dribble</h1>
         {/* three-button grid */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12 mt-70">
+        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12 mt-20">
           <Picbutton
             title="Historical Ratings"
             onClick={() => navigate("/historicalranking")}
@@ -37,7 +36,7 @@ export default function Home() {
         </div>
 
         {/* section divider */}
-        <div className="w-full border-b-4 border-white mb-6"/>
+        <div className="w-full border-b-4 border-gray-300 mb-6"/>
 
         <Explanationcard title="Features" colour="amber-600">
           <div className="w-full grid grid-cols-1 gap-6 mt-12">
@@ -56,6 +55,9 @@ export default function Home() {
               <h3 className="text-xl font-semibold mb-2">Game Predictions</h3>
               <p className="text-sm opacity-90">Get data-driven predictions for upcoming games based on historical data and advanced analytics.</p>
             </div>
+            <p className="whitespace-nowrap">
+              For more detailed information about the features, visit the <a href="/about" className="text-white font-bold underline">About</a> page.
+            </p>
           </div>
         </Explanationcard>
       </main>
