@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { server } from '../test/msw/server'
 import { http, HttpResponse } from 'msw'
 import { getTeams, getSeasons, predictGame, getRatingsSeries } from './api'
 
 const PATH = (p) => `*/api${p}`
+
+afterEach(() => {
+  getRatingsSeries.clearCache?.()
+})
 
 describe('lib/api', () => {
   it('getTeams returns list', async () => {
@@ -59,5 +63,37 @@ describe('lib/api', () => {
     )
     const data2 = await getRatingsSeries({ teams: ['B'] })
     expect(data2).toEqual([{ date: '2021-01-02', team: 'B', rating: null }])
+  })
+
+  it('getRatingsSeries caches responses for identical params', async () => {
+    let calls = 0
+    server.use(
+      http.get(PATH('/ratings/series'), () => {
+        calls += 1
+        return HttpResponse.json({ data: [{ date: '2022-01-01', team: 'A', rating: 1600 + calls }] })
+      })
+    )
+
+    const first = await getRatingsSeries({ teams: ['A'] })
+    const second = await getRatingsSeries({ teams: ['A'] })
+
+    expect(calls).toBe(1)
+    expect(second).toEqual(first)
+  })
+
+  it('getRatingsSeries forceRefresh bypasses the cache', async () => {
+    let calls = 0
+    server.use(
+      http.get(PATH('/ratings/series'), () => {
+        calls += 1
+        return HttpResponse.json({ data: [{ date: '2022-01-02', team: 'A', rating: 1700 + calls }] })
+      })
+    )
+
+    const first = await getRatingsSeries({ teams: ['A'] })
+    const second = await getRatingsSeries({ teams: ['A'], forceRefresh: true })
+
+    expect(calls).toBe(2)
+    expect(second).not.toEqual(first)
   })
 })

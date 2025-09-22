@@ -13,6 +13,9 @@ export const api = axios.create({
   timeout: Number(import.meta.env.VITE_API_TIMEOUT_MS || 60000),
 });
 
+// Simple in-memory cache keyed by request params so repeat visits avoid refetches
+const ratingsSeriesCache = new Map();
+
 // Optional: unify success and error handling
 api.interceptors.response.use(
   // Always return response so helpers can unwrap data
@@ -62,7 +65,24 @@ export async function predictGame({ home_team, home_season, away_team, away_seas
 }
 
 // Ratings time series for the chart
-export async function getRatingsSeries({ teams = [], start, end, limit, offset } = {}) {
+export async function getRatingsSeries({ teams = [], start, end, limit, offset, forceRefresh = false } = {}) {
+  const cacheKey = JSON.stringify({
+    teams: Array.isArray(teams) ? Array.from(new Set(teams)).sort() : [],
+    start: start ?? null,
+    end: end ?? null,
+    limit: typeof limit === "number" ? limit : null,
+    offset: typeof offset === "number" ? offset : null,
+  });
+
+  if (forceRefresh) {
+    ratingsSeriesCache.delete(cacheKey);
+  } else {
+    const cached = ratingsSeriesCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
   const params = {};
   if (Array.isArray(teams) && teams.length) params.teams = teams.join(",");
   if (start) params.start = start;
@@ -70,31 +90,46 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset }
   if (typeof limit === "number") params.limit = String(limit);
   if (typeof offset === "number") params.offset = String(offset);
 
-  const res = await api.get("/ratings/series", { params });
+  const request = (async () => {
+    const res = await api.get("/ratings/series", { params });
 
-  // Some backends may accidentally emit NaN which is invalid JSON.
-  // Axios may then treat the payload as a string. Handle both shapes safely.
-  let payload = res.data;
+    // Some backends may accidentally emit NaN which is invalid JSON.
+    // Axios may then treat the payload as a string. Handle both shapes safely.
+    let payload = res.data;
 
-  if (typeof payload === "string") {
-    try {
-      // Replace bare NaN tokens with null so JSON.parse succeeds
-      const sanitised = payload.replace(/\bNaN\b/g, "null");
-      payload = JSON.parse(sanitised);
-    } catch {
-      // If parsing fails, return an empty array rather than breaking the UI
-      return [];
+    if (typeof payload === "string") {
+      try {
+        // Replace bare NaN tokens with null so JSON.parse succeeds
+        const sanitised = payload.replace(/\bNaN\b/g, "null");
+        payload = JSON.parse(sanitised);
+      } catch {
+        // If parsing fails, return an empty array rather than breaking the UI
+        return [];
+      }
     }
-  }
 
-  if (Array.isArray(payload?.data)) {
-    return payload.data; // expected shape: { data: [...] }
+    if (Array.isArray(payload?.data)) {
+      return payload.data; // expected shape: { data: [...] }
+    }
+    if (Array.isArray(payload)) {
+      return payload; // already an array
+    }
+    return [];
+  })();
+
+  ratingsSeriesCache.set(cacheKey, request);
+
+  try {
+    const result = await request;
+    ratingsSeriesCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    ratingsSeriesCache.delete(cacheKey);
+    throw err;
   }
-  if (Array.isArray(payload)) {
-    return payload; // already an array
-  }
-  return [];
 }
+
+getRatingsSeries.clearCache = () => ratingsSeriesCache.clear();
 
 export async function searchPlayers(query, season) {
   const { data } = await api.get("/nba/players/search", { params: { q: query, season } });
