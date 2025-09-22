@@ -7,6 +7,9 @@ const PATH = (p) => `*/api${p}`
 
 afterEach(() => {
   getRatingsSeries.clearCache?.()
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.clear()
+  }
 })
 
 describe('lib/api', () => {
@@ -95,5 +98,29 @@ describe('lib/api', () => {
 
     expect(calls).toBe(2)
     expect(second).not.toEqual(first)
+  })
+
+  it('rehydrates ratings cache from sessionStorage on reload', async () => {
+    if (typeof sessionStorage === 'undefined') return
+
+    sessionStorage.clear()
+
+    let calls = 0
+    server.use(
+      http.get(PATH('/ratings/series'), () => {
+        calls += 1
+        return HttpResponse.json({ data: [{ date: '2023-01-01', team: 'A', rating: 1800 }] })
+      })
+    )
+
+    const first = await getRatingsSeries({ teams: ['A'] })
+    expect(calls).toBe(1)
+
+    getRatingsSeries.clearCache({ persist: false })
+    getRatingsSeries._hydrateFromStorageForTests?.()
+
+    const second = await getRatingsSeries({ teams: ['A'] })
+    expect(calls).toBe(1)
+    expect(second).toEqual(first)
   })
 })

@@ -435,6 +435,7 @@ export default function RatingChart({
                 const isUserHighlighted = highlightedSet.has(team);
                 const isActive = legendTeamSet.has(team);
                 const faded = legendTeams.length > 0 && !isActive;
+                const baseOpacity = isUserHighlighted ? 0.85 : 0.6;
                 return (
                   <Line
                     key={team}
@@ -442,7 +443,7 @@ export default function RatingChart({
                     dataKey={team}
                     stroke={getTeamColor(team)}
                     strokeWidth={isHovered ? 5 : isUserHighlighted ? 4 : 2}
-                    strokeOpacity={faded ? 0.15 : 1}
+                    strokeOpacity={faded ? 0.15 : baseOpacity}
                     dot={false}
                     activeDot={false}
                     onClick={() => handleSelectTeam(team)}
@@ -459,6 +460,7 @@ export default function RatingChart({
                 const isUserHighlighted = highlightedSet.has(team);
                 const isActive = legendTeamSet.has(team);
                 const faded = legendTeams.length > 0 && !isActive;
+                const baseOpacity = isUserHighlighted ? 0.8 : 0.55;
                 return arr.map(({ year, data }) => (
                   <Line
                     key={`${team}__highlight__${year}`}
@@ -467,7 +469,7 @@ export default function RatingChart({
                     data={data}
                     stroke={getTeamHighlightColor(team)}
                     strokeWidth={isHovered ? 7 : isUserHighlighted ? 6 : 5}
-                    strokeOpacity={faded ? 0.08 : 1}
+                    strokeOpacity={faded ? 0.08 : baseOpacity}
                     isAnimationActive={false}
                     dot={{ r: isHovered ? 6 : 5 }}
                     activeDot={false}

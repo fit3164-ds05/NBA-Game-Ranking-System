@@ -16,6 +16,62 @@ export const api = axios.create({
 // Simple in-memory cache keyed by request params so repeat visits avoid refetches
 const ratingsSeriesCache = new Map();
 
+const CACHE_STORAGE_KEY = "ratingsSeriesCache_v1";
+
+const storage = (() => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch (err) {
+    // Safari private mode can throw when accessing sessionStorage
+    return null;
+  }
+})();
+
+function loadCacheFromStorage() {
+  if (!storage) return;
+  try {
+    const raw = storage.getItem(CACHE_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || parsed.version !== 1) return;
+    const entries = parsed.entries;
+    if (!entries || typeof entries !== "object") return;
+    for (const [key, value] of Object.entries(entries)) {
+      if (value && Array.isArray(value.data)) {
+        ratingsSeriesCache.set(key, value.data);
+      }
+    }
+  } catch (err) {
+    storage.removeItem(CACHE_STORAGE_KEY);
+  }
+}
+
+function persistCache() {
+  if (!storage) return;
+  try {
+    const entries = {};
+    ratingsSeriesCache.forEach((value, key) => {
+      if (Array.isArray(value)) {
+        entries[key] = { data: value };
+      }
+    });
+    const keys = Object.keys(entries);
+    if (keys.length === 0) {
+      storage.removeItem(CACHE_STORAGE_KEY);
+    } else {
+      storage.setItem(
+        CACHE_STORAGE_KEY,
+        JSON.stringify({ version: 1, entries })
+      );
+    }
+  } catch (err) {
+    storage.removeItem(CACHE_STORAGE_KEY);
+  }
+}
+
+loadCacheFromStorage();
+
 // Optional: unify success and error handling
 api.interceptors.response.use(
   // Always return response so helpers can unwrap data
@@ -76,6 +132,7 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset, 
 
   if (forceRefresh) {
     ratingsSeriesCache.delete(cacheKey);
+    persistCache();
   } else {
     const cached = ratingsSeriesCache.get(cacheKey);
     if (cached) {
@@ -122,14 +179,27 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset, 
   try {
     const result = await request;
     ratingsSeriesCache.set(cacheKey, result);
+    persistCache();
     return result;
   } catch (err) {
     ratingsSeriesCache.delete(cacheKey);
+    persistCache();
     throw err;
   }
 }
 
-getRatingsSeries.clearCache = () => ratingsSeriesCache.clear();
+getRatingsSeries.clearCache = ({ persist = true } = {}) => {
+  ratingsSeriesCache.clear();
+  if (persist) {
+    if (storage) {
+      storage.removeItem(CACHE_STORAGE_KEY);
+    }
+  }
+};
+
+getRatingsSeries._hydrateFromStorageForTests = () => {
+  loadCacheFromStorage();
+};
 
 export async function searchPlayers(query, season) {
   const { data } = await api.get("/nba/players/search", { params: { q: query, season } });
