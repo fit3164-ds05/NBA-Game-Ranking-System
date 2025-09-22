@@ -4,10 +4,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 // Mock API to avoid network
 vi.mock('../lib/api', () => ({
   getRatingsSeries: vi.fn(async () => [
-    { date: 2021, team: 'Boston Celtics', rating: 1500 },
-    { date: 2022, team: 'Boston Celtics', rating: 1520 },
-    { date: 2021, team: 'Los Angeles Lakers', rating: 1510 },
-    { date: 2022, team: 'Los Angeles Lakers', rating: 1530 },
+    { date: '2021-12-20', team: 'Boston Celtics', rating: 1500 },
+    { date: '2022-04-01', team: 'Boston Celtics', rating: 1520 },
+    { date: '2021-12-20', team: 'Los Angeles Lakers', rating: 1510 },
+    { date: '2022-04-01', team: 'Los Angeles Lakers', rating: 1530 },
   ]),
 }))
 
@@ -31,6 +31,11 @@ describe('RatingChart', () => {
       // container should be present even if jsdom doesn't render ticks
       expect(document.querySelector('.recharts-responsive-container')).toBeTruthy()
     })
+
+    const seasonSelect = screen.getByLabelText('Season view')
+    expect(seasonSelect).toBeInTheDocument()
+    expect(seasonSelect).toHaveValue('2021')
+    expect(screen.getByRole('option', { name: '21/22' })).toBeInTheDocument()
 
     // Should not show the empty-state message
     expect(

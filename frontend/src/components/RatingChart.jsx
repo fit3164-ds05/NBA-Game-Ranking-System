@@ -34,6 +34,9 @@ export default function RatingChart({
   const [xDomain, setXDomain] = useState([0, 0]);
   const [defaultDomain, setDefaultDomain] = useState([0, 0]);
   const [brushRange, setBrushRange] = useState([0, 0]);
+  const [seasonOptions, setSeasonOptions] = useState([]);
+  const [selectedSeasonDetail, setSelectedSeasonDetail] = useState(null);
+  const [detailDataByYear, setDetailDataByYear] = useState({});
 
   const highlightedSet = React.useMemo(
     () => new Set(highlightedTeams || []),
@@ -106,6 +109,19 @@ export default function RatingChart({
   }, [teams]);
 
   useEffect(() => {
+    if (!seasonOptions || seasonOptions.length === 0) {
+      setSelectedSeasonDetail(null);
+      return;
+    }
+    setSelectedSeasonDetail((prev) => {
+      if (typeof prev === "number" && seasonOptions.some((opt) => opt.startYear === prev)) {
+        return prev;
+      }
+      return seasonOptions[0].startYear;
+    });
+  }, [seasonOptions]);
+
+  useEffect(() => {
     if (!teams || teams.length === 0) {
       setData([]);
       setDisplayedTeams([]);
@@ -116,13 +132,74 @@ export default function RatingChart({
     getRatingsSeries({ teams })
       .then((res) => {
         const pivotMap = new Map();
+        const detailMap = new Map();
         res.forEach(({ date, team, rating }) => {
-          const year = Number(String(date).slice(0, 4));
-          if (!pivotMap.has(year)) {
-            pivotMap.set(year, { date: year });
+          if (!date || !team) return;
+          const dateStr = String(date);
+          const parsed = new Date(`${dateStr}T00:00:00Z`);
+          if (Number.isNaN(parsed.getTime())) return;
+
+          const month = parsed.getUTCMonth();
+          const day = parsed.getUTCDate();
+          const year = parsed.getUTCFullYear();
+
+          const seasonStartYear = month >= 9 ? year : year - 1;
+          const seasonStartTs = Date.UTC(seasonStartYear, 9, 15);
+          const seasonEndTs = Date.UTC(seasonStartYear + 1, 6, 15, 23, 59, 59);
+          const currentTs = Date.UTC(year, month, day);
+
+          if (currentTs < seasonStartTs || currentTs > seasonEndTs) return;
+
+          const seasonKey = seasonStartYear;
+          const seasonLabel = formatSeasonShort(seasonStartYear);
+
+          if (!pivotMap.has(seasonKey)) {
+            pivotMap.set(seasonKey, { date: seasonKey });
           }
-          pivotMap.get(year)[team] = rating;
+          pivotMap.get(seasonKey)[team] = rating;
+
+          if (!detailMap.has(seasonKey)) {
+            detailMap.set(seasonKey, {
+              label: seasonLabel,
+              rows: new Map(),
+            });
+          }
+          const seasonEntry = detailMap.get(seasonKey);
+          const dayKey = dateStr;
+          if (!seasonEntry.rows.has(dayKey)) {
+            seasonEntry.rows.set(dayKey, {
+              date: dateStr,
+              timestamp: currentTs,
+            });
+          }
+          seasonEntry.rows.get(dayKey)[team] = rating;
         });
+
+        const detailObj = {};
+        detailMap.forEach(({ label, rows }, seasonKey) => {
+          const sortedRows = Array.from(rows.values())
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .map((row, idx) => ({
+              ...row,
+              dayIndex: idx + 1,
+            }));
+          if (sortedRows.length > 0) {
+            detailObj[seasonKey] = {
+              label,
+              rows: sortedRows,
+            };
+          }
+        });
+
+        setDetailDataByYear(detailObj);
+        const availableSeasons = Object.entries(detailObj)
+          .map(([seasonKey, info]) => ({
+            startYear: Number(seasonKey),
+            label: info.label,
+          }))
+          .sort((a, b) => b.startYear - a.startYear);
+        setSeasonOptions(availableSeasons);
+
         let pivotData = Array.from(pivotMap.values()).sort(
           (a, b) => Number(a.date) - Number(b.date)
         );
@@ -212,6 +289,32 @@ export default function RatingChart({
     [displayedTeams]
   );
 
+  const detailSeasonInfo = React.useMemo(() => {
+    if (selectedSeasonDetail == null) return null;
+    return detailDataByYear?.[selectedSeasonDetail] ?? null;
+  }, [selectedSeasonDetail, detailDataByYear]);
+
+  const detailSeasonLabel = detailSeasonInfo?.label ?? "";
+
+  const detailData = React.useMemo(() => {
+    if (!detailSeasonInfo || !detailSeasonInfo.rows) return [];
+    const rows = detailSeasonInfo.rows;
+    if (!uniqueTeams || uniqueTeams.length === 0) {
+      return rows.map((row) => ({ ...row }));
+    }
+    return rows.map((row) => {
+      const out = {
+        date: row.date,
+        timestamp: row.timestamp,
+        dayIndex: row.dayIndex,
+      };
+      uniqueTeams.forEach((team) => {
+        out[team] = row[team] ?? null;
+      });
+      return out;
+    });
+  }, [detailSeasonInfo, uniqueTeams]);
+
   useEffect(() => {
     setHoveredTeams((prev) => prev.filter((team) => uniqueTeams.includes(team)));
   }, [uniqueTeams]);
@@ -261,6 +364,34 @@ export default function RatingChart({
     for (let y = start; y <= end; y += 1) t.push(y);
     return t;
   }, [xDomain]);
+
+  const detailXDomain = React.useMemo(() => {
+    if (!detailData || detailData.length === 0) return ["auto", "auto"];
+    const values = detailData
+      .map((row) => Number(row.timestamp))
+      .filter((v) => Number.isFinite(v));
+    if (values.length === 0) return ["auto", "auto"];
+    return [Math.min(...values), Math.max(...values)];
+  }, [detailData]);
+
+  const detailYDomain = React.useMemo(() => {
+    if (!detailData || detailData.length === 0 || !uniqueTeams || uniqueTeams.length === 0) {
+      return ["auto", "auto"];
+    }
+    const values = [];
+    for (const row of detailData) {
+      for (const team of uniqueTeams) {
+        const v = row[team];
+        if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+      }
+    }
+    if (values.length === 0) return ["auto", "auto"];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min;
+    const pad = span > 0 ? span * 0.08 : Math.max(10, Math.abs(max) * 0.08);
+    return [min - pad, max + pad];
+  }, [detailData, uniqueTeams]);
 
   // Custom tick that boldens ticks that fall within the selected years
   const YearAwareTick = (props) => {
@@ -313,6 +444,66 @@ export default function RatingChart({
         }}
       >
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>Season {seasonLabel}</div>
+        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+          {Array.from(map.values()).map((p) => (
+            <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
+              <span>{p.name}: </span>
+              <span>{Number(p.value).toFixed(0)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
+  const formatDetailTick = React.useCallback((value) => {
+    if (value == null) return "";
+    const num = Number(value);
+    if (!Number.isFinite(num)) return "";
+    const date = new Date(num);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }, []);
+
+  const SeasonDetailTooltip = ({ active, label, payload }) => {
+    if (!active || !payload || payload.length === 0) return null;
+    let filtered = payload.filter((p) => p.value != null);
+
+    const hasLegendEntries = legendTeams.length > 0;
+    const allHighlighted = hasLegendEntries && legendTeams.length === uniqueTeams.length;
+
+    if (hasLegendEntries && !allHighlighted) {
+      filtered = filtered.filter((p) => legendTeamSet.has(p.name));
+    } else if (maxTooltipItems && maxTooltipItems > 0) {
+      filtered = [...filtered]
+        .sort((a, b) => Number(b.value) - Number(a.value))
+        .slice(0, maxTooltipItems);
+    }
+
+    const map = new Map();
+    for (const p of filtered) {
+      if (!map.has(p.name)) map.set(p.name, p);
+    }
+    if (map.size === 0) return null;
+
+    const num = Number(label);
+    const date = Number.isFinite(num) ? new Date(num) : null;
+    let labelText = String(label);
+    if (date && !Number.isNaN(date.getTime())) {
+      const formatted = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      labelText = detailSeasonLabel ? `${detailSeasonLabel} · ${formatted}` : formatted;
+    }
+
+    return (
+      <div
+        style={{
+          backgroundColor: "white",
+          border: "1px solid #ccc",
+          padding: 8,
+          borderRadius: 4,
+        }}
+      >
+        <div style={{ fontWeight: "bold", marginBottom: 4 }}>{labelText}</div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {Array.from(map.values()).map((p) => (
             <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
@@ -394,55 +585,230 @@ export default function RatingChart({
     setXDomain(defaultDomain);
   }, [data, defaultDomain]);
 
+  const seasonSelectValue = selectedSeasonDetail != null
+    ? String(selectedSeasonDetail)
+    : seasonOptions.length > 0
+      ? String(seasonOptions[0].startYear)
+      : "";
+
   return (
-    <div className="bg-white border rounded-2xl p-4 shadow-sm mb-4">
-      <h2 className="text-lg font-semibold mb-4">Team Ratings Over Time</h2>
-      {loading && <p>Loading rating data...</p>}
-      {error && <p className="text-red-600">Error: {error}</p>}
-      {!loading && !error && data.length === 0 && (
-        <p>No rating data available for selected teams.</p>
-      )}
-      {!loading && !error && data.length > 0 && (
-        <div className="relative">
-          <ResponsiveContainer width="100%" height={300}>
+    <div className="space-y-6">
+      <div className="bg-white border rounded-2xl p-4 shadow-sm">
+        <h2 className="text-lg font-semibold mb-4">Team Ratings Over Time</h2>
+        {loading && <p>Loading rating data...</p>}
+        {error && <p className="text-red-600">Error: {error}</p>}
+        {!loading && !error && data.length === 0 && (
+          <p>No rating data available for selected teams.</p>
+        )}
+        {!loading && !error && data.length > 0 && (
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={data}
+                onMouseLeave={handleChartMouseLeave}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  type="number"
+                  domain={xDomain}
+                  ticks={xTicks}
+                  tick={<YearAwareTick />}
+                  allowDuplicatedCategory={false}
+                  allowDataOverflow
+                  allowDecimals={false}
+                />
+                <YAxis
+                  domain={yDomain}
+                  ticks={yTicks}
+                  tickFormatter={(val) => Number(val).toFixed(0)}
+                  allowDecimals={false}
+                  allowDataOverflow
+                />
+
+                {showTooltip && <Tooltip content={<CustomTooltip />} />}
+
+                {uniqueTeams.map((team) => {
+                  const isHovered = hoveredSet.has(team);
+                  const isUserHighlighted = highlightedSet.has(team);
+                  const isActive = legendTeamSet.has(team);
+                  const faded = legendTeams.length > 0 && !isActive;
+                  const baseOpacity = isUserHighlighted ? 0.85 : 0.6;
+                  return (
+                    <Line
+                      key={team}
+                      type="linear"
+                      dataKey={team}
+                      stroke={getTeamColor(team)}
+                      strokeWidth={isHovered ? 5 : isUserHighlighted ? 4 : 2}
+                      strokeOpacity={faded ? 0.15 : baseOpacity}
+                      dot={false}
+                      activeDot={false}
+                      onClick={() => handleSelectTeam(team)}
+                      onMouseEnter={() => handleLineEnter(team)}
+                      onMouseLeave={() => handleLineLeave(team)}
+                      cursor="pointer"
+                    />
+                  );
+                })}
+                {uniqueTeams.flatMap((team) => {
+                  const arr = highlightDataByTeam[team];
+                  if (!arr || arr.length === 0) return [];
+                  const isHovered = hoveredSet.has(team);
+                  const isUserHighlighted = highlightedSet.has(team);
+                  const isActive = legendTeamSet.has(team);
+                  const faded = legendTeams.length > 0 && !isActive;
+                  const baseOpacity = isUserHighlighted ? 0.8 : 0.55;
+                  return arr.map(({ year, data }) => (
+                    <Line
+                      key={`${team}__highlight__${year}`}
+                      type="linear"
+                      dataKey={team}
+                      data={data}
+                      stroke={getTeamHighlightColor(team)}
+                      strokeWidth={isHovered ? 7 : isUserHighlighted ? 6 : 5}
+                      strokeOpacity={faded ? 0.08 : baseOpacity}
+                      isAnimationActive={false}
+                      dot={{ r: isHovered ? 6 : 5 }}
+                      activeDot={false}
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      legendType="none"
+                      name={undefined}
+                      onClick={() => handleSelectTeam(team)}
+                      onMouseEnter={() => handleLineEnter(team)}
+                      onMouseLeave={() => handleLineLeave(team)}
+                      cursor="pointer"
+                    />
+                  ));
+                })}
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-600">Timeline focus</span>
+                <button
+                  type="button"
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                  onClick={resetZoom}
+                >
+                  Reset view
+                </button>
+              </div>
+              <ResponsiveContainer width="100%" height={90}>
+                <LineChart
+                  data={data}
+                  margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="2 6" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="date"
+                    type="number"
+                    height={24}
+                    domain={defaultDomain}
+                    allowDuplicatedCategory={false}
+                    allowDecimals={false}
+                    tick={{ fontSize: 10, fill: "#6b7280" }}
+                  />
+                  <YAxis hide domain={yDomain} />
+                  {uniqueTeams.map((team) => (
+                    <Line
+                      key={`context-${team}`}
+                      type="linear"
+                      dataKey={team}
+                      stroke={getTeamColor(team)}
+                      strokeWidth={1.5}
+                      dot={false}
+                      isAnimationActive={false}
+                      strokeOpacity={0.5}
+                    />
+                  ))}
+                  <Brush
+                    dataKey="date"
+                    startIndex={brushRange[0]}
+                    endIndex={brushRange[1]}
+                    height={20}
+                    travellerWidth={10}
+                    stroke="#2563eb"
+                    fill="rgba(37, 99, 235, 0.08)"
+                    onChange={handleBrushChange}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white border rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Season Detail View</h3>
+          <div className="flex items-center gap-2">
+            <label htmlFor="season-detail-select" className="text-sm font-medium text-gray-600">
+              Season view
+            </label>
+            <select
+              id="season-detail-select"
+              className="border rounded-md px-2 py-1 text-sm"
+              value={seasonSelectValue}
+              onChange={(event) => {
+                const { value } = event.target;
+                const next = Number(value);
+                setSelectedSeasonDetail(Number.isNaN(next) ? null : next);
+              }}
+              disabled={seasonOptions.length === 0}
+            >
+              {seasonOptions.map(({ startYear, label }) => (
+                <option key={startYear} value={String(startYear)}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {loading ? (
+          <p>Loading rating data...</p>
+        ) : error ? (
+          <p className="text-red-600">Error: {error}</p>
+        ) : detailData.length === 0 ? (
+          <p>No detailed rating data available for the selected season.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
             <LineChart
-              data={data}
+              data={detailData}
               onMouseLeave={handleChartMouseLeave}
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="date"
+                dataKey="timestamp"
                 type="number"
-                domain={xDomain}
-                ticks={xTicks}
-                tick={<YearAwareTick />}
-                allowDuplicatedCategory={false}
+                domain={detailXDomain}
+                tickFormatter={formatDetailTick}
                 allowDataOverflow
                 allowDecimals={false}
               />
               <YAxis
-                domain={yDomain}
-                ticks={yTicks}
+                domain={detailYDomain}
                 tickFormatter={(val) => Number(val).toFixed(0)}
                 allowDecimals={false}
                 allowDataOverflow
               />
 
-              {showTooltip && <Tooltip content={<CustomTooltip />} />}
+              {showTooltip && <Tooltip content={<SeasonDetailTooltip />} />}
 
-              {uniqueTeams.map((team, idx) => {
+              {uniqueTeams.map((team) => {
                 const isHovered = hoveredSet.has(team);
                 const isUserHighlighted = highlightedSet.has(team);
                 const isActive = legendTeamSet.has(team);
                 const faded = legendTeams.length > 0 && !isActive;
-                const baseOpacity = isUserHighlighted ? 0.85 : 0.6;
+                const baseOpacity = isUserHighlighted ? 0.85 : 0.55;
                 return (
                   <Line
-                    key={team}
-                    type="monotone"
+                    key={`detail-${team}`}
+                    type="linear"
                     dataKey={team}
                     stroke={getTeamColor(team)}
-                    strokeWidth={isHovered ? 5 : isUserHighlighted ? 4 : 2}
+                    strokeWidth={isHovered ? 4 : isUserHighlighted ? 3 : 2}
                     strokeOpacity={faded ? 0.15 : baseOpacity}
                     dot={false}
                     activeDot={false}
@@ -453,93 +819,10 @@ export default function RatingChart({
                   />
                 );
               })}
-              {uniqueTeams.flatMap((team, idx) => {
-                const arr = highlightDataByTeam[team];
-                if (!arr || arr.length === 0) return [];
-                const isHovered = hoveredSet.has(team);
-                const isUserHighlighted = highlightedSet.has(team);
-                const isActive = legendTeamSet.has(team);
-                const faded = legendTeams.length > 0 && !isActive;
-                const baseOpacity = isUserHighlighted ? 0.8 : 0.55;
-                return arr.map(({ year, data }) => (
-                  <Line
-                    key={`${team}__highlight__${year}`}
-                    type="monotone"
-                    dataKey={team}
-                    data={data}
-                    stroke={getTeamHighlightColor(team)}
-                    strokeWidth={isHovered ? 7 : isUserHighlighted ? 6 : 5}
-                    strokeOpacity={faded ? 0.08 : baseOpacity}
-                    isAnimationActive={false}
-                    dot={{ r: isHovered ? 6 : 5 }}
-                    activeDot={false}
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    legendType="none"
-                    name={undefined}
-                    onClick={() => handleSelectTeam(team)}
-                    onMouseEnter={() => handleLineEnter(team)}
-                    onMouseLeave={() => handleLineLeave(team)}
-                    cursor="pointer"
-                  />
-                ));
-              })}
             </LineChart>
           </ResponsiveContainer>
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Timeline focus</span>
-              <button
-                type="button"
-                className="text-sm text-blue-600 hover:text-blue-500"
-                onClick={resetZoom}
-              >
-                Reset view
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={90}>
-              <LineChart
-                data={data}
-                margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="2 6" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  height={24}
-                  domain={defaultDomain}
-                  allowDuplicatedCategory={false}
-                  allowDecimals={false}
-                  tick={{ fontSize: 10, fill: "#6b7280" }}
-                />
-                <YAxis hide domain={yDomain} />
-                {uniqueTeams.map((team) => (
-                  <Line
-                    key={`context-${team}`}
-                    type="monotone"
-                    dataKey={team}
-                    stroke={getTeamColor(team)}
-                    strokeWidth={1.5}
-                    dot={false}
-                    isAnimationActive={false}
-                    strokeOpacity={0.5}
-                  />
-                ))}
-                <Brush
-                  dataKey="date"
-                  startIndex={brushRange[0]}
-                  endIndex={brushRange[1]}
-                  height={20}
-                  travellerWidth={10}
-                  stroke="#2563eb"
-                  fill="rgba(37, 99, 235, 0.08)"
-                  onChange={handleBrushChange}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
