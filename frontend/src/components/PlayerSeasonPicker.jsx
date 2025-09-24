@@ -93,7 +93,7 @@ export default function PlayerSeasonPicker({
       />
 
       {error && <div className="text-sm text-red-600">{error}</div>}
-      {loadingShots && <div className="text-sm text-gray-500">Loading shot chart...</div>}
+      {/* {loadingShots && <div className="text-sm text-gray-500">Loading shot chart...</div>} */}
 
       {/* If you want to render shots right here, you can pass `shots` down */}
       {shots?.shots && <div className="text-sm text-gray-500">{shots.count} shots loaded.</div>}

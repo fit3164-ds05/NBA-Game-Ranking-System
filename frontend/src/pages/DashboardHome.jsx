@@ -1,6 +1,7 @@
 // src/pages/DashboardHome.jsx
 import { useState } from "react";
 import PlayerSeasonPicker from "../components/PlayerSeasonPicker";
+import ShotChart from "../components/ShotChart";
 
 export default function DashboardHome() {
   const [selection, setSelection] = useState(null); // { player, season, shots }
@@ -33,7 +34,13 @@ export default function DashboardHome() {
           defaultSeason="2024-25"
           autoFetchShots={true}
           measure={measure}
-          onComplete={setSelection}
+          onComplete={(sel) => {
+            // Optionally annotate for chart title
+            const withName = sel?.shots
+              ? { ...sel.shots, playerName: sel?.player?.name, season: sel?.season }
+              : null;
+            setSelection({ ...sel, chartData: withName });
+          }}
         />
 
         {/* Summary card */}
@@ -52,9 +59,14 @@ export default function DashboardHome() {
               {selection?.shots?.count ?? "-"}
             </div>
           </div>
-        </section>
+        </section> 
 
-        {/* Raw payload (no visualization yet) */}
+        Shot chart OPEN WHEN READY
+        {selection?.chartData?.shots?.length > 0 && (
+          <ShotChart data={selection.chartData} measure={measure} />
+        )}
+
+        {/* (Optional) Raw payload */}
         {selection?.shots && (
           <details className="rounded-lg border bg-gray-50 p-4">
             <summary className="cursor-pointer select-none font-medium">
@@ -69,3 +81,4 @@ export default function DashboardHome() {
     </div>
   );
 }
+
