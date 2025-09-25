@@ -35,11 +35,7 @@ export default function DashboardHome() {
           autoFetchShots={true}
           measure={measure}
           onComplete={(sel) => {
-            // Optionally annotate for chart title
-            const withName = sel?.shots
-              ? { ...sel.shots, playerName: sel?.player?.name, season: sel?.season }
-              : null;
-            setSelection({ ...sel, chartData: withName });
+            setSelection(sel ?? null);
           }}
         />
 
@@ -61,9 +57,13 @@ export default function DashboardHome() {
           </div>
         </section> 
 
-        Shot chart OPEN WHEN READY
-        {selection?.chartData?.shots?.length > 0 && (
-          <ShotChart data={selection.chartData} measure={measure} />
+        {selection?.shots?.shots?.length > 0 && (
+          <ShotChart
+            payload={selection.shots}
+            measure={measure}
+            playerName={selection.player?.name}
+            seasonLabel={selection.season}
+          />
         )}
 
         {/* (Optional) Raw payload */}
@@ -81,4 +81,3 @@ export default function DashboardHome() {
     </div>
   );
 }
-
