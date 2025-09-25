@@ -7,7 +7,7 @@ vi.mock('../../lib/api', () => ({
 }))
 
 import { searchPlayers } from '../../lib/api'
-import PlayerDropdown from '../playerdropdown'
+import PlayerDropdown from '../PlayerDropdown'
 
 describe('PlayerDropdown', () => {
   beforeEach(() => {
