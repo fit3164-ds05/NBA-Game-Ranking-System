@@ -32,11 +32,6 @@ describe('RatingChart', () => {
       expect(document.querySelector('.recharts-responsive-container')).toBeTruthy()
     })
 
-    const seasonSelect = screen.getByLabelText('Season view')
-    expect(seasonSelect).toBeInTheDocument()
-    expect(seasonSelect).toHaveValue('2021')
-    expect(screen.getByRole('option', { name: '21/22' })).toBeInTheDocument()
-
     // Should not show the empty-state message
     expect(
       screen.queryByText('No rating data available for selected teams.')

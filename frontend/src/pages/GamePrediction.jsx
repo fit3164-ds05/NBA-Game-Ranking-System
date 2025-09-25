@@ -363,6 +363,7 @@ export default function GamePrediction() {
           teams={[homeTeam, awayTeam].filter(Boolean)}
           selectedYearsByTeam={selectedYearsByTeam}
           showTooltip={false}
+          showZoomControls={false}
         />
 
         {/* Prediction result display */}

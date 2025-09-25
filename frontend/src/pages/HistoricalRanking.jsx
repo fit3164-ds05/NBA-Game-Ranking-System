@@ -138,6 +138,7 @@ export default function HistoricalRanking() {
             highlightedTeams={highlighted}
             onToggleTeam={toggleTeam}
             onSelectTeam={toggleTeam}
+            showSeasonDetail
           />
         )}
       </div>
