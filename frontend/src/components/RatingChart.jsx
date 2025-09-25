@@ -154,9 +154,9 @@ export default function RatingChart({
           const seasonLabel = formatSeasonShort(seasonStartYear);
 
           if (!pivotMap.has(seasonKey)) {
-            pivotMap.set(seasonKey, { date: seasonKey });
-          }
-          pivotMap.get(seasonKey)[team] = rating;
+          pivotMap.set(seasonKey, { date: seasonKey });
+        }
+        pivotMap.get(seasonKey)[team] = rating;
 
           if (!detailMap.has(seasonKey)) {
             detailMap.set(seasonKey, {
@@ -166,13 +166,17 @@ export default function RatingChart({
           }
           const seasonEntry = detailMap.get(seasonKey);
           const dayKey = dateStr;
-          if (!seasonEntry.rows.has(dayKey)) {
-            seasonEntry.rows.set(dayKey, {
+          let entry = seasonEntry.rows.get(dayKey);
+          if (!entry) {
+            entry = {
               date: dateStr,
               timestamp: currentTs,
-            });
+              values: {},
+              order: seasonEntry.rows.size,
+            };
+            seasonEntry.rows.set(dayKey, entry);
           }
-          seasonEntry.rows.get(dayKey)[team] = rating;
+          entry.values[team] = rating;
         });
 
         const detailObj = {};
@@ -180,8 +184,10 @@ export default function RatingChart({
           const sortedRows = Array.from(rows.values())
             .sort((a, b) => a.timestamp - b.timestamp)
             .map((row, idx) => ({
-              ...row,
+              date: row.date,
+              timestamp: row.timestamp,
               dayIndex: idx + 1,
+              values: row.values,
             }));
           if (sortedRows.length > 0) {
             detailObj[seasonKey] = {
@@ -296,24 +302,69 @@ export default function RatingChart({
 
   const detailSeasonLabel = detailSeasonInfo?.label ?? "";
 
+  const detailTeams = React.useMemo(() => {
+    if (!detailSeasonInfo || !detailSeasonInfo.rows || !uniqueTeams) return [];
+    const rows = detailSeasonInfo.rows;
+    const EPS = 1e-6;
+    return uniqueTeams.filter((team) => {
+      let prev = null;
+      for (const row of rows) {
+        const val = row.values?.[team];
+        if (val == null || Number.isNaN(val)) continue;
+        if (prev == null) {
+          prev = val;
+        } else if (Math.abs(val - prev) > EPS) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }, [detailSeasonInfo, uniqueTeams]);
+
+  const detailTeamSet = React.useMemo(() => new Set(detailTeams), [detailTeams]);
+
   const detailData = React.useMemo(() => {
     if (!detailSeasonInfo || !detailSeasonInfo.rows) return [];
     const rows = detailSeasonInfo.rows;
-    if (!uniqueTeams || uniqueTeams.length === 0) {
-      return rows.map((row) => ({ ...row }));
+    if (!detailTeams || detailTeams.length === 0) {
+      return [];
     }
-    return rows.map((row) => {
+    const EPS = 1e-6;
+    const lastActive = new Map();
+    const prevMap = new Map();
+
+    rows.forEach((row, idx) => {
+      detailTeams.forEach((team) => {
+        const val = row.values?.[team];
+        if (val == null || Number.isNaN(val)) return;
+        const prev = prevMap.get(team);
+        if (prev == null) {
+          prevMap.set(team, val);
+          lastActive.set(team, idx);
+        } else if (Math.abs(val - prev) > EPS) {
+          prevMap.set(team, val);
+          lastActive.set(team, idx);
+        }
+      });
+    });
+
+    return rows.map((row, idx) => {
       const out = {
         date: row.date,
         timestamp: row.timestamp,
         dayIndex: row.dayIndex,
       };
-      uniqueTeams.forEach((team) => {
-        out[team] = row[team] ?? null;
+      detailTeams.forEach((team) => {
+        const cutoff = lastActive.get(team);
+        if (cutoff == null || idx > cutoff) {
+          out[team] = null;
+          return;
+        }
+        out[team] = row.values?.[team] ?? null;
       });
       return out;
     });
-  }, [detailSeasonInfo, uniqueTeams]);
+  }, [detailSeasonInfo, detailTeams]);
 
   useEffect(() => {
     setHoveredTeams((prev) => prev.filter((team) => uniqueTeams.includes(team)));
@@ -375,12 +426,12 @@ export default function RatingChart({
   }, [detailData]);
 
   const detailYDomain = React.useMemo(() => {
-    if (!detailData || detailData.length === 0 || !uniqueTeams || uniqueTeams.length === 0) {
+    if (!detailData || detailData.length === 0 || !detailTeams || detailTeams.length === 0) {
       return ["auto", "auto"];
     }
     const values = [];
     for (const row of detailData) {
-      for (const team of uniqueTeams) {
+      for (const team of detailTeams) {
         const v = row[team];
         if (typeof v === "number" && Number.isFinite(v)) values.push(v);
       }
@@ -400,10 +451,14 @@ export default function RatingChart({
     const bold = isHighlightedYear(d);
     return (
       <g transform={`translate(${x},${y})`}>
-        {bold && (
-          <rect x={-18} y={2} width={36} height={18} rx={4} ry={4} fill="#fff7cc" />
-        )}
-        <text dy={16} textAnchor="middle" fontWeight={bold ? 700 : 400} fill={bold ? "#92400e" : "#333"}>
+        <text
+          transform="rotate(30)"
+          textAnchor="start"
+          dx={4}
+          dy={6}
+          fontWeight={bold ? 700 : 400}
+          fill={bold ? "#92400e" : "#333"}
+        >
           {formatSeasonShort(d)}
         </text>
       </g>
@@ -430,6 +485,7 @@ export default function RatingChart({
     // Deduplicate by team name (keep first occurrence)
     const map = new Map();
     for (const p of filtered) {
+      if (!detailTeamSet.has(p.name)) continue;
       if (!map.has(p.name)) map.set(p.name, p);
     }
     if (map.size === 0) return null;
@@ -608,16 +664,16 @@ export default function RatingChart({
                 onMouseLeave={handleChartMouseLeave}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  domain={xDomain}
-                  ticks={xTicks}
-                  tick={<YearAwareTick />}
-                  allowDuplicatedCategory={false}
-                  allowDataOverflow
-                  allowDecimals={false}
-                />
+              <XAxis
+                dataKey="date"
+                type="number"
+                domain={xDomain}
+                ticks={xTicks}
+                tick={<YearAwareTick />}
+                allowDuplicatedCategory={false}
+                allowDataOverflow
+                allowDecimals={false}
+              />
                 <YAxis
                   domain={yDomain}
                   ticks={yTicks}
@@ -701,15 +757,15 @@ export default function RatingChart({
                   margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="2 6" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="date"
-                    type="number"
-                    height={24}
-                    domain={defaultDomain}
-                    allowDuplicatedCategory={false}
-                    allowDecimals={false}
-                    tick={{ fontSize: 10, fill: "#6b7280" }}
-                  />
+                <XAxis
+                  dataKey="date"
+                  type="number"
+                  height={24}
+                  domain={defaultDomain}
+                  allowDuplicatedCategory={false}
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "#6b7280" }}
+                />
                   <YAxis hide domain={yDomain} />
                   {uniqueTeams.map((team) => (
                     <Line
@@ -796,7 +852,7 @@ export default function RatingChart({
 
               {showTooltip && <Tooltip content={<SeasonDetailTooltip />} />}
 
-              {uniqueTeams.map((team) => {
+              {detailTeams.map((team) => {
                 const isHovered = hoveredSet.has(team);
                 const isUserHighlighted = highlightedSet.has(team);
                 const isActive = legendTeamSet.has(team);
