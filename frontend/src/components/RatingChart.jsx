@@ -22,6 +22,8 @@ export default function RatingChart({
   onSelectTeam,
   showTooltip = true,
   maxTooltipItems = 6,
+  showZoomControls = true,
+  showSeasonDetail = false,
 }) {
 
   const [loading, setLoading] = useState(false);
@@ -108,18 +110,6 @@ export default function RatingChart({
     setDisplayedTeams(teams || []);
   }, [teams]);
 
-  useEffect(() => {
-    if (!seasonOptions || seasonOptions.length === 0) {
-      setSelectedSeasonDetail(null);
-      return;
-    }
-    setSelectedSeasonDetail((prev) => {
-      if (typeof prev === "number" && seasonOptions.some((opt) => opt.startYear === prev)) {
-        return prev;
-      }
-      return seasonOptions[0].startYear;
-    });
-  }, [seasonOptions]);
 
   useEffect(() => {
     if (!teams || teams.length === 0) {
@@ -132,7 +122,7 @@ export default function RatingChart({
     getRatingsSeries({ teams })
       .then((res) => {
         const pivotMap = new Map();
-        const detailMap = new Map();
+        const detailMap = showSeasonDetail ? new Map() : null;
         res.forEach(({ date, team, rating }) => {
           if (!date || !team) return;
           const dateStr = String(date);
@@ -151,54 +141,67 @@ export default function RatingChart({
           if (currentTs < seasonStartTs || currentTs > seasonEndTs) return;
 
           const seasonKey = seasonStartYear;
-          const seasonLabel = formatSeasonShort(seasonStartYear);
 
           if (!pivotMap.has(seasonKey)) {
             pivotMap.set(seasonKey, { date: seasonKey });
           }
           pivotMap.get(seasonKey)[team] = rating;
 
-          if (!detailMap.has(seasonKey)) {
-            detailMap.set(seasonKey, {
-              label: seasonLabel,
-              rows: new Map(),
-            });
+          if (showSeasonDetail && detailMap) {
+            const seasonLabel = formatSeasonShort(seasonStartYear);
+            if (!detailMap.has(seasonKey)) {
+              detailMap.set(seasonKey, {
+                label: seasonLabel,
+                rows: new Map(),
+              });
+            }
+            const seasonEntry = detailMap.get(seasonKey);
+            const dayKey = dateStr;
+            let detailRow = seasonEntry.rows.get(dayKey);
+            if (!detailRow) {
+              detailRow = {
+                date: dateStr,
+                timestamp: currentTs,
+                values: {},
+              };
+              seasonEntry.rows.set(dayKey, detailRow);
+            }
+            detailRow.values[team] = rating;
           }
-          const seasonEntry = detailMap.get(seasonKey);
-          const dayKey = dateStr;
-          if (!seasonEntry.rows.has(dayKey)) {
-            seasonEntry.rows.set(dayKey, {
-              date: dateStr,
-              timestamp: currentTs,
-            });
-          }
-          seasonEntry.rows.get(dayKey)[team] = rating;
+
         });
 
-        const detailObj = {};
-        detailMap.forEach(({ label, rows }, seasonKey) => {
-          const sortedRows = Array.from(rows.values())
-            .sort((a, b) => a.timestamp - b.timestamp)
-            .map((row, idx) => ({
-              ...row,
-              dayIndex: idx + 1,
-            }));
-          if (sortedRows.length > 0) {
-            detailObj[seasonKey] = {
-              label,
-              rows: sortedRows,
-            };
-          }
-        });
+        if (showSeasonDetail && detailMap) {
+          const detailObj = {};
+          detailMap.forEach(({ label, rows }, seasonKey) => {
+            const sortedRows = Array.from(rows.values())
+              .sort((a, b) => a.timestamp - b.timestamp)
+              .map((row, idx) => ({
+                date: row.date,
+                timestamp: row.timestamp,
+                dayIndex: idx + 1,
+                values: row.values,
+              }));
+            if (sortedRows.length > 0) {
+              detailObj[seasonKey] = {
+                label,
+                rows: sortedRows,
+              };
+            }
+          });
 
-        setDetailDataByYear(detailObj);
-        const availableSeasons = Object.entries(detailObj)
-          .map(([seasonKey, info]) => ({
-            startYear: Number(seasonKey),
-            label: info.label,
-          }))
-          .sort((a, b) => b.startYear - a.startYear);
-        setSeasonOptions(availableSeasons);
+          setDetailDataByYear(detailObj);
+          const availableSeasons = Object.entries(detailObj)
+            .map(([seasonKey, info]) => ({
+              startYear: Number(seasonKey),
+              label: info.label,
+            }))
+            .sort((a, b) => b.startYear - a.startYear);
+          setSeasonOptions(availableSeasons);
+        } else {
+          setDetailDataByYear({});
+          setSeasonOptions([]);
+        }
 
         let pivotData = Array.from(pivotMap.values()).sort(
           (a, b) => Number(a.date) - Number(b.date)
@@ -290,30 +293,104 @@ export default function RatingChart({
   );
 
   const detailSeasonInfo = React.useMemo(() => {
+    if (!showSeasonDetail) return null;
     if (selectedSeasonDetail == null) return null;
     return detailDataByYear?.[selectedSeasonDetail] ?? null;
-  }, [selectedSeasonDetail, detailDataByYear]);
+  }, [showSeasonDetail, selectedSeasonDetail, detailDataByYear]);
 
   const detailSeasonLabel = detailSeasonInfo?.label ?? "";
 
-  const detailData = React.useMemo(() => {
-    if (!detailSeasonInfo || !detailSeasonInfo.rows) return [];
+  const detailTeams = React.useMemo(() => {
+    if (!showSeasonDetail || !detailSeasonInfo || !detailSeasonInfo.rows || !uniqueTeams) return [];
     const rows = detailSeasonInfo.rows;
-    if (!uniqueTeams || uniqueTeams.length === 0) {
-      return rows.map((row) => ({ ...row }));
+    const EPS = 1e-6;
+    return uniqueTeams.filter((team) => {
+      let prev = null;
+      for (const row of rows) {
+        const val = row.values?.[team];
+        if (val == null || Number.isNaN(val)) continue;
+        if (prev == null) {
+          prev = val;
+        } else if (Math.abs(val - prev) > EPS) {
+          return true;
+        }
+      }
+    
+      return false;
+    });
+  }, [showSeasonDetail, detailSeasonInfo, uniqueTeams]);
+
+  const detailData = React.useMemo(() => {
+    if (!showSeasonDetail || !detailSeasonInfo || !detailSeasonInfo.rows) return [];
+    const rows = detailSeasonInfo.rows;
+    if (!detailTeams || detailTeams.length === 0) {
+      return [];
     }
-    return rows.map((row) => {
+    const EPS = 1e-6;
+    const lastActive = new Map();
+    const prevMap = new Map();
+
+    rows.forEach((row, idx) => {
+      detailTeams.forEach((team) => {
+        const val = row.values?.[team];
+        if (val == null || Number.isNaN(val)) return;
+        const prev = prevMap.get(team);
+        if (prev == null) {
+          prevMap.set(team, val);
+          lastActive.set(team, idx);
+        } else if (Math.abs(val - prev) > EPS) {
+          prevMap.set(team, val);
+          lastActive.set(team, idx);
+        }
+      });
+    });
+
+    return rows.map((row, idx) => {
       const out = {
         date: row.date,
         timestamp: row.timestamp,
         dayIndex: row.dayIndex,
       };
-      uniqueTeams.forEach((team) => {
-        out[team] = row[team] ?? null;
+      detailTeams.forEach((team) => {
+        const cutoff = lastActive.get(team);
+        if (cutoff == null || idx > cutoff) {
+          out[team] = null;
+          return;
+        }
+        out[team] = row.values?.[team] ?? null;
       });
       return out;
     });
-  }, [detailSeasonInfo, uniqueTeams]);
+  }, [showSeasonDetail, detailSeasonInfo, detailTeams]);
+
+  const detailXDomain = React.useMemo(() => {
+    if (!showSeasonDetail || !detailData || detailData.length === 0) return ["auto", "auto"];
+    const values = detailData
+      .map((row) => Number(row.timestamp))
+      .filter((v) => Number.isFinite(v));
+    if (values.length === 0) return ["auto", "auto"];
+    return [Math.min(...values), Math.max(...values)];
+  }, [showSeasonDetail, detailData]);
+
+  const detailYDomain = React.useMemo(() => {
+    if (!showSeasonDetail || !detailData || detailData.length === 0 || !detailTeams || detailTeams.length === 0) {
+      return ["auto", "auto"];
+    }
+    const values = [];
+    for (const row of detailData) {
+      for (const team of detailTeams) {
+        const v = row[team];
+        if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+      }
+    }
+    if (values.length === 0) return ["auto", "auto"];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min;
+    const pad = span > 0 ? span * 0.08 : Math.max(10, Math.abs(max) * 0.08);
+    return [min - pad, max + pad];
+  }, [showSeasonDetail, detailData, detailTeams]);
+
 
   useEffect(() => {
     setHoveredTeams((prev) => prev.filter((team) => uniqueTeams.includes(team)));
@@ -365,34 +442,6 @@ export default function RatingChart({
     return t;
   }, [xDomain]);
 
-  const detailXDomain = React.useMemo(() => {
-    if (!detailData || detailData.length === 0) return ["auto", "auto"];
-    const values = detailData
-      .map((row) => Number(row.timestamp))
-      .filter((v) => Number.isFinite(v));
-    if (values.length === 0) return ["auto", "auto"];
-    return [Math.min(...values), Math.max(...values)];
-  }, [detailData]);
-
-  const detailYDomain = React.useMemo(() => {
-    if (!detailData || detailData.length === 0 || !uniqueTeams || uniqueTeams.length === 0) {
-      return ["auto", "auto"];
-    }
-    const values = [];
-    for (const row of detailData) {
-      for (const team of uniqueTeams) {
-        const v = row[team];
-        if (typeof v === "number" && Number.isFinite(v)) values.push(v);
-      }
-    }
-    if (values.length === 0) return ["auto", "auto"];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min;
-    const pad = span > 0 ? span * 0.08 : Math.max(10, Math.abs(max) * 0.08);
-    return [min - pad, max + pad];
-  }, [detailData, uniqueTeams]);
-
   // Custom tick that boldens ticks that fall within the selected years
   const YearAwareTick = (props) => {
     const { x, y, payload } = props;
@@ -400,10 +449,14 @@ export default function RatingChart({
     const bold = isHighlightedYear(d);
     return (
       <g transform={`translate(${x},${y})`}>
-        {bold && (
-          <rect x={-18} y={2} width={36} height={18} rx={4} ry={4} fill="#fff7cc" />
-        )}
-        <text dy={16} textAnchor="middle" fontWeight={bold ? 700 : 400} fill={bold ? "#92400e" : "#333"}>
+        <text
+          transform="rotate(30)"
+          textAnchor="start"
+          dx={4}
+          dy={6}
+          fontWeight={bold ? 700 : 400}
+          fill={bold ? "#92400e" : "#333"}
+        >
           {formatSeasonShort(d)}
         </text>
       </g>
@@ -427,7 +480,6 @@ export default function RatingChart({
         .slice(0, maxTooltipItems);
     }
 
-    // Deduplicate by team name (keep first occurrence)
     const map = new Map();
     for (const p of filtered) {
       if (!map.has(p.name)) map.set(p.name, p);
@@ -466,7 +518,7 @@ export default function RatingChart({
   }, []);
 
   const SeasonDetailTooltip = ({ active, label, payload }) => {
-    if (!active || !payload || payload.length === 0) return null;
+    if (!showSeasonDetail || !active || !payload || payload.length === 0) return null;
     let filtered = payload.filter((p) => p.value != null);
 
     const hasLegendEntries = legendTeams.length > 0;
@@ -488,11 +540,9 @@ export default function RatingChart({
 
     const num = Number(label);
     const date = Number.isFinite(num) ? new Date(num) : null;
-    let labelText = String(label);
-    if (date && !Number.isNaN(date.getTime())) {
-      const formatted = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-      labelText = detailSeasonLabel ? `${detailSeasonLabel} · ${formatted}` : formatted;
-    }
+    const labelText = date && !Number.isNaN(date.getTime())
+      ? `${detailSeasonLabel} · ${date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
+      : String(label);
 
     return (
       <div
@@ -585,11 +635,15 @@ export default function RatingChart({
     setXDomain(defaultDomain);
   }, [data, defaultDomain]);
 
-  const seasonSelectValue = selectedSeasonDetail != null
-    ? String(selectedSeasonDetail)
-    : seasonOptions.length > 0
-      ? String(seasonOptions[0].startYear)
-      : "";
+  const zoomRange = React.useMemo(() => {
+    if (!showZoomControls) return null;
+    const [left, right] = xDomain || [];
+    if (left == null || right == null) return null;
+    const leftLabel = formatSeasonShort(left);
+    const rightLabel = formatSeasonShort(right);
+    if (!leftLabel && !rightLabel) return null;
+    return { leftLabel, rightLabel };
+  }, [showZoomControls, xDomain]);
 
   return (
     <div className="space-y-6">
@@ -608,16 +662,16 @@ export default function RatingChart({
                 onMouseLeave={handleChartMouseLeave}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  domain={xDomain}
-                  ticks={xTicks}
-                  tick={<YearAwareTick />}
-                  allowDuplicatedCategory={false}
-                  allowDataOverflow
-                  allowDecimals={false}
-                />
+              <XAxis
+                dataKey="date"
+                type="number"
+                domain={xDomain}
+                ticks={xTicks}
+                tick={<YearAwareTick />}
+                allowDuplicatedCategory={false}
+                allowDataOverflow
+                allowDecimals={false}
+              />
                 <YAxis
                   domain={yDomain}
                   ticks={yTicks}
@@ -684,145 +738,146 @@ export default function RatingChart({
                 })}
               </LineChart>
             </ResponsiveContainer>
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-600">Timeline focus</span>
-                <button
-                  type="button"
-                  className="text-sm text-blue-600 hover:text-blue-500"
-                  onClick={resetZoom}
-                >
-                  Reset view
-                </button>
+            {showZoomControls && data.length > 1 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Timeline focus</span>
+                  <button
+                    type="button"
+                    className="text-sm text-blue-600 hover:text-blue-500"
+                    onClick={resetZoom}
+                  >
+                    Reset view
+                  </button>
+                </div>
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={60}>
+                    <LineChart
+                      data={data}
+                      margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
+                    >
+                      <XAxis
+                        dataKey="date"
+                        type="number"
+                        height={24}
+                        domain={defaultDomain}
+                        allowDuplicatedCategory={false}
+                        allowDecimals={false}
+                        tick={false}
+                        axisLine={false}
+                      />
+                      <YAxis hide domain={yDomain} />
+                      <Brush
+                        dataKey="date"
+                        startIndex={brushRange[0]}
+                        endIndex={brushRange[1]}
+                        height={20}
+                        travellerWidth={10}
+                        stroke="#2563eb"
+                        fill="rgba(37, 99, 235, 0.08)"
+                        onChange={handleBrushChange}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  {zoomRange && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-4 text-[10px] font-medium text-gray-600">
+                      <span>{zoomRange.leftLabel}</span>
+                      <span>{zoomRange.rightLabel}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <ResponsiveContainer width="100%" height={90}>
-                <LineChart
-                  data={data}
-                  margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="2 6" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="date"
-                    type="number"
-                    height={24}
-                    domain={defaultDomain}
-                    allowDuplicatedCategory={false}
-                    allowDecimals={false}
-                    tick={{ fontSize: 10, fill: "#6b7280" }}
-                  />
-                  <YAxis hide domain={yDomain} />
-                  {uniqueTeams.map((team) => (
+            )}
+          </div>
+        )}
+      </div>
+
+      {showSeasonDetail && (
+        <div className="bg-white border rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Season Detail View</h3>
+            <div className="flex items-center gap-2">
+              <label htmlFor="season-detail-select" className="text-sm font-medium text-gray-600">
+                Season view
+              </label>
+              <select
+                id="season-detail-select"
+                className="border rounded-md px-2 py-1 text-sm"
+                value={selectedSeasonDetail != null ? String(selectedSeasonDetail) : ""}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  setSelectedSeasonDetail(Number.isNaN(next) ? null : next);
+                }}
+                disabled={seasonOptions.length === 0}
+              >
+                {seasonOptions.map(({ startYear, label }) => (
+                  <option key={startYear} value={String(startYear)}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {loading ? (
+            <p>Loading rating data...</p>
+          ) : error ? (
+            <p className="text-red-600">Error: {error}</p>
+          ) : detailData.length === 0 ? (
+            <p>No detailed rating data available for the selected season.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart
+                data={detailData}
+                onMouseLeave={handleChartMouseLeave}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="timestamp"
+                  type="number"
+                  domain={detailXDomain}
+                  tickFormatter={formatDetailTick}
+                  allowDataOverflow
+                  allowDecimals={false}
+                />
+                <YAxis
+                  domain={detailYDomain}
+                  tickFormatter={(val) => Number(val).toFixed(0)}
+                  allowDecimals={false}
+                  allowDataOverflow
+                />
+
+                {showTooltip && <Tooltip content={<SeasonDetailTooltip />} />}
+
+                {detailTeams.map((team) => {
+                  const isHovered = hoveredSet.has(team);
+                  const isUserHighlighted = highlightedSet.has(team);
+                  const isActive = legendTeamSet.has(team);
+                  const faded = legendTeams.length > 0 && !isActive;
+                  const baseOpacity = isUserHighlighted ? 0.85 : 0.55;
+                  return (
                     <Line
-                      key={`context-${team}`}
+                      key={`detail-${team}`}
                       type="linear"
                       dataKey={team}
                       stroke={getTeamColor(team)}
-                      strokeWidth={1.5}
+                      strokeWidth={isHovered ? 4 : isUserHighlighted ? 3 : 2}
+                      strokeOpacity={faded ? 0.15 : baseOpacity}
                       dot={false}
-                      isAnimationActive={false}
-                      strokeOpacity={0.5}
+                      activeDot={false}
+                      onClick={() => handleSelectTeam(team)}
+                      onMouseEnter={() => handleLineEnter(team)}
+                      onMouseLeave={() => handleLineLeave(team)}
+                      cursor="pointer"
                     />
-                  ))}
-                  <Brush
-                    dataKey="date"
-                    startIndex={brushRange[0]}
-                    endIndex={brushRange[1]}
-                    height={20}
-                    travellerWidth={10}
-                    stroke="#2563eb"
-                    fill="rgba(37, 99, 235, 0.08)"
-                    onChange={handleBrushChange}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white border rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Season Detail View</h3>
-          <div className="flex items-center gap-2">
-            <label htmlFor="season-detail-select" className="text-sm font-medium text-gray-600">
-              Season view
-            </label>
-            <select
-              id="season-detail-select"
-              className="border rounded-md px-2 py-1 text-sm"
-              value={seasonSelectValue}
-              onChange={(event) => {
-                const { value } = event.target;
-                const next = Number(value);
-                setSelectedSeasonDetail(Number.isNaN(next) ? null : next);
-              }}
-              disabled={seasonOptions.length === 0}
-            >
-              {seasonOptions.map(({ startYear, label }) => (
-                <option key={startYear} value={String(startYear)}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+                  );
+                })}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
-        {loading ? (
-          <p>Loading rating data...</p>
-        ) : error ? (
-          <p className="text-red-600">Error: {error}</p>
-        ) : detailData.length === 0 ? (
-          <p>No detailed rating data available for the selected season.</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart
-              data={detailData}
-              onMouseLeave={handleChartMouseLeave}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="timestamp"
-                type="number"
-                domain={detailXDomain}
-                tickFormatter={formatDetailTick}
-                allowDataOverflow
-                allowDecimals={false}
-              />
-              <YAxis
-                domain={detailYDomain}
-                tickFormatter={(val) => Number(val).toFixed(0)}
-                allowDecimals={false}
-                allowDataOverflow
-              />
+      )}
 
-              {showTooltip && <Tooltip content={<SeasonDetailTooltip />} />}
-
-              {uniqueTeams.map((team) => {
-                const isHovered = hoveredSet.has(team);
-                const isUserHighlighted = highlightedSet.has(team);
-                const isActive = legendTeamSet.has(team);
-                const faded = legendTeams.length > 0 && !isActive;
-                const baseOpacity = isUserHighlighted ? 0.85 : 0.55;
-                return (
-                  <Line
-                    key={`detail-${team}`}
-                    type="linear"
-                    dataKey={team}
-                    stroke={getTeamColor(team)}
-                    strokeWidth={isHovered ? 4 : isUserHighlighted ? 3 : 2}
-                    strokeOpacity={faded ? 0.15 : baseOpacity}
-                    dot={false}
-                    activeDot={false}
-                    onClick={() => handleSelectTeam(team)}
-                    onMouseEnter={() => handleLineEnter(team)}
-                    onMouseLeave={() => handleLineLeave(team)}
-                    cursor="pointer"
-                  />
-                );
-              })}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
     </div>
   );
+
 }

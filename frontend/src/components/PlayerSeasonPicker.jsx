@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import PlayerDropdown from "./playerdropdown";           // your existing file
+import PlayerDropdown from "./PlayerDropdown";           // case-sensitive import for deployment
 import YearDropdown from "./YearDropdown";
 import { getPlayerSeasons, getPlayerShots } from "../lib/api";
 
