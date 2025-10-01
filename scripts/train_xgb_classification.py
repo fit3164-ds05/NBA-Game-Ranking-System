@@ -31,6 +31,7 @@ if str(ROOT) not in sys.path:
 
 from backend.ml.features import build_features
 from backend.ml.splits import time_split
+from backend.ml.feature_groups import select_features_by_groups
 
 DEFAULT_OUT_DIR = Path("backend/models")
 
@@ -102,7 +103,7 @@ def dump_predictions(
     metrics = {
         "acc": float(accuracy_score(y, yhat)),
         "auc": float(roc_auc_score(y, proba)) if len(np.unique(y)) >= 2 else None,
-        "logloss": float(log_loss(y, proba, eps=1e-7)) if len(np.unique(y)) >= 2 else None,
+        "logloss": float(log_loss(y, proba)) if len(np.unique(y)) >= 2 else None,
     }
     return metrics
 
@@ -113,6 +114,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR), help="Directory for trained models and artefacts")
     parser.add_argument("--early-stopping-rounds", type=int, default=75, help="Rounds without validation improvement before stopping")
     parser.add_argument("--verbosity", type=int, default=0, help="XGBoost training verbosity (0=silent)")
+    parser.add_argument(
+        "--feature-list",
+        help="Optional newline-delimited file listing features to keep (others will be dropped)",
+    )
+    parser.add_argument(
+        "--groups-file",
+        help="Optional JSON file describing selected feature groups",
+    )
     return parser.parse_args(argv)
 
 
@@ -123,10 +132,38 @@ def main(argv: list[str] | None = None) -> None:
     models_dir, run_dir = prepare_run_dirs(Path(args.out_dir))
 
     games, X_cols = build_features(ratings_kind=ratings_kind)
+    feature_filter: list[str] | None = None
+    if args.feature_list:
+        feature_path = Path(args.feature_list)
+        if not feature_path.exists():
+            raise FileNotFoundError(f"Feature list not found: {feature_path}")
+        feature_filter = [line.strip() for line in feature_path.read_text().splitlines() if line.strip()]
+        missing = [f for f in feature_filter if f not in X_cols]
+        if missing:
+            print(f"[train-cls] WARNING: {len(missing)} requested features not found in dataset and will be ignored.")
+        X_cols = [f for f in X_cols if feature_filter is None or f in feature_filter]
+        if not X_cols:
+            raise ValueError("Feature list intersection is empty; nothing to train on.")
     train, valid, test = time_split(games)
     y_tr = train["y_cls"].astype(int).values
     y_va = valid["y_cls"].astype(int).values
     y_te = test["y_cls"].astype(int).values
+
+    selected_groups_meta = None
+    if args.groups_file:
+        group_path = Path(args.groups_file)
+        if not group_path.exists():
+            raise FileNotFoundError(f"Groups file not found: {group_path}")
+        groups_config = json.loads(group_path.read_text())
+        requested_groups = groups_config.get("selected_groups")
+        X_cols, groups_map, feature_to_group, final_groups = select_features_by_groups(X_cols, requested_groups)
+        selected_groups_meta = {
+            "source": str(group_path),
+            "requested": requested_groups,
+            "selected": final_groups,
+            "available_groups": sorted(groups_map.keys()),
+        }
+
     X_tr, X_va, X_te = train[X_cols], valid[X_cols], test[X_cols]
 
     base_params = dict(
@@ -150,16 +187,27 @@ def main(argv: list[str] | None = None) -> None:
 
     model = XGBClassifier(**base_params)
     fit_kwargs = dict(eval_set=[(X_tr, y_tr), (X_va, y_va)], verbose=args.verbosity)
+    early_stop_used = False
     if args.early_stopping_rounds and args.early_stopping_rounds > 0:
         fit_kwargs["early_stopping_rounds"] = args.early_stopping_rounds
 
-    model.fit(X_tr, y_tr, **fit_kwargs)
+    try:
+        model.fit(X_tr, y_tr, **fit_kwargs)
+        early_stop_used = bool(fit_kwargs.get("early_stopping_rounds"))
+    except TypeError:
+        if fit_kwargs.pop("early_stopping_rounds", None) is not None:
+            print("[train-cls] WARNING: installed xgboost does not support early_stopping_rounds; training without early stopping.")
+        model.fit(X_tr, y_tr, **fit_kwargs)
+        early_stop_used = False
 
     best_ntree_limit = getattr(model, "best_ntree_limit", None)
     best_iteration = getattr(model, "best_iteration", None)
     if best_iteration is None:
         booster = model.get_booster()
         best_iteration = getattr(booster, "best_iteration", None)
+    if not early_stop_used:
+        best_iteration = None
+        best_ntree_limit = None
     if best_ntree_limit is None and best_iteration is not None:
         best_ntree_limit = best_iteration + 1
     evals_result = model.evals_result()
@@ -183,6 +231,8 @@ def main(argv: list[str] | None = None) -> None:
             "params": base_params,
         },
         "run_dir": str(run_dir),
+        "feature_source": args.feature_list,
+        "feature_groups": selected_groups_meta,
     }
 
     (models_dir / "xgb_cls_features.txt").write_text("\n".join(X_cols))

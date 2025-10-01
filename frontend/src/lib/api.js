@@ -117,7 +117,7 @@ export async function predictGame({ home_team, home_season, away_team, away_seas
     away_team,
     away_season,
   });
-  return data; // { inputs, home_rating, away_rating, rating_diff, home_win_prob, predicted_margin, model_version }
+  return data; // includes {inputs, model_version, models, available_models, xgboost_error? }
 }
 
 // Ratings time series for the chart

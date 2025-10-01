@@ -13,9 +13,41 @@ vi.mock('../lib/api', () => {
       home_rating: 1530,
       away_rating: 1500,
       rating_diff: 30,
-      home_win_prob: 0.6,
-      predicted_margin: 1.2,
       model_version: 'glicko_csv_v1',
+      models: {
+        elo: {
+          label: 'Ratings (logistic)',
+          home_win_prob: 0.6,
+          predicted_margin: 1.2,
+          home_rating: 1530,
+          away_rating: 1500,
+          margin_sigma: 8.4,
+          win_prob_from_margin: 0.62,
+        },
+      },
+      available_models: ['elo'],
+      head_to_head: {
+        scope: 'historical',
+        home_team,
+        away_team,
+        home_season,
+        away_season,
+        total_games: 3,
+        home_wins: 1,
+        away_wins: 2,
+        average_margin: -4.5,
+        note: 'Most recent meetings',
+        recent_games: [
+          {
+            date: '2022-01-01',
+            home_team,
+            away_team,
+            home_score: 102,
+            away_score: 110,
+            margin_for_home: -8,
+          },
+        ],
+      },
     })),
   }
 })
@@ -56,8 +88,15 @@ describe('GamePrediction page', () => {
 
     await waitFor(() => {
       expect(predictGameMock).toHaveBeenCalled()
-      expect(screen.getByText(/Home win probability 60 percent/i)).toBeInTheDocument()
-      expect(screen.getByText(/Model version glicko_csv_v1/i)).toBeInTheDocument()
+      expect(screen.getByText(/Classifier win probability/i)).toBeInTheDocument()
+      expect(screen.getByText('60%')).toBeInTheDocument()
+      expect(screen.getAllByText(/Confidence/i)[0]).toBeInTheDocument()
+      expect(screen.getByText('Low')).toBeInTheDocument()
+      expect(screen.getAllByText(/margin favours/i).length).toBeGreaterThan(0)
+      expect(screen.getByText(/Margin win probability/i)).toBeInTheDocument()
+      expect(screen.getByText(/How to interpret/i)).toBeInTheDocument()
+      expect(screen.getByText(/Head-to-head/i)).toBeInTheDocument()
+      expect(screen.getByText(/Model bundle glicko_csv_v1/i)).toBeInTheDocument()
     })
   })
 })

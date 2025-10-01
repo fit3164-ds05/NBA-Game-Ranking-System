@@ -8,6 +8,28 @@ import { useEffect, useMemo, useState } from "react";
 import { getTeams, getSeasons, predictGame } from "../lib/api";
 import RatingChart from "../components/RatingChart";
 
+const FEATURE_LABELS = {
+  rating_diff: "Rating difference",
+  is_playoffs: "Playoff indicator",
+  YEAR: "Season year",
+  TRAD_3P_PCT: "Three-point percentage",
+  TRAD_3PA: "Three-point attempts",
+  TRAD_DREB: "Defensive rebounds",
+  TRAD_OREB: "Offensive rebounds",
+  TRAD_FG_PCT: "Field-goal percentage",
+  TRAD_FG: "Field goals",
+  ADV_DEFRTG: "Defensive rating",
+  ADV_OFFRTG: "Offensive rating",
+  ADV_PACE: "Pace",
+  FF_OPP_EFG_PCT: "Opponent effective FG%",
+  FF_OPP_FTA_RATE: "Opponent free-throw rate",
+  FF_OPP_OREB_PCT: "Opponent offensive rebound %",
+  FF_OPP_TOV_PCT: "Opponent turnover %",
+  FF_EFG_PCT: "Effective FG%",
+  FF_TOV_PCT: "Turnover %",
+  rest_days: "Rest days",
+};
+
 // Simple reusable label component for form fields
 function FieldLabel({ children }) {
   return <span className="block text-sm font-medium text-gray-700 mb-1">{children}</span>;
@@ -95,6 +117,7 @@ export default function GamePrediction() {
   const [loadingTeams, setLoadingTeams] = useState(true); // Initial team list loading
   const [error, setError] = useState(""); // Error message for UI
   const [result, setResult] = useState(null); // Prediction result from API
+  const [activeModel, setActiveModel] = useState("xgboost");
 
   // Derived: whether the same team is picked
   const sameTeam = homeTeam && awayTeam && homeTeam === awayTeam;
@@ -220,6 +243,7 @@ export default function GamePrediction() {
     setAwaySeason(undefined);
     setError("");
     setResult(null);
+    setActiveModel("xgboost");
   }
 
   // ===== Validation before predicting =====
@@ -244,6 +268,7 @@ export default function GamePrediction() {
     setError("");
     setLoading(true);
     setResult(null);
+    setActiveModel("xgboost");
     try {
       const data = await predictGame({
         home_team: homeTeam,
@@ -258,6 +283,20 @@ export default function GamePrediction() {
       setLoading(false);
     }
   }
+
+  // When a new result arrives, ensure the active model is available
+  useEffect(() => {
+    if (!result?.available_models?.length) return;
+    setActiveModel((current) => {
+      if (result.available_models.includes(current)) {
+        return current;
+      }
+      if (result.available_models.includes("xgboost")) {
+        return "xgboost";
+      }
+      return result.available_models[0];
+    });
+  }, [result]);
 
   // Build per-team highlighted years for the RatingChart
   const selectedYearsByTeam = useMemo(() => {
@@ -375,22 +414,389 @@ export default function GamePrediction() {
           {loading && <p className="text-gray-600">Working on it.</p>}
 
           {result && (
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium">
-                {result.inputs.home_team} {result.inputs.home_season} vs{" "}
-                {result.inputs.away_team} {result.inputs.away_season}
-              </h3>
-              <p>
-                Home rating {result.home_rating.toFixed(1)}. Away rating{" "}
-                {result.away_rating.toFixed(1)}.
-              </p>
-              <p>Home win probability {Math.round(result.home_win_prob * 100)} percent</p>
-              <p>Predicted margin {result.predicted_margin.toFixed(1)}</p>
-              <p className="text-sm text-gray-500">Model version {result.model_version}</p>
-            </div>
+            <ResultPanel
+              result={result}
+              activeModel={activeModel}
+              onSelectModel={setActiveModel}
+            />
           )}
         </div>
       </form>
+    </div>
+  );
+}
+
+function formatPercent(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "—";
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatNumber(value, digits = 1) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "—";
+  return value.toFixed(digits);
+}
+
+function formatWithUnits(value, unit, digits = 1) {
+  const base = formatNumber(value, digits);
+  return base === "—" ? base : `${base} ${unit}`;
+}
+
+function formatMargin(margin, sigma) {
+  const base = formatWithUnits(margin, "pts");
+  if (typeof sigma === "number" && !Number.isNaN(sigma)) {
+    const spread = formatNumber(sigma, 1);
+    if (spread !== "—") {
+      return `${base} (±${spread})`;
+    }
+  }
+  return base;
+}
+
+function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam) {
+  if (typeof margin === "number" && typeof sigma === "number" && sigma > 0) {
+    const z = Math.abs(margin) / sigma;
+    const favourite = margin >= 0 ? homeTeam : awayTeam;
+    const detailParts = [`margin favours ${favourite} by ${formatNumber(Math.abs(margin), 1)} pts`];
+    detailParts.push(`≈ ${formatNumber(z, 2)}σ from even`);
+    if (typeof marginProb === "number") {
+      detailParts.push(`${formatPercent(marginProb)} via margin model`);
+    }
+    if (z >= 1.5) {
+      return { label: "High", detail: detailParts.join(" · ") };
+    }
+    if (z >= 0.8) {
+      return { label: "Moderate", detail: detailParts.join(" · ") };
+    }
+    return { label: "Low", detail: detailParts.join(" · ") };
+  }
+  if (typeof prob === "number") {
+    const diff = Math.abs(prob - 0.5);
+    const detail = `${homeTeam} win chance ${formatPercent(prob)} (50% = even matchup)`;
+    if (diff >= 0.2) {
+      return { label: "High", detail };
+    }
+    if (diff >= 0.08) {
+      return { label: "Moderate", detail };
+    }
+    return { label: "Low", detail };
+  }
+  return { label: "Unknown", detail: "Insufficient data" };
+}
+
+function formatProbDelta(a, b) {
+  if (typeof a !== "number" || typeof b !== "number") return "";
+  const delta = Math.round((a - b) * 100);
+  if (!Number.isFinite(delta) || delta === 0) return "";
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta} ppt`;
+}
+
+function explainProbDelta(delta) {
+  if (!delta) return "aligns with the classifier odds";
+  const value = parseInt(delta.replace(/[^-\d]/g, ""), 10);
+  if (!Number.isFinite(value) || value === 0) return "aligns with the classifier odds";
+  const magnitude = Math.abs(value);
+  const adjective = magnitude >= 10 ? "much" : magnitude >= 5 ? "more" : "slightly";
+  const direction = value > 0 ? "home team" : "away team";
+  return `${delta} → ${adjective} more confidence in the ${direction}`;
+}
+
+function describeMarginExpectation(margin) {
+  if (typeof margin !== "number" || Number.isNaN(margin)) return "margin unavailable";
+  const abs = Math.abs(margin);
+  const favours = margin >= 0 ? "home team" : "away team";
+  if (abs < 3) return `expects a tight game leaning ${favours}`;
+  if (abs < 8) return `sees a modest edge for the ${favours}`;
+  return `projects a decisive advantage for the ${favours}`;
+}
+
+function describeContribution(value, homeTeam, awayTeam) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "has neutral impact";
+  const magnitude = Math.abs(value);
+  const favouredTeam = value >= 0 ? homeTeam : awayTeam;
+  const strength = magnitude >= 0.2 ? "strongly" : magnitude >= 0.05 ? "noticeably" : "slightly";
+  return `${strength} pushes the odds toward the ${favouredTeam}`;
+}
+
+function describeDifference(feature, value, homeTeam, awayTeam) {
+  if (feature === "YEAR" || feature === "Season year") {
+    return `season ${formatNumber(value, 0)} context (recent years shape team form)`;
+  }
+  if (typeof value !== "number" || Number.isNaN(value)) return `${homeTeam} and ${awayTeam} look similar here`;
+  if (Math.abs(value) < 1e-3) return `${homeTeam} and ${awayTeam} look similar here`;
+  const isDiff = feature.startsWith("DIFF_");
+  const magnitude = Math.abs(value);
+  const digits = magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : 2;
+  if (isDiff) {
+    const leader = value >= 0 ? homeTeam : awayTeam;
+    const trailer = value >= 0 ? awayTeam : homeTeam;
+    return `${leader} ahead of ${trailer} by ${formatNumber(magnitude, digits)}`;
+  }
+  return `Current value ${formatNumber(value, digits)} (${homeTeam} perspective)`;
+}
+
+function humaniseFeature(feature) {
+  if (!feature) return "(unknown feature)";
+  const isDiff = feature.startsWith("DIFF_");
+  let core = isDiff ? feature.slice(5) : feature;
+  let windowText = "";
+  const rollMatch = core.match(/_roll(\d+)_(mean|std)$/);
+  if (rollMatch) {
+    const [, window, stat] = rollMatch;
+    windowText = stat === "mean" ? `${window}-game average` : `${window}-game volatility`;
+    core = core.replace(/_roll\d+_(mean|std)$/, "");
+  }
+  const baseLabel = FEATURE_LABELS[core] || toTitleCase(core.replace(/_/g, " "));
+  let label = baseLabel;
+  if (windowText) {
+    label = `${windowText} ${baseLabel}`;
+  }
+  if (isDiff) {
+    label = `Home vs away ${label}`;
+  }
+  return label;
+}
+
+function toTitleCase(text) {
+  return text.replace(/\w\S*/g, (token) => token.charAt(0).toUpperCase() + token.slice(1).toLowerCase());
+}
+
+function ResultPanel({ result, activeModel, onSelectModel }) {
+  const models = result?.models ?? {};
+  const availableModels = result?.available_models ?? [];
+  const orderedModels = [...availableModels].sort((a, b) => {
+    if (a === "xgboost") return -1;
+    if (b === "xgboost") return 1;
+    if (a === "xgb_simple") return -1;
+    if (b === "xgb_simple") return 1;
+    return 0;
+  });
+  const active = orderedModels.includes(activeModel) ? models[activeModel] : null;
+  const otherModels = orderedModels.filter((m) => m !== activeModel);
+  const marginProb = typeof active?.win_prob_from_margin === "number" ? active.win_prob_from_margin : null;
+  const confidence = computeConfidence(
+    typeof active?.home_win_prob === "number" ? active.home_win_prob : null,
+    typeof active?.predicted_margin === "number" ? active.predicted_margin : null,
+    typeof active?.margin_sigma === "number" ? active.margin_sigma : null,
+    marginProb,
+    result.inputs.home_team,
+    result.inputs.away_team,
+  );
+  const headToHead = result?.head_to_head ?? null;
+  const simpleDrivers = activeModel === "xgb_simple" ? active?.top_factors ?? [] : [];
+  const homeTeamName = result.inputs.home_team;
+  const awayTeamName = result.inputs.away_team;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-medium">
+          {result.inputs.home_team} {result.inputs.home_season} vs{" "}
+          {result.inputs.away_team} {result.inputs.away_season}
+        </h3>
+        <p className="text-sm text-gray-600">
+          Home rating {formatNumber(result.home_rating, 1)} · Away rating {formatNumber(result.away_rating, 1)} · Rating diff {formatNumber(result.rating_diff, 1)}
+        </p>
+        <p className="text-xs text-gray-400">Model bundle {result.model_version}</p>
+      </div>
+
+      {!!result.xgboost_error && (
+        <p className="text-sm text-red-600 border border-red-100 bg-red-50 rounded-lg px-3 py-2">
+          XGBoost unavailable: {result.xgboost_error}
+        </p>
+      )}
+
+      {orderedModels.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {orderedModels.map((key) => {
+            const label = models[key]?.label || key;
+            const isActive = key === activeModel;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onSelectModel(key)}
+                className={`rounded-full border px-4 py-1 text-sm font-medium transition ${
+                  isActive ? "bg-black text-white border-black" : "bg-white text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {active ? (
+        <div className="space-y-3">
+          <h4 className="text-base font-medium">{active.label || activeModel}</h4>
+          <div className="grid gap-3 md:grid-cols-2">
+            <StatBlock
+              label="Classifier win probability"
+              value={formatPercent(active.home_win_prob)}
+              caption="XGBoost classifier"
+            />
+            <StatBlock
+              label="Margin win probability"
+              value={formatPercent(marginProb)}
+              caption="Derived from margin distribution"
+            />
+            <StatBlock
+              label="Confidence"
+              value={confidence.label}
+              caption={confidence.detail}
+            />
+            {typeof active.predicted_margin === "number" && (
+              <StatBlock
+                label="Predicted margin"
+                value={formatMargin(active.predicted_margin, active.margin_sigma)}
+                caption={typeof active.margin_sigma === "number" ? "1σ spread" : undefined}
+              />
+            )}
+          </div>
+
+          <InterpretationCard
+            classifierProb={active.home_win_prob}
+            marginProb={marginProb}
+            marginValue={active.predicted_margin}
+            marginSigma={active.margin_sigma}
+            confidence={confidence}
+            modelType={activeModel}
+          />
+
+          {simpleDrivers.length > 0 ? (
+            <SimpleDriversCard factors={simpleDrivers} homeTeam={homeTeamName} awayTeam={awayTeamName} />
+          ) : activeModel === "xgb_simple" ? (
+            <div className="rounded-2xl border bg-white px-4 py-3 text-sm text-gray-500">
+              Key drivers unavailable for this matchup.
+            </div>
+          ) : null}
+
+          {otherModels.length > 0 && (
+            <div className="mt-2">
+              <h5 className="text-sm font-medium text-gray-600">Model comparison</h5>
+              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                {otherModels.map((key) => {
+                  const model = models[key];
+                  if (!model) return null;
+                  const delta = formatProbDelta(active.home_win_prob, model.home_win_prob);
+                  const deltaExplanation = explainProbDelta(delta);
+                  const marginDescription = describeMarginExpectation(model.predicted_margin);
+                  return (
+                    <li key={key}>
+                      <span className="font-medium">{model.label || key}</span>: {formatPercent(model.home_win_prob)}
+                      {delta && ` (${deltaExplanation})`}
+                      {typeof model.predicted_margin === "number" && ` · margin ${formatMargin(model.predicted_margin, model.margin_sigma)} (${marginDescription})`}
+                    </li>
+                  );
+                })}
+              </ul>
+              {(() => {
+                const deltas = otherModels
+                  .map((key) => {
+                    const model = models[key];
+                    if (!model) return 0;
+                    if (typeof active.home_win_prob !== "number" || typeof model.home_win_prob !== "number") return 0;
+                    return Math.abs(active.home_win_prob - model.home_win_prob);
+                  })
+                  .filter((v) => Number.isFinite(v));
+                const maxDelta = deltas.length ? Math.max(...deltas) : 0;
+                if (maxDelta >= 0.08) {
+                  const deltaLabel = `${Math.round(maxDelta * 100)} ppt`;
+                  return (
+                    <p className="mt-2 text-xs text-amber-600">Models disagree by up to {deltaLabel}; treat this as lower confidence.</p>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
+
+          {headToHead && <HeadToHeadCard summary={headToHead} homeTeam={result.inputs.home_team} />}
+        </div>
+      ) : (
+        <p className="text-gray-600">Model outputs unavailable.</p>
+      )}
+    </div>
+  );
+}
+
+function StatBlock({ label, value, caption }) {
+  return (
+    <div className="rounded-xl border bg-gray-50 px-4 py-3">
+      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="text-lg font-semibold text-gray-900">{value}</p>
+      {caption && <p className="text-xs text-gray-500 mt-1">{caption}</p>}
+    </div>
+  );
+}
+
+function InterpretationCard({ classifierProb, marginProb, marginValue, marginSigma, confidence, modelType }) {
+  return (
+    <div className="rounded-2xl border bg-white px-4 py-3">
+      <h5 className="text-sm font-semibold text-gray-700">How to interpret</h5>
+      <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
+        <li>
+          {modelType === "xgb_simple"
+            ? `Compact model odds ${formatPercent(classifierProb)} come from the simplified XGBoost.`
+            : `Classifier odds ${formatPercent(classifierProb)} come directly from the XGBoost probability.`}
+        </li>
+        {typeof marginProb === "number" ? (
+          <li>
+            Margin model converts {formatMargin(marginValue, marginSigma)} into {formatPercent(marginProb)} chance of a home win.
+          </li>
+        ) : modelType === "xgb_simple" ? (
+          <li>The compact model does not include a margin projection—focus on the probability and key drivers.</li>
+        ) : null}
+        <li>
+          Confidence is {confidence.label.toLowerCase()} because {confidence.detail}.
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function SimpleDriversCard({ factors, homeTeam, awayTeam }) {
+  return (
+    <div className="rounded-2xl border bg-white px-4 py-3">
+      <h5 className="text-sm font-semibold text-gray-700">Key drivers (simple model)</h5>
+      <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
+        {factors.map((f) => (
+          <li key={f.feature}>
+            <span className="font-medium">{humaniseFeature(f.feature)}</span>: {describeContribution(f.contribution, homeTeam, awayTeam)}; {describeDifference(f.feature, f.value, homeTeam, awayTeam)}.
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function HeadToHeadCard({ summary, homeTeam }) {
+  const { scope, total_games, home_wins, away_wins, average_margin, recent_games, note, home_team, away_team } = summary;
+  const leader = home_wins === away_wins ? "Tied" : home_wins > away_wins ? `${home_team} lead` : `${away_team} lead`;
+  return (
+    <div className="rounded-2xl border bg-white px-4 py-3">
+      <h5 className="text-sm font-semibold text-gray-700">
+        Head-to-head ({scope === "season" ? summary.home_season : "historical"})
+      </h5>
+      <p className="text-sm text-gray-600 mt-1">
+        {leader} {home_wins}-{away_wins} · Average margin {formatNumber(average_margin, 1)} pts
+      </p>
+      <p className="text-xs text-gray-500 mt-1">{note}</p>
+      {recent_games?.length ? (
+        <ul className="mt-2 space-y-1 text-sm text-gray-600">
+          {recent_games.map((g, idx) => {
+            const marginForDisplay = homeTeam === home_team ? g.margin_for_home : -g.margin_for_home;
+            return (
+              <li key={`${g.date}-${idx}`}>
+                <span className="font-medium">{g.date}</span>: {g.home_team} {formatNumber(g.home_score, 0)} – {g.away_team} {formatNumber(g.away_score, 0)} ({formatMargin(marginForDisplay, null)})
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-500 mt-2">No meetings in this context.</p>
+      )}
     </div>
   );
 }
