@@ -1,0 +1,9 @@
+{
+  "model": "reg",
+  "run_dir": "backend/models/xgb_reg_runs/20250925-045043",
+  "baseline_count": 366,
+  "kept_count": 366,
+  "removed_count": 0,
+  "gain_threshold": 0.0,
+  "output_file": "backend/models/xgb_reg_features_pruned.txt"
+}

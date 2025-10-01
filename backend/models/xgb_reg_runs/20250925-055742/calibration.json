@@ -1,19 +1,29 @@
 {
-  "train": {
-    "acc": 0.7879024528770722,
-    "auc": 0.8706771260439183,
-    "logloss": 0.44718268180508325
+  "sigma_global": 13.408161004698014,
+  "sigma_bucketed": {
+    "0-5": 14.139039303922818,
+    "5-10": 12.65540483354855,
+    "10-20": 12.989361342071494
   },
-  "valid": {
-    "acc": 0.7283311772315654,
-    "auc": 0.7973697039698194,
-    "logloss": 0.5460894442649609
-  },
-  "test": {
-    "acc": 0.730004060089322,
-    "auc": 0.8013701115441473,
-    "logloss": 0.5353744139990336
-  },
+  "buckets": [
+    [
+      0,
+      5
+    ],
+    [
+      5,
+      10
+    ],
+    [
+      10,
+      20
+    ],
+    [
+      20,
+      999
+    ]
+  ],
+  "ratings_kind": "elo",
   "features": [
     "rating_diff",
     "is_playoffs",
@@ -142,29 +152,41 @@
     "DIFF_TRAD_TOV_roll10_mean",
     "DIFF_rest_days_roll10_mean"
   ],
-  "ratings_kind": "elo",
+  "metrics": {
+    "train": {
+      "rmse": 10.167355867498307,
+      "mae": 7.800746991299334
+    },
+    "valid": {
+      "rmse": 13.442946203381332,
+      "mae": 10.28633624078375
+    },
+    "test": {
+      "rmse": 12.885774476864588,
+      "mae": 9.821612064376318
+    }
+  },
   "model": {
     "best_iteration": null,
     "best_ntree_limit": null,
     "params": {
-      "n_estimators": 1319,
-      "learning_rate": 0.026688310925672226,
-      "max_depth": 3,
-      "subsample": 0.7838068121566816,
-      "colsample_bytree": 0.9138576929536271,
-      "reg_lambda": 1.4245723370460188,
-      "reg_alpha": 3.224385028537201,
-      "objective": "binary:logistic",
-      "eval_metric": "logloss",
+      "n_estimators": 759,
+      "learning_rate": 0.030117370718904808,
+      "max_depth": 4,
+      "subsample": 0.6572176275750237,
+      "colsample_bytree": 0.9085242943791936,
+      "reg_lambda": 2.7099204774357855,
+      "reg_alpha": 1.9268244845219906,
+      "objective": "reg:squarederror",
       "random_state": 42,
       "n_jobs": 8,
       "tree_method": "hist",
-      "min_child_weight": 2,
-      "colsample_bynode": 0.9606147328920893,
-      "gamma": 1.0042205158877184
+      "min_child_weight": 6,
+      "colsample_bynode": 0.9111378297684587,
+      "gamma": 0.7519883109380815
     }
   },
-  "run_dir": "backend/models/xgb_cls_runs/20250925-055703",
+  "run_dir": "backend/models/xgb_reg_runs/20250925-055742",
   "feature_source": null,
   "feature_groups": {
     "source": "backend/models/xgb_cls_best_groups.json",

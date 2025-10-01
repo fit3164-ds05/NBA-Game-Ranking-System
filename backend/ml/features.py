@@ -81,6 +81,42 @@ def load_team_metrics() -> pd.DataFrame:
             df = pd.read_csv(p.with_suffix(".csv"))
     if not pd.api.types.is_datetime64_any_dtype(df["GAME_DATE"]):
         df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce")
+    if "TRAD_win" not in df.columns and "WINLOSS" in df.columns:
+        df["TRAD_win"] = df["WINLOSS"].astype(str).str.upper().str.startswith("W").astype(int)
+
+    # Attach team abbreviations/names for join steps downstream. Older extracts may not
+    # include them, so derive from the enlarged game metadata table when available.
+    if "HOME_TEAM_ABBREVIATION" not in df.columns or "AWAY_TEAM_ABBREVIATION" not in df.columns:
+        try:
+            meta = load_table("backend/data/enlarged_dataset") if load_table else None
+        except FileNotFoundError:
+            meta = None
+
+        if meta is None:
+            meta_path = Path("backend/data/enlarged_dataset")
+            if meta_path.with_suffix(".parquet").exists():
+                meta = pd.read_parquet(meta_path.with_suffix(".parquet"))
+            elif meta_path.with_suffix(".csv").exists():
+                meta = pd.read_csv(meta_path.with_suffix(".csv"))
+
+        if meta is not None:
+            keep_cols = [
+                "GAME_ID",
+                "HOME_TEAM_ABBREVIATION",
+                "HOME_TEAM_NAME",
+                "AWAY_TEAM_ABBREVIATION",
+                "AWAY_TEAM_NAME",
+            ]
+            meta = meta.loc[:, [c for c in keep_cols if c in meta.columns]].drop_duplicates("GAME_ID")
+            df = df.merge(meta, on="GAME_ID", how="left", validate="many_to_one")
+            if "TEAM_ABBREVIATION" not in df.columns:
+                home_mask = df["TEAM_ID"] == df["HOME_TEAM_ID"]
+                df["TEAM_ABBREVIATION"] = df["AWAY_TEAM_ABBREVIATION"]
+                df.loc[home_mask, "TEAM_ABBREVIATION"] = df.loc[home_mask, "HOME_TEAM_ABBREVIATION"]
+            if "TEAM_NAME" not in df.columns and "HOME_TEAM_NAME" in df.columns and "AWAY_TEAM_NAME" in df.columns:
+                home_mask = df["TEAM_ID"] == df["HOME_TEAM_ID"]
+                df["TEAM_NAME"] = df["AWAY_TEAM_NAME"]
+                df.loc[home_mask, "TEAM_NAME"] = df.loc[home_mask, "HOME_TEAM_NAME"]
     return df
 
 

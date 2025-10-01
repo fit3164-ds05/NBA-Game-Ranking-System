@@ -1,0 +1,22 @@
+{
+  "selected_groups": [
+    "rest",
+    "roll10_mean",
+    "roll3_mean",
+    "static"
+  ],
+  "mandatory_groups": [
+    "static"
+  ],
+  "optional_groups": [
+    "rest",
+    "roll10_mean",
+    "roll10_std",
+    "roll3_mean",
+    "roll3_std",
+    "roll5_mean",
+    "roll5_std"
+  ],
+  "feature_count": 106,
+  "timestamp": "2025-09-25T05:53:07.525660Z"
+}
