@@ -1,83 +1,75 @@
-// src/pages/DashboardHome.jsx
-import { useState } from "react";
-import PlayerSeasonPicker from "../components/PlayerSeasonPicker";
-import ShotChart from "../components/ShotChart";
+import DashboardSwitcher from "../components/DashboardSwitcher";
+import FloatingCard from "../components/FloatingCard";
 
 export default function DashboardHome() {
-  const [selection, setSelection] = useState(null); // { player, season, shots }
-  const [measure, setMeasure] = useState("FGA");    // FGA | FGM | FG3A | FG3M | PTS
-
   return (
-    <div className="min-h-screen w-full p-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-semibold">Player Shot Data</h1>
+    <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
+      <DashboardSwitcher
+        description="Move from league-wide signals to focused breakdowns with a single gesture."
+      />
 
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Measure</label>
-            <select
-              className="border rounded-lg p-2 bg-white"
-              value={measure}
-              onChange={(e) => setMeasure(e.target.value)}
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <FloatingCard
+          tone="light"
+          className="md:col-span-2"
+          title="Momentum Pulse"
+          titleSize="text-lg"
+          body="A curated stream of pace, offensive rating shifts, and volatility to surface storylines early."
+          bodySize="text-sm"
+          childrenClassName="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3"
+        >
+          {[
+            { label: "League Pace", value: "101.7", delta: "+2.1" },
+            { label: "Offensive Rating", value: "117.4", delta: "+0.8" },
+            { label: "Clutch Net Rating", value: "+4.6", delta: "-1.2" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl bg-white p-4 shadow-[0_18px_48px_-30px rgba(15,23,42,0.25)]"
             >
-              <option value="FGA">FGA (Attempts)</option>
-              <option value="FGM">FGM (Makes)</option>
-              <option value="FG3A">FG3A (3PA)</option>
-              <option value="FG3M">FG3M (3PM)</option>
-              <option value="PTS">PTS</option>
-            </select>
-          </div>
-        </header>
-
-        {/* Player - Season - Shots pipeline */}
-        <PlayerSeasonPicker
-          defaultSeason="2024-25"
-          autoFetchShots={true}
-          measure={measure}
-          onComplete={(sel) => {
-            setSelection(sel ?? null);
-          }}
-        />
-
-        {/* Summary card */}
-        <section className="rounded-lg border bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
-            <div>
-              <span className="font-medium">Player:</span>{" "}
-              {selection?.player?.name ?? "-"}
+              <div className="text-xs uppercase tracking-[0.32em] text-amber-500/80">
+                {item.label}
+              </div>
+              <div className="mt-3 text-2xl font-semibold text-slate-900">{item.value}</div>
+              <div className="text-xs text-slate-500">7-day change {item.delta}</div>
             </div>
-            <div>
-              <span className="font-medium">Season:</span>{" "}
-              {selection?.season ?? "-"}
-            </div>
-            <div>
-              <span className="font-medium">Total shots:</span>{" "}
-              {selection?.shots?.count ?? "-"}
-            </div>
-          </div>
-        </section> 
+          ))}
+        </FloatingCard>
 
-        {selection?.shots?.shots?.length > 0 && (
-          <ShotChart
-            payload={selection.shots}
-            measure={measure}
-            playerName={selection.player?.name}
-            seasonLabel={selection.season}
-          />
-        )}
+        <FloatingCard
+          tone="light"
+          title="Spotlight"
+          titleSize="text-lg"
+          body="Snapshot of the storyline shaping this week."
+          bodySize="text-sm"
+          childrenClassName="mt-5 space-y-2"
+        >
+          <p className="text-sm font-medium text-slate-900">
+            Thunder climb to #2 in net rating
+          </p>
+          <p className="text-xs text-slate-500">
+            Powered by a top-five half-court offense and the youngest top-three lineup in the conference.
+          </p>
+        </FloatingCard>
+      </section>
 
-        {/* (Optional) Raw payload */}
-        {selection?.shots && (
-          <details className="rounded-lg border bg-gray-50 p-4">
-            <summary className="cursor-pointer select-none font-medium">
-              Show raw payload
-            </summary>
-            <pre className="mt-3 max-h-96 overflow-auto text-xs">
-{JSON.stringify(selection.shots, null, 2)}
-            </pre>
-          </details>
-        )}
-      </div>
+      <FloatingCard
+        tone="light"
+        title="What comes next"
+        titleSize="text-lg"
+        body="Use the toggles above to pivot into team trajectories or isolate player-level shot charts."
+        bodySize="text-sm"
+        childrenClassName="mt-6 flex justify-start md:justify-end"
+      >
+        <div className="flex gap-3 text-xs text-slate-500">
+          <span className="rounded-full bg-white px-4 py-2 shadow-[0_12px_32px_-24px rgba(15,23,42,0.25)]">
+            Auto-refresh every 15 min
+          </span>
+          <span className="rounded-full bg-white px-4 py-2 shadow-[0_12px_32px_-24px rgba(15,23,42,0.25)]">
+            Live sample data
+          </span>
+        </div>
+      </FloatingCard>
     </div>
   );
 }
