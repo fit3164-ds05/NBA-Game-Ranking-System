@@ -308,9 +308,9 @@ export default function GamePrediction() {
 
   // ===== Render =====
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="flex w-full flex-col gap-6 text-slate-900">
       {/* Page header */}
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="text-2xl md:text-3xl font-semibold">Predict a game outcome</h1>
         <p className="text-gray-600 mt-2">
           Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
@@ -319,7 +319,7 @@ export default function GamePrediction() {
 
       {/* Loading state for team list */}
       {loadingTeams && (
-        <div className="rounded-2xl border p-4 bg-white shadow-sm mb-6">
+        <div className="rounded-2xl border p-4 bg-white shadow-sm">
           Loading teams
         </div>
       )}
