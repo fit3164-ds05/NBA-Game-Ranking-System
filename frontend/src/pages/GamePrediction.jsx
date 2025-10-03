@@ -452,7 +452,7 @@ function formatMargin(margin, sigma) {
   return base;
 }
 
-function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam) {
+function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam, interval) {
   if (typeof margin === "number" && typeof sigma === "number" && sigma > 0) {
     const z = Math.abs(margin) / sigma;
     const favourite = margin >= 0 ? homeTeam : awayTeam;
@@ -461,26 +461,34 @@ function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam) 
     if (typeof marginProb === "number") {
       detailParts.push(`${formatPercent(marginProb)} via margin model`);
     }
+    if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
+      detailParts.push(`calibrated 68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)} (n=${interval.count ?? 0})`);
+    }
+    const detail = detailParts.join(" · ");
+    let label = "Low";
     if (z >= 1.5) {
-      return { label: "High", detail: detailParts.join(" · ") };
+      label = "High";
+    } else if (z >= 0.8) {
+      label = "Moderate";
     }
-    if (z >= 0.8) {
-      return { label: "Moderate", detail: detailParts.join(" · ") };
-    }
-    return { label: "Low", detail: detailParts.join(" · ") };
+    return { label, detail, interval };
   }
   if (typeof prob === "number") {
     const diff = Math.abs(prob - 0.5);
-    const detail = `${homeTeam} win chance ${formatPercent(prob)} (50% = even matchup)`;
+    const detailParts = [`${homeTeam} win chance ${formatPercent(prob)} (50% = even matchup)`];
+    if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
+      detailParts.push(`calibrated 68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)} (n=${interval.count ?? 0})`);
+    }
+    const detail = detailParts.join(" · ");
+    let label = "Low";
     if (diff >= 0.2) {
-      return { label: "High", detail };
+      label = "High";
+    } else if (diff >= 0.08) {
+      label = "Moderate";
     }
-    if (diff >= 0.08) {
-      return { label: "Moderate", detail };
-    }
-    return { label: "Low", detail };
+    return { label, detail, interval };
   }
-  return { label: "Unknown", detail: "Insufficient data" };
+  return { label: "Unknown", detail: "Insufficient data", interval: null };
 }
 
 function formatProbDelta(a, b) {
@@ -491,14 +499,14 @@ function formatProbDelta(a, b) {
   return `${sign}${delta} ppt`;
 }
 
-function explainProbDelta(delta) {
+function explainProbDelta(delta, homeTeam, awayTeam) {
   if (!delta) return "aligns with the classifier odds";
   const value = parseInt(delta.replace(/[^-\d]/g, ""), 10);
   if (!Number.isFinite(value) || value === 0) return "aligns with the classifier odds";
   const magnitude = Math.abs(value);
   const adjective = magnitude >= 10 ? "much" : magnitude >= 5 ? "more" : "slightly";
-  const direction = value > 0 ? "home team" : "away team";
-  return `${delta} → ${adjective} more confidence in the ${direction}`;
+  const direction = value > 0 ? homeTeam : awayTeam;
+  return `${delta} → ${adjective} more confidence in ${direction}`;
 }
 
 function describeMarginExpectation(margin) {
@@ -581,11 +589,38 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
     marginProb,
     result.inputs.home_team,
     result.inputs.away_team,
+    active?.confidence_interval,
   );
   const headToHead = result?.head_to_head ?? null;
-  const simpleDrivers = activeModel === "xgb_simple" ? active?.top_factors ?? [] : [];
+  const driverFactors = Array.isArray(active?.top_factors) ? active.top_factors : [];
   const homeTeamName = result.inputs.home_team;
   const awayTeamName = result.inputs.away_team;
+  const interval = active?.confidence_interval;
+  const winProb = typeof active?.home_win_prob === "number" ? active.home_win_prob : null;
+  const predictedMargin = typeof active?.predicted_margin === "number" ? active.predicted_margin : null;
+  const predictedWinner = winProb !== null ? (winProb >= 0.5 ? homeTeamName : awayTeamName) : null;
+  const winnerProb = winProb !== null && predictedWinner ? (predictedWinner === homeTeamName ? winProb : 1 - winProb) : null;
+
+  let verdictTitle = "Prediction unavailable";
+  let verdictSubtitle = "";
+  if (predictedWinner && winnerProb !== null) {
+    if (typeof predictedMargin === "number") {
+      verdictTitle = `${predictedWinner} projected to win by ${formatNumber(Math.abs(predictedMargin), 1)} pts`;
+    } else {
+      verdictTitle = `${predictedWinner} win chance ${formatPercent(winnerProb)}`;
+    }
+    verdictSubtitle = `${predictedWinner} win probability ${formatPercent(winnerProb)} · ${confidence.label} confidence`;
+    if (confidence.interval && confidence.interval.lower_68 !== undefined && confidence.interval.upper_68 !== undefined) {
+      verdictSubtitle += ` · 68% ${formatPercent(confidence.interval.lower_68)}–${formatPercent(confidence.interval.upper_68)}`;
+    }
+  }
+
+  const winCaptionParts = [];
+  winCaptionParts.push(activeModel === "xgboost" ? "XGBoost classifier" : "Ratings logistic");
+  if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
+    winCaptionParts.push(`68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)}`);
+  }
+  const winCaption = winCaptionParts.join(" · ");
 
   return (
     <div className="space-y-4">
@@ -664,8 +699,13 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
             modelType={activeModel}
           />
 
-          {simpleDrivers.length > 0 ? (
-            <SimpleDriversCard factors={simpleDrivers} homeTeam={homeTeamName} awayTeam={awayTeamName} />
+          {driverFactors.length > 0 ? (
+            <DriversCard
+              factors={driverFactors}
+              homeTeam={homeTeamName}
+              awayTeam={awayTeamName}
+              title={`Key drivers (${active.label || activeModel})`}
+            />
           ) : activeModel === "xgb_simple" ? (
             <div className="rounded-2xl border bg-white px-4 py-3 text-sm text-gray-500">
               Key drivers unavailable for this matchup.
@@ -680,7 +720,7 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
                   const model = models[key];
                   if (!model) return null;
                   const delta = formatProbDelta(active.home_win_prob, model.home_win_prob);
-                  const deltaExplanation = explainProbDelta(delta);
+                  const deltaExplanation = explainProbDelta(delta, homeTeamName, awayTeamName);
                   const marginDescription = describeMarginExpectation(model.predicted_margin);
                   return (
                     <li key={key}>
@@ -751,15 +791,20 @@ function InterpretationCard({ classifierProb, marginProb, marginValue, marginSig
         <li>
           Confidence is {confidence.label.toLowerCase()} because {confidence.detail}.
         </li>
+        {confidence.interval && (
+          <li>
+            Calibrated 68% interval: {formatPercent(confidence.interval.lower_68)}–{formatPercent(confidence.interval.upper_68)} (based on {confidence.interval.count ?? 0} validation games).
+          </li>
+        )}
       </ul>
     </div>
   );
 }
 
-function SimpleDriversCard({ factors, homeTeam, awayTeam }) {
+function DriversCard({ factors, homeTeam, awayTeam, title }) {
   return (
     <div className="rounded-2xl border bg-white px-4 py-3">
-      <h5 className="text-sm font-semibold text-gray-700">Key drivers (simple model)</h5>
+      <h5 className="text-sm font-semibold text-gray-700">{title}</h5>
       <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
         {factors.map((f) => (
           <li key={f.feature}>
@@ -772,12 +817,12 @@ function SimpleDriversCard({ factors, homeTeam, awayTeam }) {
 }
 
 function HeadToHeadCard({ summary, homeTeam }) {
-  const { scope, total_games, home_wins, away_wins, average_margin, recent_games, note, home_team, away_team } = summary;
+  const { scope, total_games, home_wins, away_wins, average_margin, recent_games, note, home_team, away_team, recent_heading } = summary;
   const leader = home_wins === away_wins ? "Tied" : home_wins > away_wins ? `${home_team} lead` : `${away_team} lead`;
   return (
     <div className="rounded-2xl border bg-white px-4 py-3">
       <h5 className="text-sm font-semibold text-gray-700">
-        Head-to-head ({scope === "season" ? summary.home_season : "historical"})
+        {recent_heading || (scope === "season" ? `Head-to-head (${summary.home_season})` : "Head-to-head (historical)")}
       </h5>
       <p className="text-sm text-gray-600 mt-1">
         {leader} {home_wins}-{away_wins} · Average margin {formatNumber(average_margin, 1)} pts
