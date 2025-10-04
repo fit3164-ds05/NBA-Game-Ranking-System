@@ -1,0 +1,12 @@
+{
+  "model": "reg",
+  "feature_source": "backend/models/xgb_reg_features.txt",
+  "importance_csv": "backend/models/xgb_reg_runs/20250925-045043/feature_importances.csv",
+  "baseline_count": 366,
+  "available_count": 348,
+  "missing_count": 18,
+  "kept_count": 316,
+  "removed_count": 50,
+  "correlation_threshold": 0.97,
+  "output_file": "backend/models/xgb_reg_features_pruned_corr.txt"
+}

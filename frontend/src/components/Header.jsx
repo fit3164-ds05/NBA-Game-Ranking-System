@@ -9,14 +9,11 @@ export default function Header({title}){
 
 
         return (
-    <header
-      className="sticky top-3 z-50 w-full max-w-7xl mx-auto mt-0
-     flex justify-between items-center
-     px-6 py-4
-     bg-gray-300/30 text-white
-     backdrop-blur-md shadow-lg
-     rounded-2xl pointer-events-auto"
-    >
+<header
+  className="sticky top-3 z-50 mx-10 flex items-center justify-between
+             px-10 py-4 bg-gray-300/30 text-white
+             backdrop-blur-md shadow-lg pointer-events-auto rounded-lg"
+>
 
       <h1 className="text-2xl font-bold text-gray-800">
         <Link to="/">NBA DATA DRIBBLE</Link>

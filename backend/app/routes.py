@@ -7,8 +7,28 @@ handling data retrieval, validation, and prediction logic as needed.
 """
 import os
 from flask import Blueprint, jsonify, request, current_app
-from services.ratings import teams, seasons_for_team, predict_prob, load_full, resolved_csv_path
+from services.ratings import (
+    teams,
+    seasons_for_team,
+    predict_prob,
+    load_full,
+    resolved_csv_path,
+    summarize_matchup,
+)
 from services import ratings
+
+try:  # prefer absolute import when backend package is discoverable
+    from backend.ml.game_features import build_matchup_features
+    from backend.ml.infer import (
+        predict_winprob_xgb,
+        predict_margin_and_prob_xgb,
+    )
+except ImportError:  # pragma: no cover - fallback when running inside backend/
+    from ml.game_features import build_matchup_features
+    from ml.infer import (
+        predict_winprob_xgb,
+        predict_margin_and_prob_xgb,
+    )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from nba_api.stats.endpoints import commonallplayers, playergamelog, shotchartdetail
@@ -92,8 +112,56 @@ def predict():
         # If prediction returns an error, return 404
         return jsonify(error=result["error"]), 404
 
-    # Return the prediction results along with the input parameters and model version
-    return jsonify({
+    models_payload = {
+        "elo": {
+            "label": "Ratings (logistic)",
+            "home_win_prob": result.get("home_win_prob"),
+            "predicted_margin": result.get("predicted_margin"),
+            "home_rating": result.get("home_rating"),
+            "away_rating": result.get("away_rating"),
+        }
+    }
+
+    xgb_error = None
+    try:
+        features, feature_meta = build_matchup_features(
+            home_team,
+            hs,
+            away_team,
+            as_,
+            ratings_kind="elo",
+            season_type="Playoffs" if result.get("is_playoffs") else None,
+        )
+        cls_payload = predict_winprob_xgb(features, return_contribs=True)
+        if isinstance(cls_payload, dict):
+            cls_prob = cls_payload.get("prob", 0.5)
+            cls_factors = cls_payload.get("factors", [])
+            cls_bias = cls_payload.get("bias", 0.0)
+            cls_interval = cls_payload.get("interval")
+        else:  # pragma: no cover
+            cls_prob, cls_factors, cls_bias = float(cls_payload), [], 0.0
+            cls_interval = None
+        margin_pred, reg_prob, margin_sigma = predict_margin_and_prob_xgb(features)
+        models_payload["xgboost"] = {
+            "label": "XGBoost (win+margin)",
+            "home_win_prob": cls_prob,
+            "predicted_margin": margin_pred,
+            "win_prob_from_margin": reg_prob,
+            "margin_sigma": margin_sigma,
+            "feature_context": feature_meta,
+            "top_factors": cls_factors,
+            "bias": cls_bias,
+            "confidence_interval": cls_interval,
+        }
+    except FileNotFoundError as exc:
+        xgb_error = f"{exc}"
+    except Exception as exc:  # pragma: no cover - safeguard for optional model
+        current_app.logger.warning("XGBoost inference failed: %s", exc, exc_info=exc)
+        xgb_error = str(exc)
+
+    h2h = summarize_matchup(home_team, away_team, hs, as_)
+
+    payload = {
         "inputs": {
             "home_team": home_team,
             "home_season": hs,
@@ -102,7 +170,15 @@ def predict():
         },
         **result,
         "model_version": "glicko_csv_v1",
-    })
+        "models": models_payload,
+        "available_models": list(models_payload.keys()),
+    }
+    if h2h:
+        payload["head_to_head"] = h2h
+    if xgb_error:
+        payload["xgboost_error"] = xgb_error
+
+    return jsonify(payload)
 
 @api_bp.get("/ratings/series")
 def ratings_series():

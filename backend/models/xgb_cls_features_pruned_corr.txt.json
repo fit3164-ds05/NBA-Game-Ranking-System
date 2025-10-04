@@ -1,0 +1,12 @@
+{
+  "model": "cls",
+  "feature_source": "backend/models/xgb_cls_features_pruned.txt",
+  "importance_csv": "backend/models/xgb_cls_runs/20250925-050038/feature_importances.csv",
+  "baseline_count": 350,
+  "available_count": 334,
+  "missing_count": 16,
+  "kept_count": 308,
+  "removed_count": 42,
+  "correlation_threshold": 0.97,
+  "output_file": "backend/models/xgb_cls_features_pruned_corr.txt"
+}

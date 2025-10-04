@@ -1,0 +1,9 @@
+{
+  "model": "cls",
+  "run_dir": "backend/models/xgb_cls_runs/20250925-044522",
+  "baseline_count": 366,
+  "kept_count": 350,
+  "removed_count": 16,
+  "gain_threshold": 0.0,
+  "output_file": "backend/models/xgb_cls_features_pruned.txt"
+}
