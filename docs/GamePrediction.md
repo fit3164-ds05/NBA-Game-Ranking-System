@@ -32,18 +32,20 @@ Thresholds:
 
 | z-score | Label    |
 |---------|----------|
-| ≥ 1.5   | High     |
-| 0.8–1.5 | Moderate |
-| < 0.8   | Low      |
+| ≥ 1.25  | High     |
+| 0.5–1.25 | Medium  |
+| < 0.5   | Low      |
 
 If the active model lacks margin info (e.g. the compact classifier) we fall back to how far the classifier probability is from 50% and still append the calibrated interval when available.
 
 ## Interpreting the cards
 
+* **Projected winner** – headline card that states the favourite, classifier-derived win chance, and the margin projection.
 * **Classifier win probability** – direct XGBoost output.
-* **Margin win probability** – margin-derived win chance. Absent for the compact model.
+* **Margin projection** – regression spread with a bell curve showing the home-margin distribution: zero line, mean marker, shaded home-win area (≈ probability). The caption calls out the margin-derived home win chance.
 * **Confidence** – combines the margin z-score with the calibrated interval. When only the classifier is available it explains how far the probability sits from a coin flip.
-* **Key drivers** – SHAP contributions translated to plain English. Rolling windows become “10-game average”, diffs become “Home vs away …”, and raw year is treated as season context.
+* **Lead driver** – the interpretation card now highlights the top SHAP contributor in plain English (e.g. “Miami hold a last 10 games average offensive rating edge…”).
+* **Key drivers** – SHAP contributions translated to prose using the shared helper at `frontend/src/utils/featureNarratives.js`. Rolling windows become “10-game average”, diffs become “Home vs away …”, `ADV_*` ratings mention per-100 possession context, and `FF_*` four-factor stats expand their acronyms.
 * **Head-to-head** – last five meetings in the selected season when both teams share a year, otherwise “Last 5 meetings before YYYY”.
 
 ## Calibration workflow

@@ -120,6 +120,10 @@ make tune            # small Optuna tuner (cls/reg)
    - **Free**: GitHub Pages for UI + PythonAnywhere free tier for Flask API and scheduled scripts.
    - **Low-Cost**: Dockerised Flask + Gunicorn behind Nginx on a USD 5/month droplet; React on GitHub Pages.
 
+## Testing & QA
+
+We keep a running log of the testing strategy, coverage snapshots, and open QA tasks in [`docs/Testing.md`](docs/Testing.md). Update it whenever you add or revise test suites so future contributors can trace what protects each workflow.
+
 ## Running the ranking pipeline
 
 1. Install Python dependencies:

@@ -88,12 +88,12 @@ describe('GamePrediction page', () => {
 
     await waitFor(() => {
       expect(predictGameMock).toHaveBeenCalled()
-      expect(screen.getByText(/Classifier win probability/i)).toBeInTheDocument()
+      expect(screen.getByText(/Classifier win chance/i)).toBeInTheDocument()
       expect(screen.getByText('60%')).toBeInTheDocument()
       expect(screen.getAllByText(/Confidence/i)[0]).toBeInTheDocument()
       expect(screen.getByText('Low')).toBeInTheDocument()
       expect(screen.getAllByText(/margin favours/i).length).toBeGreaterThan(0)
-      expect(screen.getByText(/Margin win probability/i)).toBeInTheDocument()
+      expect(screen.getByText(/Margin projection/i)).toBeInTheDocument()
       expect(screen.getByText(/How to interpret/i)).toBeInTheDocument()
       expect(screen.getByText(/Head-to-head/i)).toBeInTheDocument()
       expect(screen.getByText(/Model bundle glicko_csv_v1/i)).toBeInTheDocument()
