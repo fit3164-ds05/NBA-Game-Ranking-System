@@ -6,8 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NBA GAME RANKING</title>
   </head>
+
   <body>
     <div id="root"></div>
+
+    <!-- D3 v3 ShotChart  -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+
+    <!-- Required vendor libraries -->
+    <script src="/vendor/d3.hexbin.js"></script>
+    <script src="/vendor/d3.chart.min.js"></script>
+    <script src="/vendor/d3.chart.defaults.js"></script>
+
+    <!-- Main chart + its CSS -->
+    <link rel="stylesheet" href="/vendor/d3.basketball-shot-chart.css" />
+    <script src="/vendor/d3.basketball-shot-chart.js"></script>
+
+    <!-- React app entrypoint -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
