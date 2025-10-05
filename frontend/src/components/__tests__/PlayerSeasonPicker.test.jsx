@@ -45,7 +45,7 @@ describe('PlayerSeasonPicker', () => {
     await user.click(option)
 
     await waitFor(() => expect(getPlayerSeasons).toHaveBeenCalledWith(23, { onlyWithGames: true }))
-    await waitFor(() => expect(getPlayerShots).toHaveBeenCalledWith(23, '2024-25', { teamId: 0, measure: 'FGA' }))
+    await waitFor(() => expect(getPlayerShots).toHaveBeenCalledWith(23, '2024-25', { teamId: 0 }))
 
     expect(await screen.findByText('1 shots loaded.')).toBeInTheDocument()
     expect(onComplete).toHaveBeenCalledWith({

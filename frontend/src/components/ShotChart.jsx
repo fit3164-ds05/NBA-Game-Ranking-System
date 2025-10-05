@@ -7,14 +7,13 @@ import { useMemo } from "react";
  */
 export default function ShotChart({
   payload,
-  measure = "FGA",
-  width = 540,
-  height = 500,
+  width = 720,
+  height = 660,
   showLegend = true,
   playerName,
   seasonLabel,
 }) {
-  const margin = 12;
+  const margin = 24;
   const courtW = width - margin * 2;
   const courtH = height - margin * 2;
 
@@ -36,43 +35,40 @@ export default function ShotChart({
     if (!shots.length) return [];
     const isThree = (s) => (s.shot_type || "").toLowerCase().includes("3pt");
 
-    const eligible = shots.filter((s) => {
-      switch (measure) {
-        case "FGA":
-          return true;
-        case "FGM":
-          return s.made === 1;
-        case "FG3A":
-          return isThree(s);
-        case "FG3M":
-          return isThree(s) && s.made === 1;
-        case "PTS":
-          return s.made === 1;
-        default:
-          return true;
-      }
-    });
-
-    return eligible.map((s) => {
+    return shots.map((s) => {
       const three = isThree(s);
-      const value = three ? 3 : 2;
+      const rawDistance = Number(s.shot_distance);
+      const distanceLabel = Number.isFinite(rawDistance) ? `${rawDistance} ft` : "N/A";
+      const minutesVal = Number.isFinite(Number(s.minutes_remaining)) ? Number(s.minutes_remaining) : null;
+      const secondsVal = Number.isFinite(Number(s.seconds_remaining)) ? Number(s.seconds_remaining) : null;
+      const timeLabel = minutesVal !== null && secondsVal !== null
+        ? `${minutesVal}:${String(secondsVal).padStart(2, "0")}`
+        : "--:--";
+      let quarterLabel = "Quarter ?";
+      if (typeof s.period === "number" && s.period > 0) {
+        if (s.period <= 4) {
+          quarterLabel = `Q${s.period}`;
+        } else {
+          const overtimeNumber = s.period - 4;
+          quarterLabel = overtimeNumber === 1 ? "OT" : `OT${overtimeNumber}`;
+        }
+      }
       return {
         ...s,
         cx: sx(s.x),
         cy: sy(s.y),
-        r:
-          measure === "PTS"
-            ? 3 + (value === 3 ? 3 : 2)
-            : s.made === 1
-              ? 3.7
-              : 2.6,
+        r: s.made === 1 ? 3.8 : 2.8,
         fill: s.made === 1 ? "rgb(34 197 94)" : "rgb(239 68 68)",
-        opacity: measure === "FGM" || measure === "FG3M" ? 0.9 : 0.65,
+        opacity: 0.72,
         stroke: "#0f172a",
-        strokeWidth: s.made === 1 ? 0.8 : 0.4,
+        strokeWidth: s.made === 1 ? 0.8 : 0.5,
+        shotLabel: three ? "3PT attempt" : "2PT attempt",
+        distanceLabel,
+        quarterLabel,
+        timeLabel,
       };
     });
-  }, [shots, measure, sx, sy]);
+  }, [shots, sx, sy]);
 
   const summary = useMemo(() => {
     if (!shots.length) return null;
@@ -144,15 +140,14 @@ export default function ShotChart({
   const effectiveSeason = seasonLabel ?? payload?.season;
 
   return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="mb-3 text-sm text-gray-600">
+    <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 shadow-[0_30px_80px_-45px rgba(15,23,42,0.35)]">
+      <div className="mb-4 text-sm tracking-wide text-slate-600">
         {effectivePlayer ? `${effectivePlayer} - ` : ""}
-        {effectiveSeason ?? ""} {measure} ({points.length}
-        {measure === "FGA" || measure === "FG3A" ? " attempts" : " shots"})
+        {effectiveSeason ?? ""} Field Goal Attempts ({points.length} attempts)
       </div>
 
       {summary && (
-        <div className="mb-4 space-y-4">
+        <div className="mb-6 space-y-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryStat
               label="Field Goals"
@@ -229,7 +224,7 @@ export default function ShotChart({
                 {summary.periods.map((period) => {
                   const pct = period.attempts ? period.makes / period.attempts : null;
                   const volume = period.attempts / summary.attempts;
-                  const label = period.period === "?" ? "Unknown" : `Q${period.period}`;
+                  const label = formatPeriodLabel(period.period);
                   return (
                     <div key={label} className="flex items-center gap-3 text-slate-700">
                       <span className="w-14 shrink-0 text-slate-500">{label}</span>
@@ -251,41 +246,41 @@ export default function ShotChart({
         </div>
       )}
 
-      <svg width={width} height={height} className="w-full h-auto">
-        <defs>
-          <linearGradient id="court-floor" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f9e4ba" />
-            <stop offset="100%" stopColor="#f0d19c" />
-          </linearGradient>
-        </defs>
+      <div className="overflow-hidden rounded-[28px] border border-slate-200/60 bg-gradient-to-br from-[#f8ede0] via-[#fdf3e6] to-[#f9e8d2]">
+        <svg width={width} height={height} className="h-auto w-full">
+          <defs>
+            <linearGradient id="court-floor" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#fce4bc" />
+              <stop offset="50%" stopColor="#f8dba5" />
+              <stop offset="100%" stopColor="#f3d095" />
+            </linearGradient>
+          </defs>
 
-        <CourtHalfSVG sx={sx} sy={sy} />
+          <CourtHalfSVG sx={sx} sy={sy} />
 
-        <g>
-          {points.map((p, i) => (
-            <circle
-              key={`${p.game_id}-${p.game_event_id}-${i}`}
-              cx={p.cx}
-              cy={p.cy}
-              r={p.r}
-              fill={p.fill}
-              opacity={p.opacity}
-              stroke={p.stroke}
-              strokeWidth={p.strokeWidth}
-            >
-              <title>
-                {`${p.shot_type} - ${p.made ? "MAKE" : "MISS"} · ${p.shot_distance} ft · P${p.period} ${p.minutes_remaining}:${String(p.seconds_remaining).padStart(2, "0")}`}
-              </title>
-            </circle>
-          ))}
-        </g>
-      </svg>
+          <g>
+            {points.map((p, i) => (
+              <circle
+                key={`${p.game_id}-${p.game_event_id}-${i}`}
+                cx={p.cx}
+                cy={p.cy}
+                r={p.r}
+                fill={p.fill}
+                opacity={p.opacity}
+                stroke={p.stroke}
+                strokeWidth={p.strokeWidth}
+              >
+                <title>{buildTooltip(p)}</title>
+              </circle>
+            ))}
+          </g>
+        </svg>
+      </div>
 
       {showLegend && (
-        <div className="mt-3 flex items-center gap-4 text-sm">
+        <div className="mt-4 flex items-center justify-center gap-6 text-sm text-slate-600">
           <LegendSwatch color="rgb(34 197 94)" label="Make" />
           <LegendSwatch color="rgb(239 68 68)" label="Miss" />
-          {measure === "PTS" && <span className="text-gray-500">· Dot size proportional to points (3&gt;2)</span>}
         </div>
       )}
     </div>
@@ -302,6 +297,61 @@ function LegendSwatch({ color, label }) {
       <span className="text-gray-700">{label}</span>
     </span>
   );
+}
+
+function buildTooltip(p) {
+  const lines = [];
+  if (p.shotLabel) {
+    lines.push(`Shot: ${p.shotLabel}`);
+  } else if (p.shot_type) {
+    lines.push(`Shot: ${p.shot_type}`);
+  }
+
+  if (p.action_type) {
+    lines.push(`Action: ${p.action_type}`);
+  }
+
+  lines.push(`Result: ${p.made === 1 ? "Make" : "Miss"}`);
+
+  const gameBits = [];
+  if (p.game_date) gameBits.push(String(p.game_date));
+  if (p.opponent) gameBits.push(`vs ${p.opponent}`);
+  if (p.team_name) gameBits.push(`for ${p.team_name}`);
+  if (p.game_id) gameBits.push(`#${p.game_id}`);
+  if (gameBits.length) {
+    lines.push(`Game: ${gameBits.join(" ")}`);
+  }
+
+  if (p.quarterLabel) {
+    lines.push(`Quarter: ${p.quarterLabel}`);
+  }
+
+  if (p.timeLabel) {
+    lines.push(`Clock: ${p.timeLabel}`);
+  }
+
+  const distance = p.distanceLabel || (Number.isFinite(Number(p.shot_distance)) ? `${Number(p.shot_distance)} ft` : "N/A");
+  lines.push(`Distance: ${distance}`);
+
+  return lines.filter(Boolean).join("\n");
+}
+
+function formatPeriodLabel(periodValue) {
+  if (periodValue === "?") return "Unknown";
+  if (typeof periodValue === "number") {
+    if (periodValue <= 4) return `Q${periodValue}`;
+    const overtimeNumber = periodValue - 4;
+    return overtimeNumber === 1 ? "OT" : `OT${overtimeNumber}`;
+  }
+
+  const numeric = Number(periodValue);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    if (numeric <= 4) return `Q${numeric}`;
+    const overtimeNumber = numeric - 4;
+    return overtimeNumber === 1 ? "OT" : `OT${overtimeNumber}`;
+  }
+
+  return String(periodValue);
 }
 
 function CourtHalfSVG({ sx, sy }) {
