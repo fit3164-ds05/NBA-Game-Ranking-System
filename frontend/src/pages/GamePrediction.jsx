@@ -12,23 +12,41 @@ const FEATURE_LABELS = {
   rating_diff: "Rating difference",
   is_playoffs: "Playoff indicator",
   YEAR: "Season year",
+  rest_days: "Rest days",
   TRAD_3P_PCT: "Three-point percentage",
   TRAD_3PA: "Three-point attempts",
+  TRAD_AST: "Assists",
+  TRAD_BLK: "Blocks",
   TRAD_DREB: "Defensive rebounds",
-  TRAD_OREB: "Offensive rebounds",
-  TRAD_FG_PCT: "Field-goal percentage",
   TRAD_FG: "Field goals",
+  TRAD_FGA: "Field-goal attempts",
+  TRAD_FG_PCT: "Field-goal percentage",
+  TRAD_FGM: "Field goals made",
+  TRAD_FTA: "Free-throw attempts",
+  TRAD_FTM: "Free throws made",
+  TRAD_OREB: "Offensive rebounds",
+  TRAD_PF: "Personal fouls",
+  TRAD_PTS: "Points scored",
+  TRAD_REB: "Total rebounds",
+  TRAD_STL: "Steals",
+  TRAD_TOV: "Turnovers",
   ADV_DEFRTG: "Defensive rating",
+  ADV_NETRTG: "Net rating",
   ADV_OFFRTG: "Offensive rating",
   ADV_PACE: "Pace",
+  ADV_TS_PCT: "True shooting percentage",
+  ADV_AST_PCT: "Assist percentage",
+  FF_EFG_PCT: "Effective FG%",
+  FF_FTA_RATE: "Free-throw rate",
+  FF_OREB_PCT: "Offensive rebound %",
+  FF_TOV_PCT: "Turnover %",
   FF_OPP_EFG_PCT: "Opponent effective FG%",
   FF_OPP_FTA_RATE: "Opponent free-throw rate",
   FF_OPP_OREB_PCT: "Opponent offensive rebound %",
   FF_OPP_TOV_PCT: "Opponent turnover %",
-  FF_EFG_PCT: "Effective FG%",
-  FF_TOV_PCT: "Turnover %",
-  rest_days: "Rest days",
 };
+
+const DIFF_LIKE_FEATURES = new Set(["rating_diff"]);
 
 // Simple reusable label component for form fields
 function FieldLabel({ children }) {
@@ -466,10 +484,10 @@ function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam, 
     }
     const detail = detailParts.join(" · ");
     let label = "Low";
-    if (z >= 1.5) {
+    if (z >= 1.25) {
       label = "High";
-    } else if (z >= 0.8) {
-      label = "Moderate";
+    } else if (z >= 0.5) {
+      label = "Medium";
     }
     return { label, detail, interval };
   }
@@ -484,7 +502,7 @@ function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam, 
     if (diff >= 0.2) {
       label = "High";
     } else if (diff >= 0.08) {
-      label = "Moderate";
+      label = "Medium";
     }
     return { label, detail, interval };
   }
@@ -518,51 +536,94 @@ function describeMarginExpectation(margin) {
   return `projects a decisive advantage for the ${favours}`;
 }
 
-function describeContribution(value, homeTeam, awayTeam) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "has neutral impact";
-  const magnitude = Math.abs(value);
-  const favouredTeam = value >= 0 ? homeTeam : awayTeam;
-  const strength = magnitude >= 0.2 ? "strongly" : magnitude >= 0.05 ? "noticeably" : "slightly";
-  return `${strength} pushes the odds toward the ${favouredTeam}`;
-}
-
-function describeDifference(feature, value, homeTeam, awayTeam) {
-  if (feature === "YEAR" || feature === "Season year") {
-    return `season ${formatNumber(value, 0)} context (recent years shape team form)`;
+function getFeatureMeta(feature) {
+  if (!feature) {
+    return {
+      key: "",
+      baseLabel: "(unknown feature)",
+      label: "(unknown feature)",
+      isDiff: false,
+      windowSize: null,
+      stat: null,
+    };
   }
-  if (typeof value !== "number" || Number.isNaN(value)) return `${homeTeam} and ${awayTeam} look similar here`;
-  if (Math.abs(value) < 1e-3) return `${homeTeam} and ${awayTeam} look similar here`;
-  const isDiff = feature.startsWith("DIFF_");
-  const magnitude = Math.abs(value);
-  const digits = magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : 2;
-  if (isDiff) {
-    const leader = value >= 0 ? homeTeam : awayTeam;
-    const trailer = value >= 0 ? awayTeam : homeTeam;
-    return `${leader} ahead of ${trailer} by ${formatNumber(magnitude, digits)}`;
+  let raw = feature;
+  let isDiff = false;
+  if (raw.startsWith("DIFF_")) {
+    isDiff = true;
+    raw = raw.slice(5);
   }
-  return `Current value ${formatNumber(value, digits)} (${homeTeam} perspective)`;
-}
-
-function humaniseFeature(feature) {
-  if (!feature) return "(unknown feature)";
-  const isDiff = feature.startsWith("DIFF_");
-  let core = isDiff ? feature.slice(5) : feature;
-  let windowText = "";
+  let core = raw;
+  let windowSize = null;
+  let stat = null;
   const rollMatch = core.match(/_roll(\d+)_(mean|std)$/);
   if (rollMatch) {
-    const [, window, stat] = rollMatch;
-    windowText = stat === "mean" ? `${window}-game average` : `${window}-game volatility`;
+    windowSize = Number(rollMatch[1]);
+    stat = rollMatch[2] === "mean" ? "average" : "volatility";
     core = core.replace(/_roll\d+_(mean|std)$/, "");
+  }
+  if (DIFF_LIKE_FEATURES.has(core)) {
+    isDiff = true;
   }
   const baseLabel = FEATURE_LABELS[core] || toTitleCase(core.replace(/_/g, " "));
   let label = baseLabel;
-  if (windowText) {
-    label = `${windowText} ${baseLabel}`;
+  if (windowSize) {
+    const prefix = stat === "volatility" ? `Last ${windowSize} games volatility` : `Last ${windowSize} games average`;
+    label = `${prefix} ${baseLabel.toLowerCase()}`;
   }
   if (isDiff) {
     label = `Home vs away ${label}`;
   }
-  return label;
+  return { key: core, baseLabel, label, isDiff, windowSize, stat };
+}
+
+function humaniseFeature(feature) {
+  return getFeatureMeta(feature).label;
+}
+
+function describeDriver(factor, homeTeam, awayTeam) {
+  const { feature, contribution, value } = factor;
+  const meta = getFeatureMeta(feature);
+  const favouredTeam = contribution >= 0 ? homeTeam : awayTeam;
+  const magnitude = Math.abs(typeof contribution === "number" ? contribution : 0);
+  const impact = magnitude >= 0.2 ? "a strong lift" : magnitude >= 0.05 ? "a noticeable lift" : "a small nudge";
+
+  if (meta.isDiff) {
+    if (typeof value === "number" && Number.isFinite(value) && Math.abs(value) >= 1e-3) {
+      const valueForFavoured = favouredTeam === homeTeam ? value : -value;
+      const absValue = Math.abs(valueForFavoured);
+      const digits = absValue >= 100 ? 0 : absValue >= 10 ? 1 : 2;
+      const formattedAmount = formatNumber(absValue, digits);
+      const descriptor = buildMetricDescriptor(meta);
+      if (valueForFavoured >= 0) {
+        return `${favouredTeam} hold a ${descriptor} edge of ${formattedAmount}, giving them ${impact} in the projections.`;
+      }
+      return `${favouredTeam} trail by ${formattedAmount} in ${descriptor}, yet it still gives them ${impact} in the projections.`;
+    }
+    const descriptor = buildMetricDescriptor(meta);
+    return `${favouredTeam} benefit from ${descriptor}, giving them ${impact} in the projections.`;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const absValue = Math.abs(value);
+    const digits = absValue >= 100 ? 0 : absValue >= 10 ? 1 : 2;
+    const formattedAmount = formatNumber(value, digits);
+    const perspective = favouredTeam === homeTeam ? "home" : "away";
+    return `The model sees ${meta.label.toLowerCase()} at ${formattedAmount} from the ${perspective} side, giving ${favouredTeam} ${impact} in the projections.`;
+  }
+
+  return `${meta.label} gives ${favouredTeam} ${impact} in the projections.`;
+}
+
+function buildMetricDescriptor(meta) {
+  const base = meta.baseLabel.toLowerCase();
+  if (meta.windowSize) {
+    if (meta.stat === "volatility") {
+      return `last ${meta.windowSize} games volatility in ${base}`;
+    }
+    return `last ${meta.windowSize} games average ${base}`;
+  }
+  return base;
 }
 
 function toTitleCase(text) {
@@ -807,9 +868,7 @@ function DriversCard({ factors, homeTeam, awayTeam, title }) {
       <h5 className="text-sm font-semibold text-gray-700">{title}</h5>
       <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
         {factors.map((f) => (
-          <li key={f.feature}>
-            <span className="font-medium">{humaniseFeature(f.feature)}</span>: {describeContribution(f.contribution, homeTeam, awayTeam)}; {describeDifference(f.feature, f.value, homeTeam, awayTeam)}.
-          </li>
+          <li key={f.feature}>{describeDriver(f, homeTeam, awayTeam)}</li>
         ))}
       </ul>
     </div>
