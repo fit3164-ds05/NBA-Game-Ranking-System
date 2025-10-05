@@ -30,7 +30,7 @@ export default function Home() {
 
   return (
     <main className={`flex w-full flex-col items-center px-8 pb-12 pt-16 ${theme.text}`}>
-      <section className="relative mt-16 w-full px-2 sm:px-6">
+      <section className="relative mt-0 w-full px-2 sm:px-6">
         <div className="max-w-2xl space-y-3 justify-center text-center mx-auto">
           <h1 className={`text-5xl font-semibold leading-tight sm:text-6xl justify-center ${theme.heroTitle}`}>
             NBA Analytics and Predictions, Refined.

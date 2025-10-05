@@ -2,15 +2,25 @@ import { useState } from "react";
 import DashboardSwitcher from "../components/DashboardSwitcher";
 import FloatingCard from "../components/FloatingCard";
 import PlayerSeasonPicker from "../components/PlayerSeasonPicker";
-import ShotChart from "../components/ShotChart";
+import ShotChartD3 from "../components/ShotChartD3";
 
 export default function DashboardShotChart() {
   const [selection, setSelection] = useState(null); // { player, season, shots }
 
+  const shotPayload = selection?.shots;
+  const chartShots = shotPayload?.shots ?? [];
+
   const summaryItems = [
     { label: "Player", value: selection?.player?.name ?? "-" },
-    { label: "Season", value: selection?.season ?? "-" },
-    { label: "Total shots", value: selection?.shots?.count ?? "-" },
+    {
+      label: "Season",
+      value: selection?.season ?? shotPayload?.season ?? "-",
+    },
+    {
+      label: "Total shots",
+      value:
+        shotPayload?.count ?? (Array.isArray(chartShots) ? chartShots.length : "-"),
+    },
   ];
 
   return (
@@ -66,12 +76,20 @@ export default function DashboardShotChart() {
             wrapChildren={false}
           >
             <div className="w-full max-w-4xl">
-              {selection?.shots?.shots?.length > 0 ? (
-                <ShotChart
-                  payload={selection.shots}
-                  playerName={selection.player?.name}
-                  seasonLabel={selection.season}
-                />
+              {chartShots.length > 0 ? (
+                <div className="rounded-[26px] bg-white/90 p-4 shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
+                  <ShotChartD3
+                    data={chartShots}
+                    coordSystem="nba"
+                    width={720}
+                    title={`${selection?.player?.name ?? ""} ${selection?.season ?? ""}`.trim()}
+                    className="rounded-[26px] bg-white"
+                    options={{
+                      hexagonBinVisibleThreshold: 0,
+                      hexagonRadiusThreshold: 0,
+                    }}
+                  />
+                </div>
               ) : (
                 <div className="flex h-full min-h-[420px] flex-col items-center justify-center rounded-[26px] bg-white/90 text-center shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
                   <p className="text-sm font-medium text-slate-500">Select a player-season above to render the shot chart.</p>
@@ -81,7 +99,7 @@ export default function DashboardShotChart() {
           </FloatingCard>
         </section>
 
-        {selection?.shots && (
+        {shotPayload && (
           <FloatingCard tone="light" wrapChildren={false}>
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-900">
@@ -91,7 +109,7 @@ export default function DashboardShotChart() {
                 </span>
               </summary>
               <pre className="mt-4 max-h-96 overflow-auto rounded-2xl bg-white px-4 py-3 text-xs text-slate-600 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-{JSON.stringify(selection.shots, null, 2)}
+{JSON.stringify(shotPayload, null, 2)}
               </pre>
             </details>
           </FloatingCard>
