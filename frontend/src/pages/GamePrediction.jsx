@@ -298,6 +298,8 @@ export default function GamePrediction() {
     });
   }, [result]);
 
+  const chartTeams = useMemo(() => [homeTeam, awayTeam].filter(Boolean), [homeTeam, awayTeam]);
+
   // Build per-team highlighted years for the RatingChart
   const selectedYearsByTeam = useMemo(() => {
     const map = {};
@@ -399,9 +401,10 @@ export default function GamePrediction() {
         )}
 
         <RatingChart
-          teams={[homeTeam, awayTeam].filter(Boolean)}
+          teams={chartTeams}
+          highlightedTeams={chartTeams}
           selectedYearsByTeam={selectedYearsByTeam}
-          showTooltip={false}
+          showTooltip
           showZoomControls={false}
         />
 

@@ -39,6 +39,7 @@ export default function HistoricalRanking() {
   const [highlighted, setHighlighted] = useState([]); // Highlighted teams
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [error, setError] = useState("");
+  const [showMutedTeams, setShowMutedTeams] = useState(true);
 
   // Load teams on mount
   useEffect(() => {
@@ -112,7 +113,7 @@ export default function HistoricalRanking() {
 
       {/* Bulk actions */}
       {teams.length > 0 && (
-        <div className="space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
             onClick={highlightAll}
@@ -124,6 +125,12 @@ export default function HistoricalRanking() {
             onClick={clearHighlights}
           >
             Clear Highlights
+          </button>
+          <button
+            className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+            onClick={() => setShowMutedTeams((prev) => !prev)}
+          >
+            {showMutedTeams ? "Hide other teams" : "Show other teams"}
           </button>
         </div>
       )}
@@ -139,6 +146,8 @@ export default function HistoricalRanking() {
             onToggleTeam={toggleTeam}
             onSelectTeam={toggleTeam}
             showSeasonDetail
+            primaryDetailAll
+            showMutedTeams={showMutedTeams}
           />
         )}
       </div>
