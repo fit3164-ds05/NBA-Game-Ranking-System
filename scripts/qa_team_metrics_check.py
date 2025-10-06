@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QA checks for team_metrics_dataset.csv vs enlarged_dataset.csv.
+QA checks for team_metrics_dataset.csv vs nba_game_outcomes.csv.
 
 Outputs written to backend/Data/qa/:
   - coverage_by_year.csv            # per-year game counts: enlarged vs metrics (joined)
@@ -26,7 +26,7 @@ import pandas as pd
 DATA_DIR = Path("backend/Data")
 QA_DIR = DATA_DIR / "qa"
 TEAM_METRICS = DATA_DIR / "team_metrics_dataset.csv"
-ENLARGED = DATA_DIR / "enlarged_dataset.csv"
+ENLARGED = DATA_DIR / "nba_game_outcomes.csv"
 
 
 def _season_type_norm(s: str) -> str:

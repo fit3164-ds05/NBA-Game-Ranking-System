@@ -159,7 +159,7 @@ def _normalise_team(name: object) -> str:
 def _load_games_table() -> pd.DataFrame:
     """Load full NBA game data for head-to-head summaries."""
     base_root = Path(__file__).resolve().parents[1]
-    dataset = base_root / "data" / "full_nba_data"
+    dataset = base_root / "data" / "nba_game_outcomes"
     try:
         games = load_table(str(dataset))
     except FileNotFoundError:

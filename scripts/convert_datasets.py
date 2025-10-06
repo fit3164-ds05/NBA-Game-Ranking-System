@@ -7,7 +7,7 @@ Inventory (discovered in repo at authoring time):
     - backend/data/ratings_margin_home_elo.csv
     - backend/data/full_ratings.csv
     - backend/data/ratings_glicko.csv
-    - backend/data/enlarged_dataset.csv
+    - backend/data/nba_game_outcomes.csv
     - backend/data/ratings_elo.csv
     - backend/data/team_metrics_dataset.csv
     - backend/data/ratings_trueskill.csv

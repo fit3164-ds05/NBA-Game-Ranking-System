@@ -3,14 +3,17 @@ from pathlib import Path
 import pandas as pd
 
 
+DATASET_FILENAME = "nba_game_outcomes.csv"
+
+
 def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
-    """Load games from the enlarged combined dataset.
+    """Load games from the unified ``nba_game_outcomes`` dataset.
 
     Parameters
     ----------
     data_dir:
-        Optional override of the directory containing ``enlarged_dataset.csv``.
-        By default the repository's ``Data`` folder is used.
+        Optional override of the directory containing ``nba_game_outcomes.csv``.
+        By default the repository's ``data`` folder is used.
 
     Returns
     -------
@@ -22,13 +25,18 @@ def load_games(data_dir: str | Path | None = None) -> pd.DataFrame:
     """
     base_dir = Path(__file__).resolve().parent
     backend_dir = base_dir.parent
-    data_path = Path(data_dir) if data_dir is not None else backend_dir / "Data"
+    data_path = Path(data_dir) if data_dir is not None else backend_dir / "data"
 
-    games_csv = data_path / "full_nba_data.csv"
+    games_csv = data_path / DATASET_FILENAME
+    if not games_csv.exists():
+        raise FileNotFoundError(f"Could not find {DATASET_FILENAME} in {data_path}")
+
     games = pd.read_csv(games_csv)
 
-    games = games.drop_duplicates(subset="GAME_ID")
+    games = games.drop_duplicates(subset="GAME_ID").copy()
 
+    if "GAME_DATE" in games.columns and not pd.api.types.is_datetime64_any_dtype(games["GAME_DATE"]):
+        games["GAME_DATE"] = pd.to_datetime(games["GAME_DATE"], errors="coerce")
 
     if "SEASON_TYPE" in games.columns:
         games["IS_PLAYOFF"] = (

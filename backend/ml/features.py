@@ -88,12 +88,12 @@ def load_team_metrics() -> pd.DataFrame:
     # include them, so derive from the enlarged game metadata table when available.
     if "HOME_TEAM_ABBREVIATION" not in df.columns or "AWAY_TEAM_ABBREVIATION" not in df.columns:
         try:
-            meta = load_table("backend/data/enlarged_dataset") if load_table else None
+            meta = load_table("backend/data/nba_game_outcomes") if load_table else None
         except FileNotFoundError:
             meta = None
 
         if meta is None:
-            meta_path = Path("backend/data/enlarged_dataset")
+            meta_path = Path("backend/data/nba_game_outcomes")
             if meta_path.with_suffix(".parquet").exists():
                 meta = pd.read_parquet(meta_path.with_suffix(".parquet"))
             elif meta_path.with_suffix(".csv").exists():
