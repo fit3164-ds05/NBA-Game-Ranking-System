@@ -7,28 +7,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getTeams, getSeasons, predictGame } from "../lib/api";
 import RatingChart from "../components/RatingChart";
-
-const FEATURE_LABELS = {
-  rating_diff: "Rating difference",
-  is_playoffs: "Playoff indicator",
-  YEAR: "Season year",
-  TRAD_3P_PCT: "Three-point percentage",
-  TRAD_3PA: "Three-point attempts",
-  TRAD_DREB: "Defensive rebounds",
-  TRAD_OREB: "Offensive rebounds",
-  TRAD_FG_PCT: "Field-goal percentage",
-  TRAD_FG: "Field goals",
-  ADV_DEFRTG: "Defensive rating",
-  ADV_OFFRTG: "Offensive rating",
-  ADV_PACE: "Pace",
-  FF_OPP_EFG_PCT: "Opponent effective FG%",
-  FF_OPP_FTA_RATE: "Opponent free-throw rate",
-  FF_OPP_OREB_PCT: "Opponent offensive rebound %",
-  FF_OPP_TOV_PCT: "Opponent turnover %",
-  FF_EFG_PCT: "Effective FG%",
-  FF_TOV_PCT: "Turnover %",
-  rest_days: "Rest days",
-};
+import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
+import { buildFactorNarrative } from "../utils/featureNarratives";
 
 // Simple reusable label component for form fields
 function FieldLabel({ children }) {
@@ -310,9 +290,9 @@ export default function GamePrediction() {
 
   // ===== Render =====
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="flex w-full flex-col gap-6 text-slate-900">
       {/* Page header */}
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="text-2xl md:text-3xl font-semibold">Predict a game outcome</h1>
         <p className="text-gray-600 mt-2">
           Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
@@ -321,7 +301,7 @@ export default function GamePrediction() {
 
       {/* Loading state for team list */}
       {loadingTeams && (
-        <div className="rounded-2xl border p-4 bg-white shadow-sm mb-6">
+        <div className="rounded-2xl border p-4 bg-white shadow-sm">
           Loading teams
         </div>
       )}
@@ -455,7 +435,7 @@ function formatMargin(margin, sigma) {
   return base;
 }
 
-function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam) {
+function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam, interval) {
   if (typeof margin === "number" && typeof sigma === "number" && sigma > 0) {
     const z = Math.abs(margin) / sigma;
     const favourite = margin >= 0 ? homeTeam : awayTeam;
@@ -464,26 +444,34 @@ function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam) 
     if (typeof marginProb === "number") {
       detailParts.push(`${formatPercent(marginProb)} via margin model`);
     }
-    if (z >= 1.5) {
-      return { label: "High", detail: detailParts.join(" · ") };
+    if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
+      detailParts.push(`calibrated 68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)} (n=${interval.count ?? 0})`);
     }
-    if (z >= 0.8) {
-      return { label: "Moderate", detail: detailParts.join(" · ") };
+    const detail = detailParts.join(" · ");
+    let label = "Low";
+    if (z >= 1.25) {
+      label = "High";
+    } else if (z >= 0.5) {
+      label = "Medium";
     }
-    return { label: "Low", detail: detailParts.join(" · ") };
+    return { label, detail, interval };
   }
   if (typeof prob === "number") {
     const diff = Math.abs(prob - 0.5);
-    const detail = `${homeTeam} win chance ${formatPercent(prob)} (50% = even matchup)`;
+    const detailParts = [`${homeTeam} win chance ${formatPercent(prob)} (50% = even matchup)`];
+    if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
+      detailParts.push(`calibrated 68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)} (n=${interval.count ?? 0})`);
+    }
+    const detail = detailParts.join(" · ");
+    let label = "Low";
     if (diff >= 0.2) {
-      return { label: "High", detail };
+      label = "High";
+    } else if (diff >= 0.08) {
+      label = "Medium";
     }
-    if (diff >= 0.08) {
-      return { label: "Moderate", detail };
-    }
-    return { label: "Low", detail };
+    return { label, detail, interval };
   }
-  return { label: "Unknown", detail: "Insufficient data" };
+  return { label: "Unknown", detail: "Insufficient data", interval: null };
 }
 
 function formatProbDelta(a, b) {
@@ -494,14 +482,14 @@ function formatProbDelta(a, b) {
   return `${sign}${delta} ppt`;
 }
 
-function explainProbDelta(delta) {
+function explainProbDelta(delta, homeTeam, awayTeam) {
   if (!delta) return "aligns with the classifier odds";
   const value = parseInt(delta.replace(/[^-\d]/g, ""), 10);
   if (!Number.isFinite(value) || value === 0) return "aligns with the classifier odds";
   const magnitude = Math.abs(value);
   const adjective = magnitude >= 10 ? "much" : magnitude >= 5 ? "more" : "slightly";
-  const direction = value > 0 ? "home team" : "away team";
-  return `${delta} → ${adjective} more confidence in the ${direction}`;
+  const direction = value > 0 ? homeTeam : awayTeam;
+  return `${delta} → ${adjective} more confidence in ${direction}`;
 }
 
 function describeMarginExpectation(margin) {
@@ -513,56 +501,6 @@ function describeMarginExpectation(margin) {
   return `projects a decisive advantage for the ${favours}`;
 }
 
-function describeContribution(value, homeTeam, awayTeam) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "has neutral impact";
-  const magnitude = Math.abs(value);
-  const favouredTeam = value >= 0 ? homeTeam : awayTeam;
-  const strength = magnitude >= 0.2 ? "strongly" : magnitude >= 0.05 ? "noticeably" : "slightly";
-  return `${strength} pushes the odds toward the ${favouredTeam}`;
-}
-
-function describeDifference(feature, value, homeTeam, awayTeam) {
-  if (feature === "YEAR" || feature === "Season year") {
-    return `season ${formatNumber(value, 0)} context (recent years shape team form)`;
-  }
-  if (typeof value !== "number" || Number.isNaN(value)) return `${homeTeam} and ${awayTeam} look similar here`;
-  if (Math.abs(value) < 1e-3) return `${homeTeam} and ${awayTeam} look similar here`;
-  const isDiff = feature.startsWith("DIFF_");
-  const magnitude = Math.abs(value);
-  const digits = magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : 2;
-  if (isDiff) {
-    const leader = value >= 0 ? homeTeam : awayTeam;
-    const trailer = value >= 0 ? awayTeam : homeTeam;
-    return `${leader} ahead of ${trailer} by ${formatNumber(magnitude, digits)}`;
-  }
-  return `Current value ${formatNumber(value, digits)} (${homeTeam} perspective)`;
-}
-
-function humaniseFeature(feature) {
-  if (!feature) return "(unknown feature)";
-  const isDiff = feature.startsWith("DIFF_");
-  let core = isDiff ? feature.slice(5) : feature;
-  let windowText = "";
-  const rollMatch = core.match(/_roll(\d+)_(mean|std)$/);
-  if (rollMatch) {
-    const [, window, stat] = rollMatch;
-    windowText = stat === "mean" ? `${window}-game average` : `${window}-game volatility`;
-    core = core.replace(/_roll\d+_(mean|std)$/, "");
-  }
-  const baseLabel = FEATURE_LABELS[core] || toTitleCase(core.replace(/_/g, " "));
-  let label = baseLabel;
-  if (windowText) {
-    label = `${windowText} ${baseLabel}`;
-  }
-  if (isDiff) {
-    label = `Home vs away ${label}`;
-  }
-  return label;
-}
-
-function toTitleCase(text) {
-  return text.replace(/\w\S*/g, (token) => token.charAt(0).toUpperCase() + token.slice(1).toLowerCase());
-}
 
 function ResultPanel({ result, activeModel, onSelectModel }) {
   const models = result?.models ?? {};
@@ -584,11 +522,28 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
     marginProb,
     result.inputs.home_team,
     result.inputs.away_team,
+    active?.confidence_interval,
   );
   const headToHead = result?.head_to_head ?? null;
-  const simpleDrivers = activeModel === "xgb_simple" ? active?.top_factors ?? [] : [];
   const homeTeamName = result.inputs.home_team;
   const awayTeamName = result.inputs.away_team;
+  const driverFactors = Array.isArray(active?.top_factors) ? active.top_factors : [];
+  const driverNarratives = driverFactors
+    .map((factor) =>
+      buildFactorNarrative(factor, {
+        homeTeam: homeTeamName,
+        awayTeam: awayTeamName,
+        formatNumber,
+      }),
+    )
+    .filter(Boolean);
+  const leadNarrative = driverNarratives[0] ?? null;
+  const supportingNarratives = leadNarrative ? driverNarratives.slice(1) : driverNarratives;
+  const interval = active?.confidence_interval;
+  const winProb = typeof active?.home_win_prob === "number" ? active.home_win_prob : null;
+  const predictedMargin = typeof active?.predicted_margin === "number" ? active.predicted_margin : null;
+  const predictedWinner = winProb !== null ? (winProb >= 0.5 ? homeTeamName : awayTeamName) : null;
+  const winnerProb = winProb !== null && predictedWinner ? (predictedWinner === homeTeamName ? winProb : 1 - winProb) : null;
 
   return (
     <div className="space-y-4">
@@ -632,31 +587,18 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
 
       {active ? (
         <div className="space-y-3">
-          <h4 className="text-base font-medium">{active.label || activeModel}</h4>
-          <div className="grid gap-3 md:grid-cols-2">
-            <StatBlock
-              label="Classifier win probability"
-              value={formatPercent(active.home_win_prob)}
-              caption="XGBoost classifier"
-            />
-            <StatBlock
-              label="Margin win probability"
-              value={formatPercent(marginProb)}
-              caption="Derived from margin distribution"
-            />
-            <StatBlock
-              label="Confidence"
-              value={confidence.label}
-              caption={confidence.detail}
-            />
-            {typeof active.predicted_margin === "number" && (
-              <StatBlock
-                label="Predicted margin"
-                value={formatMargin(active.predicted_margin, active.margin_sigma)}
-                caption={typeof active.margin_sigma === "number" ? "1σ spread" : undefined}
-              />
-            )}
-          </div>
+          <OutcomeSummary
+            title={active.label || activeModel}
+            homeTeam={homeTeamName}
+            awayTeam={awayTeamName}
+            predictedWinner={predictedWinner}
+            winnerProb={winnerProb}
+            classifierProb={winProb}
+            marginProb={marginProb}
+            predictedMargin={active.predicted_margin}
+            marginSigma={active.margin_sigma}
+            confidence={confidence}
+          />
 
           <InterpretationCard
             classifierProb={active.home_win_prob}
@@ -665,10 +607,16 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
             marginSigma={active.margin_sigma}
             confidence={confidence}
             modelType={activeModel}
+            leadDriver={leadNarrative}
+            homeTeam={homeTeamName}
+            awayTeam={awayTeamName}
           />
 
-          {simpleDrivers.length > 0 ? (
-            <SimpleDriversCard factors={simpleDrivers} homeTeam={homeTeamName} awayTeam={awayTeamName} />
+          {supportingNarratives.length > 0 ? (
+            <DriversCard
+              narratives={supportingNarratives}
+              title={`Other key drivers (${active.label || activeModel})`}
+            />
           ) : activeModel === "xgb_simple" ? (
             <div className="rounded-2xl border bg-white px-4 py-3 text-sm text-gray-500">
               Key drivers unavailable for this matchup.
@@ -683,7 +631,7 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
                   const model = models[key];
                   if (!model) return null;
                   const delta = formatProbDelta(active.home_win_prob, model.home_win_prob);
-                  const deltaExplanation = explainProbDelta(delta);
+                  const deltaExplanation = explainProbDelta(delta, homeTeamName, awayTeamName);
                   const marginDescription = describeMarginExpectation(model.predicted_margin);
                   return (
                     <li key={key}>
@@ -724,49 +672,396 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
   );
 }
 
-function StatBlock({ label, value, caption }) {
+function OutcomeSummary({
+  title,
+  homeTeam,
+  awayTeam,
+  predictedWinner,
+  winnerProb,
+  classifierProb,
+  marginProb,
+  predictedMargin,
+  marginSigma,
+  confidence,
+}) {
+  const stats = [];
+
+  if (typeof classifierProb === "number") {
+    const homeChance = formatPercent(classifierProb);
+    stats.push({
+      key: "classifier",
+      label: "Classifier win chance",
+      value: homeChance,
+      caption: `${homeTeam} chance via classifier`,
+      detail: (
+        <ProbabilityBar
+          value={classifierProb}
+          homeLabel={`${homeTeam} ${homeChance}`}
+          awayLabel={`${awayTeam} ${formatPercent(1 - classifierProb)}`}
+        />
+      ),
+      tone: "primary",
+    });
+  }
+
+  if (typeof predictedMargin === "number") {
+    const marginCaption = typeof marginProb === "number"
+      ? `${formatPercent(marginProb)} chance for ${homeTeam}`
+      : "Expected margin from regression";
+    stats.push({
+      key: "margin",
+      label: "Margin projection",
+      value: formatMargin(predictedMargin, marginSigma),
+      caption: marginCaption,
+      detail: (
+        <MarginDistribution
+          margin={predictedMargin}
+          sigma={marginSigma}
+          homeTeam={homeTeam}
+          awayTeam={awayTeam}
+          winProb={marginProb}
+        />
+      ),
+      tone: predictedMargin >= 0 ? "success" : "danger",
+    });
+  } else if (typeof marginProb === "number") {
+    stats.push({
+      key: "marginProb",
+      label: "Margin win chance",
+      value: formatPercent(marginProb),
+      caption: `${homeTeam} win chance via margin model`,
+      tone: "success",
+    });
+  }
+
+  if (confidence?.label) {
+    const detailItems = typeof confidence.detail === "string" ? confidence.detail.split(" · ") : [];
+    stats.push({
+      key: "confidence",
+      label: "Confidence",
+      value: confidence.label,
+      caption: null,
+      detail: (
+        <div className="space-y-2">
+          <ConfidenceBadge label={confidence.label} />
+          {detailItems.length > 0 && (
+            <ul className="space-y-1 text-xs text-gray-600">
+              {detailItems.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="text-gray-400">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ),
+      tone: getConfidenceTone(confidence.label),
+    });
+  }
+
+  const summaryParts = [];
+  if (predictedWinner && typeof winnerProb === "number") {
+    summaryParts.push(`${predictedWinner} win chance ${formatPercent(winnerProb)}`);
+  } else if (typeof classifierProb === "number") {
+    summaryParts.push(`${homeTeam} win chance ${formatPercent(classifierProb)}`);
+  }
+  if (typeof predictedMargin === "number") {
+    summaryParts.push(`Margin ${formatMargin(predictedMargin, marginSigma)}`);
+  }
+  if (confidence?.label) {
+    summaryParts.push(`${confidence.label} confidence`);
+  }
+  const summaryLine = summaryParts.join(" · ");
+
   return (
-    <div className="rounded-xl border bg-gray-50 px-4 py-3">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="text-lg font-semibold text-gray-900">{value}</p>
-      {caption && <p className="text-xs text-gray-500 mt-1">{caption}</p>}
+    <div className="rounded-3xl border bg-white px-5 py-4 shadow-sm">
+      <div className="flex flex-col gap-1">
+        <p className="text-xs uppercase tracking-[0.32em] text-gray-500">Projected winner</p>
+        <h4 className="text-2xl font-semibold text-gray-900">
+          {predictedWinner || "Prediction unavailable"}
+        </h4>
+        {summaryLine ? (
+          <p className="text-sm text-gray-600">{summaryLine}</p>
+        ) : (
+          <p className="text-sm text-gray-500">Waiting for model outputs.</p>
+        )}
+        {title && <p className="text-xs text-gray-400">{title}</p>}
+      </div>
+
+      {stats.length > 0 && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {stats.map((item) => (
+            <StatBlock
+              key={item.key}
+              label={item.label}
+              value={item.value}
+              caption={item.caption}
+              detail={item.detail}
+              tone={item.tone}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function InterpretationCard({ classifierProb, marginProb, marginValue, marginSigma, confidence, modelType }) {
+function StatBlock({ label, value, caption, detail, tone = "neutral" }) {
+  const toneStyles = {
+    primary: { container: "border-sky-300 bg-white", value: "text-sky-900" },
+    success: { container: "border-emerald-300 bg-white", value: "text-emerald-900" },
+    warning: { container: "border-amber-300 bg-white", value: "text-amber-900" },
+    danger: { container: "border-rose-300 bg-white", value: "text-rose-900" },
+    neutral: { container: "border-gray-200 bg-white", value: "text-gray-900" },
+  };
+  const selected = toneStyles[tone] ?? toneStyles.neutral;
+  return (
+    <div className={`rounded-2xl border px-4 py-3 shadow-sm ${selected.container}`}>
+      <p className="text-xs uppercase tracking-wide text-gray-600">{label}</p>
+      <div className={`text-lg font-semibold ${selected.value}`}>{value ?? "—"}</div>
+      {caption && <p className="mt-1 text-xs text-gray-600">{caption}</p>}
+      {detail && <div className="mt-3">{detail}</div>}
+    </div>
+  );
+}
+
+function ProbabilityBar({ value, homeLabel, awayLabel }) {
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  const pct = Math.min(1, Math.max(0, value));
+  const leftLabel = homeLabel || "Home";
+  const rightLabel = awayLabel || "Away";
+  return (
+    <div>
+      <div className="relative h-2 rounded-full bg-gray-200">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-sky-500"
+          style={{ width: `${pct * 100}%` }}
+        />
+      </div>
+      <div className="mt-1 flex justify-between text-[0.65rem] uppercase tracking-wider text-gray-500">
+        <span>{leftLabel}</span>
+        <span>{rightLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+function MarginDistribution({ margin, sigma, homeTeam, awayTeam, winProb }) {
+  if (typeof margin !== "number" || Number.isNaN(margin)) return null;
+  const safeSigma = typeof sigma === "number" && sigma > 0 ? sigma : null;
+  if (!safeSigma) {
+    return (
+      <p className="text-xs text-gray-500">Margin model uncertainty unavailable.</p>
+    );
+  }
+
+  const span = Math.max(safeSigma * 3, Math.abs(margin) * 1.5, 6);
+  const width = 200;
+  const height = 90;
+  const baseline = height - 18;
+  const steps = 80;
+  const samples = [];
+  let maxY = 0;
+  for (let i = 0; i <= steps; i += 1) {
+    const x = -span + (2 * span * i) / steps;
+    const y = Math.exp(-0.5 * ((x - margin) / safeSigma) ** 2);
+    maxY = Math.max(maxY, y);
+    samples.push({ x, y });
+  }
+
+  const mapX = (x) => ((x + span) / (2 * span)) * width;
+  const mapY = (y) => baseline - (y / maxY) * (height - 30);
+
+  const curvePath = samples
+    .map((point, idx) => `${idx === 0 ? "M" : "L"} ${mapX(point.x)} ${mapY(point.y)}`)
+    .join(" ");
+
+  const meanX = mapX(margin);
+  const zeroX = mapX(0);
+  const awayLabel = awayTeam || "Away";
+  const homeLabel = homeTeam || "Home";
+  const splitLabel = (label) => {
+    if (!label) return { first: "", rest: "" };
+    const parts = String(label).split(" ");
+    if (parts.length === 1) return { first: parts[0], rest: "" };
+    return { first: parts[0], rest: parts.slice(1).join(" ") };
+  };
+  const awayLabelParts = splitLabel(awayLabel);
+  const homeLabelParts = splitLabel(homeLabel);
+  const formattedHomeProb = typeof winProb === "number" ? formatPercent(winProb) : null;
+  const highlightTeam = margin >= 0 ? homeLabel : awayLabel;
+  const highlightProbValue = typeof winProb === "number" ? (margin >= 0 ? winProb : 1 - winProb) : null;
+  const highlightProb = highlightProbValue !== null ? formatPercent(highlightProbValue) : null;
+  const awayGradient = getTeamHighlightColor(awayTeam);
+  const homeGradient = getTeamHighlightColor(homeTeam);
+  const awayStroke = getTeamColor(awayTeam);
+  const homeStroke = getTeamColor(homeTeam);
+  const pointerColor = margin >= 0 ? homeStroke : awayStroke;
+  const gradientStyle = {
+    background: `linear-gradient(90deg, ${awayGradient} 0%, ${homeGradient} 100%)`,
+  };
+
+  const highlightCondition = margin >= 0 ? (point) => point.x >= 0 : (point) => point.x <= 0;
+  const highlightedSamples = samples.filter(highlightCondition);
+  const highlightPath = highlightedSamples.length
+    ? [
+        `M ${mapX(margin >= 0 ? 0 : highlightedSamples[0].x)} ${baseline}`,
+        highlightedSamples
+          .map((point) => `L ${mapX(point.x)} ${mapY(point.y)}`)
+          .join(" "),
+        `L ${mapX(highlightedSamples[highlightedSamples.length - 1].x)} ${baseline} Z`,
+      ].join(" ")
+    : "";
+
+  return (
+    <div className="space-y-2" style={{ width }}>
+      <div className="relative" style={{ height: height }}>
+        <svg
+          width={width}
+          height={height - 16}
+          viewBox={`0 0 ${width} ${height - 16}`}
+          role="img"
+          aria-label="Margin distribution"
+          className="absolute inset-x-0 top-0"
+        >
+          <defs>
+            <linearGradient id="marginHighlight" x1="0" x2="1">
+              <stop offset="0%" stopColor={awayStroke} stopOpacity="0.15" />
+              <stop offset="100%" stopColor={homeStroke} stopOpacity="0.25" />
+            </linearGradient>
+          </defs>
+          <line x1="0" y1={baseline - 16} x2={width} y2={baseline - 16} stroke="#e5e7eb" strokeWidth="1" />
+          <line x1={zeroX} y1={baseline - 16} x2={zeroX} y2={baseline - 70} stroke="#4b5563" strokeWidth="2.5" />
+          <line x1={meanX} y1={baseline - 16} x2={meanX} y2={baseline - 70} stroke={pointerColor} strokeWidth="2.5" />
+          {highlightPath && <path d={highlightPath} fill="url(#marginHighlight)" opacity={0.9} />}
+          <path d={`${curvePath}`} fill="none" stroke={pointerColor} strokeWidth="1.5" />
+        </svg>
+        <div className="absolute inset-x-0 bottom-0">
+          <div className="relative h-2 rounded-full" style={gradientStyle}>
+            <div className="absolute left-1/2 top-1/2 h-4 w-0.5 -translate-x-1/2 -translate-y-1/2 bg-gray-500" />
+            <div
+              className="absolute top-1/2 h-3 w-3 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-white shadow"
+              style={{ left: `${((Math.max(-span, Math.min(span, margin)) + span) / (2 * span)) * 100}%`, backgroundColor: pointerColor }}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-between text-[0.65rem] uppercase tracking-wider text-gray-500">
+        <div className="flex flex-col items-start leading-tight">
+          <span>{awayLabelParts.first}</span>
+          {awayLabelParts.rest && <span>{awayLabelParts.rest}</span>}
+        </div>
+        <div className="flex flex-col items-end leading-tight">
+          <span>{homeLabelParts.first}</span>
+          {homeLabelParts.rest && <span>{homeLabelParts.rest}</span>}
+        </div>
+      </div>
+      <div className="text-xs text-gray-600">
+        <span className="font-medium">{formatNumber(margin, 1)} pts</span> mean · σ {formatNumber(safeSigma, 1)} · {highlightTeam} area ≈ {highlightProb || "—"}
+      </div>
+    </div>
+  );
+}
+
+function ConfidenceBadge({ label }) {
+  const map = {
+    high: { bg: "bg-emerald-100", text: "text-emerald-700", icon: "🟢" },
+    medium: { bg: "bg-amber-100", text: "text-amber-700", icon: "🟡" },
+    low: { bg: "bg-rose-100", text: "text-rose-700", icon: "🔴" },
+    unknown: { bg: "bg-gray-100", text: "text-gray-700", icon: "⚪️" },
+  };
+  const tone = map[label?.toLowerCase()] ?? map.unknown;
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${tone.bg} ${tone.text}`}>
+      <span aria-hidden="true" className="leading-none">
+        {tone.icon}
+      </span>
+      <span>{label || "Unknown"} confidence</span>
+    </span>
+  );
+}
+
+function getConfidenceTone(label) {
+  const value = (label || "").toLowerCase();
+  if (value === "high") return "success";
+  if (value === "medium") return "warning";
+  if (value === "low") return "danger";
+  return "neutral";
+}
+
+function InterpretationCard({
+  classifierProb,
+  marginProb,
+  marginValue,
+  marginSigma,
+  confidence,
+  modelType,
+  leadDriver,
+  homeTeam,
+  awayTeam,
+}) {
+  const homeLabel = homeTeam || "home team";
   return (
     <div className="rounded-2xl border bg-white px-4 py-3">
       <h5 className="text-sm font-semibold text-gray-700">How to interpret</h5>
-      <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-        <li>
-          {modelType === "xgb_simple"
-            ? `Compact model odds ${formatPercent(classifierProb)} come from the simplified XGBoost.`
-            : `Classifier odds ${formatPercent(classifierProb)} come directly from the XGBoost probability.`}
+      <ul className="mt-2 space-y-2 text-sm text-gray-600">
+        <li className="flex items-start gap-2">
+          <span aria-hidden="true" className="mt-0.5 text-base">📈</span>
+          <span>
+            {modelType === "xgb_simple"
+              ? `Compact model pegs the home win chance at ${formatPercent(classifierProb)}.`
+              : `XGBoost classifier gives ${formatPercent(classifierProb)} chance for ${homeLabel} to win.`}
+          </span>
         </li>
         {typeof marginProb === "number" ? (
-          <li>
-            Margin model converts {formatMargin(marginValue, marginSigma)} into {formatPercent(marginProb)} chance of a home win.
+          <li className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-0.5 text-base">📉</span>
+            <span>
+              Margin model translates {formatMargin(marginValue, marginSigma)} into {formatPercent(marginProb)} home win probability.
+            </span>
           </li>
         ) : modelType === "xgb_simple" ? (
-          <li>The compact model does not include a margin projection—focus on the probability and key drivers.</li>
+          <li className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-0.5 text-base">📉</span>
+            <span>The compact model does not provide a margin projection—focus on the probability and key drivers.</span>
+          </li>
         ) : null}
-        <li>
-          Confidence is {confidence.label.toLowerCase()} because {confidence.detail}.
+        {leadDriver && (
+          <li className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-0.5 text-base">🧭</span>
+            <span>
+              Lead driver: <span className="font-medium">{leadDriver.label}</span> — {leadDriver.summary}
+            </span>
+          </li>
+        )}
+        <li className="flex items-start gap-2">
+          <span aria-hidden="true" className="mt-0.5 text-base">🛡️</span>
+          <span>
+            Confidence is {confidence.label.toLowerCase()} because {confidence.detail}.
+          </span>
         </li>
+        {confidence.interval && (
+          <li className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-0.5 text-base">🎯</span>
+            <span>
+              Calibrated 68% interval: {formatPercent(confidence.interval.lower_68)}–{formatPercent(confidence.interval.upper_68)} (based on {confidence.interval.count ?? 0} validation games).
+            </span>
+          </li>
+        )}
       </ul>
     </div>
   );
 }
 
-function SimpleDriversCard({ factors, homeTeam, awayTeam }) {
+function DriversCard({ narratives, title }) {
   return (
     <div className="rounded-2xl border bg-white px-4 py-3">
-      <h5 className="text-sm font-semibold text-gray-700">Key drivers (simple model)</h5>
+      <h5 className="text-sm font-semibold text-gray-700">{title}</h5>
       <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-        {factors.map((f) => (
-          <li key={f.feature}>
-            <span className="font-medium">{humaniseFeature(f.feature)}</span>: {describeContribution(f.contribution, homeTeam, awayTeam)}; {describeDifference(f.feature, f.value, homeTeam, awayTeam)}.
+        {narratives.map((item) => (
+          <li key={item.feature}>
+            <span className="font-medium">{item.label}</span>: {item.summary}
           </li>
         ))}
       </ul>
@@ -775,12 +1070,12 @@ function SimpleDriversCard({ factors, homeTeam, awayTeam }) {
 }
 
 function HeadToHeadCard({ summary, homeTeam }) {
-  const { scope, total_games, home_wins, away_wins, average_margin, recent_games, note, home_team, away_team } = summary;
+  const { scope, total_games, home_wins, away_wins, average_margin, recent_games, note, home_team, away_team, recent_heading } = summary;
   const leader = home_wins === away_wins ? "Tied" : home_wins > away_wins ? `${home_team} lead` : `${away_team} lead`;
   return (
     <div className="rounded-2xl border bg-white px-4 py-3">
       <h5 className="text-sm font-semibold text-gray-700">
-        Head-to-head ({scope === "season" ? summary.home_season : "historical"})
+        {recent_heading || (scope === "season" ? `Head-to-head (${summary.home_season})` : "Head-to-head (historical)")}
       </h5>
       <p className="text-sm text-gray-600 mt-1">
         {leader} {home_wins}-{away_wins} · Average margin {formatNumber(average_margin, 1)} pts

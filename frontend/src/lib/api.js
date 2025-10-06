@@ -213,9 +213,9 @@ export async function getPlayerSeasons(playerId, { onlyWithGames = true } = {}) 
   return data; // ["2024-25","2023-24",...]
 }
 
-export async function getPlayerShots(playerId, season, { teamId = 0, measure = "FGA" } = {}) {
+export async function getPlayerShots(playerId, season, { teamId = 0 } = {}) {
   const { data } = await api.get(`/nba/players/${playerId}/shots`, {
-    params: { season, team_id: teamId, measure },
+    params: { season, team_id: teamId },
   });
   return data; // { playerId, season, shots: [...] }
 }

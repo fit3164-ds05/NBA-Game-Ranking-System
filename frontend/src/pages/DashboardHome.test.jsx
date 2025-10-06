@@ -1,48 +1,33 @@
-import { render, screen, cleanup } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-
-const pickerSpy = vi.fn()
-
-vi.mock('../components/PlayerSeasonPicker', () => ({
-  __esModule: true,
-  default: (props) => {
-    pickerSpy(props)
-    return <div data-testid="mock-picker">picker:{props.measure}</div>
-  },
-}))
+import { render, screen } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 
 import DashboardHome from './DashboardHome'
 
 describe('DashboardHome page', () => {
-beforeEach(() => {
-  pickerSpy.mockClear()
-})
+  const renderWithRouter = () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboardhome']}>
+        <DashboardHome />
+      </MemoryRouter>,
+    )
+  }
 
-afterEach(() => {
-  cleanup()
-  pickerSpy.mockClear()
-})
+  it('renders the dashboard hero with navigation tabs', () => {
+    renderWithRouter()
 
-  it('renders header and passes default measure to picker', () => {
-    render(<DashboardHome />)
-
-    expect(screen.getByText('Player Shot Data')).toBeInTheDocument()
-    expect(screen.getByTestId('mock-picker')).toHaveTextContent('picker:FGA')
-    expect(pickerSpy).toHaveBeenCalled()
-    const props = pickerSpy.mock.calls.at(-1)?.[0]
-    expect(props?.measure).toBe('FGA')
+    expect(screen.getByText('Statistics Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Discover the data that matters')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/dashboardhome')
+    expect(screen.getByRole('link', { name: 'Shot Chart' })).toHaveAttribute('href', '/dashboardshotchart')
   })
 
-  it('updates measure selection and forwards it to picker', async () => {
-    const user = userEvent.setup()
-    render(<DashboardHome />)
+  it('shows the momentum and spotlight cards', () => {
+    renderWithRouter()
 
-    const select = screen.getByRole('combobox')
-    await user.selectOptions(select, 'FG3M')
-
-    const props = pickerSpy.mock.calls.at(-1)?.[0]
-    expect(props?.measure).toBe('FG3M')
-    expect(screen.getByTestId('mock-picker')).toHaveTextContent('picker:FG3M')
+    expect(screen.getAllByText('Momentum Pulse').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('League Pace').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Spotlight').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('What comes next').length).toBeGreaterThan(0)
   })
 })

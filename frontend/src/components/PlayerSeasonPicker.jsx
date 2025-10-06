@@ -7,7 +7,6 @@ export default function PlayerSeasonPicker({
   defaultSeason = "2024-25",
   autoFetchShots = true,
   onComplete,         // (payload: { player, season, shots? }) => void
-  measure = "FGA",
 }) {
   const [player, setPlayer] = useState(null);
   const [years, setYears] = useState([]);
@@ -54,7 +53,7 @@ export default function PlayerSeasonPicker({
       setLoadingShots(true);
       setError("");
       try {
-        const payload = await getPlayerShots(player.playerId, year, { teamId: 0, measure });
+        const payload = await getPlayerShots(player.playerId, year, { teamId: 0 });
         if (cancelled) return;
         setShots(payload);
         onComplete?.({ player, season: year, shots: payload });
@@ -66,7 +65,7 @@ export default function PlayerSeasonPicker({
     }
     run();
     return () => { cancelled = true; };
-  }, [player, year, autoFetchShots, measure, onComplete]);
+  }, [player, year, autoFetchShots, onComplete]);
 
   // If you don't want auto fetch, still notify parent when both chosen
   useEffect(() => {
@@ -93,7 +92,7 @@ export default function PlayerSeasonPicker({
       />
 
       {error && <div className="text-sm text-red-600">{error}</div>}
-      {loadingShots && <div className="text-sm text-gray-500">Loading shot chart...</div>}
+      {/* {loadingShots && <div className="text-sm text-gray-500">Loading shot chart...</div>} */}
 
       {/* If you want to render shots right here, you can pass `shots` down */}
       {shots?.shots && <div className="text-sm text-gray-500">{shots.count} shots loaded.</div>}

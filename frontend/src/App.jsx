@@ -10,6 +10,9 @@ import Contact from './pages/Contact'
 import DashboardHome from './pages/DashboardHome';
 import GamePrediction from './pages/GamePrediction';
 import HistoricalRanking from './pages/HistoricalRanking';
+import DashboardShotChart from './pages/DashboardShotChart';
+import Dashboardfeature2 from './pages/Dashboardfeature2';
+import Dashboardfeature3 from './pages/Dashboardfeature3';
 
 function App() {
 
@@ -23,6 +26,9 @@ function App() {
         <Route path="/dashboardhome" element={<DashboardHome />} />
         <Route path="/gameprediction" element={<GamePrediction />} />
         <Route path="/historicalranking" element={<HistoricalRanking />} />
+        <Route path="/dashboardshotchart" element={<DashboardShotChart />} />
+        <Route path="/dashboardfeature2" element={<Dashboardfeature2 />} />
+        <Route path="/dashboardfeature3" element={<Dashboardfeature3 />} />
       </Routes>
     </Layout>
     </>
