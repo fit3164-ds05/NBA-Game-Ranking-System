@@ -38,8 +38,10 @@ function loadCacheFromStorage() {
     const entries = parsed.entries;
     if (!entries || typeof entries !== "object") return;
     for (const [key, value] of Object.entries(entries)) {
-      if (value && Array.isArray(value.data)) {
-        ratingsSeriesCache.set(key, value.data);
+      if (!value || typeof value !== "object") continue;
+      const stored = value.data;
+      if (stored && typeof stored === "object") {
+        ratingsSeriesCache.set(key, stored);
       }
     }
   } catch (err) {
@@ -52,7 +54,11 @@ function persistCache() {
   try {
     const entries = {};
     ratingsSeriesCache.forEach((value, key) => {
-      if (Array.isArray(value)) {
+      if (!value) return;
+      if (typeof value === "object" && typeof value.then === "function") {
+        return; // skip pending promises
+      }
+      if (typeof value === "object") {
         entries[key] = { data: value };
       }
     });
@@ -160,18 +166,57 @@ export async function getRatingsSeries({ teams = [], start, end, limit, offset, 
         const sanitised = payload.replace(/\bNaN\b/g, "null");
         payload = JSON.parse(sanitised);
       } catch {
-        // If parsing fails, return an empty array rather than breaking the UI
-        return [];
+        return {
+          data: [],
+          total: 0,
+          offset: 0,
+          limit: null,
+          aggregates: null,
+        };
       }
     }
 
-    if (Array.isArray(payload?.data)) {
-      return payload.data; // expected shape: { data: [...] }
+    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+      const records = Array.isArray(payload.data) ? payload.data : [];
+      const aggregates =
+        payload.aggregates && typeof payload.aggregates === "object"
+          ? payload.aggregates
+          : null;
+      const total = Number.isFinite(payload.total) ? Number(payload.total) : records.length;
+      const offset = Number.isFinite(payload.offset) ? Number(payload.offset) : 0;
+      const rawLimit = payload.limit;
+      const limitValue =
+        rawLimit === null || rawLimit === undefined
+          ? null
+          : Number.isFinite(rawLimit)
+          ? Number(rawLimit)
+          : null;
+      return {
+        data: records,
+        total,
+        offset,
+        limit: limitValue,
+        aggregates,
+      };
     }
+
     if (Array.isArray(payload)) {
-      return payload; // already an array
+      return {
+        data: payload,
+        total: payload.length,
+        offset: 0,
+        limit: null,
+        aggregates: null,
+      };
     }
-    return [];
+
+    return {
+      data: [],
+      total: 0,
+      offset: 0,
+      limit: null,
+      aggregates: null,
+    };
   })();
 
   ratingsSeriesCache.set(cacheKey, request);

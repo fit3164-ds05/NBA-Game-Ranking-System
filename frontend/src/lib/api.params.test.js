@@ -15,7 +15,12 @@ describe('lib/api params', () => {
         return HttpResponse.json({ data: [] })
       })
     )
-    await expect(getRatingsSeries({ teams: ['A', 'B'] })).resolves.toEqual([])
+    await expect(getRatingsSeries({ teams: ['A', 'B'] })).resolves.toEqual({
+      data: [],
+      total: 0,
+      offset: 0,
+      limit: null,
+      aggregates: null,
+    })
   })
 })
-

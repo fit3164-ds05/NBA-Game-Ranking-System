@@ -68,13 +68,26 @@ def test_series_happy_path(tmp_path, monkeypatch):
     )
     assert res.status_code == 200
     payload = res.get_json()
-    assert set(["data", "total", "offset", "limit"]) <= set(payload.keys())
+    assert set(["data", "total", "offset", "limit", "aggregates"]) <= set(payload.keys())
     data = payload["data"]
     assert isinstance(data, list) and len(data) >= 5
     # Check record shape
     assert {"date", "team", "rating"} <= set(data[0].keys())
     # Teams filtered correctly
     assert set({r["team"] for r in data}) <= {"Boston Celtics", "Los Angeles Lakers"}
+    aggregates = payload["aggregates"]
+    assert isinstance(aggregates, dict)
+    assert "seasonPivot" in aggregates
+    assert "seasonDetail" in aggregates
+    assert isinstance(aggregates.get("seasonPivot"), list)
+    assert isinstance(aggregates.get("seasonDetail"), dict)
+    options = aggregates.get("seasonOptions")
+    assert isinstance(options, list) and options
+    first_option = options[0]
+    assert "value" in first_option and "label" in first_option
+    if first_option.get("range") is not None:
+        assert isinstance(first_option["range"], list)
+        assert len(first_option["range"]) == 2
 
 
 def test_series_pagination(tmp_path, monkeypatch):
@@ -139,4 +152,3 @@ def test_api_root_health_payload(tmp_path, monkeypatch):
     assert "csv_path" in data
     # Should include row count when CSV can be loaded
     assert isinstance(data.get("csv_rows"), int)
-

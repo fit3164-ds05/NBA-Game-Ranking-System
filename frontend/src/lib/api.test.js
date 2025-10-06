@@ -55,8 +55,9 @@ describe('lib/api', () => {
         HttpResponse.json({ data: [{ date: '2021-01-01', team: 'A', rating: 1500 }] })
       )
     )
-    const data = await getRatingsSeries({ teams: ['A'] })
-    expect(data).toEqual([{ date: '2021-01-01', team: 'A', rating: 1500 }])
+    const payload = await getRatingsSeries({ teams: ['A'] })
+    expect(payload.data).toEqual([{ date: '2021-01-01', team: 'A', rating: 1500 }])
+    expect(payload.aggregates).toBeNull()
 
     // Return string with NaN token -> should be parsed and NaN replaced with null
     server.use(
@@ -64,8 +65,8 @@ describe('lib/api', () => {
         HttpResponse.text('{"data": [{"date":"2021-01-02","team":"B","rating": NaN}]}')
       )
     )
-    const data2 = await getRatingsSeries({ teams: ['B'] })
-    expect(data2).toEqual([{ date: '2021-01-02', team: 'B', rating: null }])
+    const payload2 = await getRatingsSeries({ teams: ['B'] })
+    expect(payload2.data).toEqual([{ date: '2021-01-02', team: 'B', rating: null }])
   })
 
   it('getRatingsSeries caches responses for identical params', async () => {

@@ -16,6 +16,59 @@ const LINE_ANIMATION_DURATION = 450;
 const LINE_ANIMATION_EASING = "ease-in-out";
 const MAX_ALL_SEASON_DETAIL_POINTS = 720;
 const MAX_ALL_SEASON_TEAMS = 30;
+const MAX_SEASON_TICKS = 48;
+
+function buildHighlightSeries(pivotData, teamList, yearsForTeam) {
+  if (!Array.isArray(pivotData) || pivotData.length === 0) {
+    return {};
+  }
+  const result = {};
+  const teams = Array.isArray(teamList) ? teamList : [];
+  teams.forEach((team) => {
+    if (!team) return;
+    const years = yearsForTeam(team);
+    if (!Array.isArray(years) || years.length === 0) return;
+    years.forEach((rawYear) => {
+      const year = Number(rawYear);
+      if (!Number.isFinite(year)) return;
+      const series = pivotData.map((row) => {
+        const seasonYear = row?.date;
+        const isMatch = seasonYear === year;
+        return {
+          date: seasonYear,
+          __isHighlight: isMatch,
+          [team]: isMatch ? (row?.[team] ?? null) : null,
+        };
+      });
+      const targetIndex = pivotData.findIndex((row) => row?.date === year);
+      if (targetIndex >= 0 && series[targetIndex]?.[team] == null) {
+        let anchor = null;
+        for (let i = targetIndex - 1; i >= 0; i -= 1) {
+          const val = pivotData[i]?.[team];
+          if (val != null) {
+            anchor = val;
+            break;
+          }
+        }
+        if (anchor == null) {
+          for (let i = targetIndex + 1; i < pivotData.length; i += 1) {
+            const val = pivotData[i]?.[team];
+            if (val != null) {
+              anchor = val;
+              break;
+            }
+          }
+        }
+        if (anchor != null) {
+          series[targetIndex][team] = anchor;
+        }
+      }
+      if (!result[team]) result[team] = [];
+      result[team].push({ year, data: series });
+    });
+  });
+  return result;
+}
 
 export default function RatingChart({
   teams,
@@ -37,6 +90,7 @@ export default function RatingChart({
   const [data, setData] = useState([]);
   const [displayedTeams, setDisplayedTeams] = useState([]);
   const [highlightDataByTeam, setHighlightDataByTeam] = useState({});
+  const [seriesAggregates, setSeriesAggregates] = useState(null);
   const [hoveredTeams, setHoveredTeams] = useState([]);
   // Initialise the x-axis domain; will expand to full data range once loaded
   const [xDomain, setXDomain] = useState([0, 0]);
@@ -47,6 +101,38 @@ export default function RatingChart({
   const [detailDataByYear, setDetailDataByYear] = useState({});
   const [animateLines, setAnimateLines] = useState(false);
   const [seasonFilter, setSeasonFilter] = useState("ALL");
+  const [seasonSelectionRange, setSeasonSelectionRange] = useState(null);
+
+  const applySeasonRange = React.useCallback((range) => {
+    if (!Array.isArray(range) || range.length !== 2) {
+      setSeasonSelectionRange((prev) => (prev !== null ? null : prev));
+      return;
+    }
+    const left = Number(range[0]);
+    const right = Number(range[1]);
+    if (!Number.isFinite(left) || !Number.isFinite(right)) {
+      setSeasonSelectionRange((prev) => (prev !== null ? null : prev));
+      return;
+    }
+    const normalLeft = Math.min(left, right);
+    const normalRight = Math.max(left, right);
+    setSeasonSelectionRange((prev) => {
+      if (
+        prev &&
+        Number.isFinite(prev[0]) &&
+        Number.isFinite(prev[1]) &&
+        prev[0] === normalLeft &&
+        prev[1] === normalRight
+      ) {
+        return prev;
+      }
+      return [normalLeft, normalRight];
+    });
+  }, []);
+
+  const clearSeasonRange = React.useCallback(() => {
+    setSeasonSelectionRange((prev) => (prev !== null ? null : prev));
+  }, []);
 
   const shouldUseDetailPrimary = primaryDetailAll && showSeasonDetail;
   const showSeasonFilter = shouldUseDetailPrimary && seasonOptions.length > 1;
@@ -170,206 +256,172 @@ export default function RatingChart({
   useEffect(() => {
     if (!teams || teams.length === 0) {
       setData([]);
+      setDetailDataByYear({});
+      setSeasonOptions([]);
       setDisplayedTeams([]);
+      setHighlightDataByTeam({});
+      setSeriesAggregates(null);
+      clearSeasonRange();
+      setDefaultDomain([0, 0]);
+      setXDomain([0, 0]);
+      setBrushRange([0, 0]);
+      setLoading(false);
+      setError(null);
       return;
     }
+
+    let active = true;
     setLoading(true);
     setError(null);
+    setSeriesAggregates(null);
+    setHighlightDataByTeam({});
+
     getRatingsSeries({ teams })
-      .then((res) => {
-        const pivotMap = new Map();
-        const detailMap = showSeasonDetail ? new Map() : null;
-        res.forEach(({ date, team, rating }) => {
-          if (!date || !team) return;
-          const dateStr = String(date);
-          const parsed = new Date(`${dateStr}T00:00:00Z`);
-          if (Number.isNaN(parsed.getTime())) return;
-
-          const month = parsed.getUTCMonth();
-          const day = parsed.getUTCDate();
-          const year = parsed.getUTCFullYear();
-
-          const seasonStartYear = month >= 9 ? year : year - 1;
-          const seasonStartTs = Date.UTC(seasonStartYear, 9, 15);
-          const seasonEndTs = Date.UTC(seasonStartYear + 1, 6, 15, 23, 59, 59);
-          const currentTs = Date.UTC(year, month, day);
-
-          if (currentTs < seasonStartTs || currentTs > seasonEndTs) return;
-
-          const seasonKey = seasonStartYear;
-
-          if (!pivotMap.has(seasonKey)) {
-            pivotMap.set(seasonKey, { date: seasonKey });
-          }
-          pivotMap.get(seasonKey)[team] = rating;
-
-          if (showSeasonDetail && detailMap) {
-            const seasonLabel = formatSeasonShort(seasonStartYear);
-            if (!detailMap.has(seasonKey)) {
-              detailMap.set(seasonKey, {
-                label: seasonLabel,
-                rows: new Map(),
-              });
-            }
-            const seasonEntry = detailMap.get(seasonKey);
-            const dayKey = dateStr;
-            let detailRow = seasonEntry.rows.get(dayKey);
-            if (!detailRow) {
-              detailRow = {
-                date: dateStr,
-                timestamp: currentTs,
-                values: {},
-              };
-              seasonEntry.rows.set(dayKey, detailRow);
-            }
-            detailRow.values[team] = rating;
-          }
-
-        });
-
-        if (showSeasonDetail && detailMap) {
-          const detailObj = {};
-          const allRowsAggregate = [];
-          detailMap.forEach(({ label, rows }, seasonKey) => {
-            const sortedRows = Array.from(rows.values())
-              .sort((a, b) => a.timestamp - b.timestamp)
-              .map((row, idx) => ({
-                seasonKey: String(seasonKey),
-                date: row.date,
-                timestamp: row.timestamp,
-                dayIndex: idx + 1,
-                values: row.values,
-              }));
-            if (sortedRows.length > 0) {
-              detailObj[seasonKey] = {
-                label,
-                rows: sortedRows,
-              };
-              sortedRows.forEach((row) => {
-                allRowsAggregate.push({ ...row });
-              });
-            }
-          });
-
-          if (allRowsAggregate.length > 0) {
-            const combinedRows = allRowsAggregate
-              .sort((a, b) => a.timestamp - b.timestamp)
-              .map((row, idx) => ({
-                ...row,
-                dayIndex: idx + 1,
-              }));
-            detailObj.ALL = {
-              label: "All seasons",
-              rows: combinedRows,
-            };
-          }
-
-          setDetailDataByYear(detailObj);
-          const numericSeasons = Object.entries(detailObj)
-            .filter(([seasonKey]) => seasonKey !== "ALL")
-            .map(([seasonKey, info]) => ({
-              value: String(seasonKey),
-              label: info.label,
-              sortKey: Number(seasonKey),
-            }))
-            .sort((a, b) => (Number.isFinite(b.sortKey) ? b.sortKey : 0) - (Number.isFinite(a.sortKey) ? a.sortKey : 0))
-            .map(({ value, label }) => ({ value, label }));
-
-          if (detailObj.ALL) {
-            numericSeasons.unshift({ value: "ALL", label: detailObj.ALL.label });
-          }
-
-          setSeasonOptions(numericSeasons);
-        } else {
+      .then((payload) => {
+        if (!active) return;
+        const aggregates =
+          payload?.aggregates && typeof payload.aggregates === "object"
+            ? payload.aggregates
+            : null;
+        if (!aggregates) {
+          setError("Ratings series aggregates unavailable");
+          setData([]);
           setDetailDataByYear({});
           setSeasonOptions([]);
+          setDisplayedTeams(teams);
+          setSeriesAggregates(null);
+          clearSeasonRange();
+          setDefaultDomain([0, 0]);
+          setXDomain([0, 0]);
+          setBrushRange([0, 0]);
+          setLoading(false);
+          return;
         }
 
-        let pivotData = Array.from(pivotMap.values()).sort(
-          (a, b) => Number(a.date) - Number(b.date)
-        );
-        const years = pivotData.map((r) => Number(r.date)).filter((y) => !isNaN(y));
-        if (!shouldUseDetailPrimary && years.length) {
-          const minYear = Math.min(...years);
-          const maxYear = Math.max(...years);
-          setXDomain([minYear, maxYear]);
-          setDefaultDomain([minYear, maxYear]);
-        }
-        const existingYears = new Set(pivotData.map((r) => r.date));
-        const missingYears = Array.from(selectedYearsSet).filter((y) => !existingYears.has(y));
-        if (missingYears.length > 0) {
-          const blanks = missingYears.map((y) => ({ date: y }));
-          pivotData = pivotData.concat(blanks).sort((a, b) => Number(a.date) - Number(b.date));
-        }
-        // Post-process to break flat segments (no change over time).
-        // For each team series, if a value equals the previous non-null value,
-        // set it to null so Recharts does not draw a horizontal line.
-        if (teams && teams.length > 0 && pivotData.length > 0) {
-          const processed = pivotData.map((row) => ({ ...row }));
-          const EPS = 1e-9;
-          teams.forEach((team) => {
-            let prev = null;
-            for (let i = 0; i < processed.length; i++) {
-              const v = processed[i][team];
-              if (v == null || Number.isNaN(v)) continue;
-              if (prev != null && Math.abs(v - prev) <= EPS) {
-                // same as previous -> null out to break the flat line segment
-                processed[i][team] = null;
-              } else {
-                prev = v;
-              }
-            }
-          });
-          pivotData = processed;
+        const detailMap =
+          aggregates.seasonDetail && typeof aggregates.seasonDetail === "object"
+            ? aggregates.seasonDetail
+            : {};
+        const options = Array.isArray(aggregates.seasonOptions) ? aggregates.seasonOptions : [];
+        const aggregatedTeams =
+          Array.isArray(aggregates.teams) && aggregates.teams.length ? aggregates.teams : teams;
+
+        let pivotData = Array.isArray(aggregates.seasonPivot)
+          ? [...aggregates.seasonPivot]
+          : [];
+        if (pivotData.length > 0) {
+          const seenYears = new Set(pivotData.map((entry) => entry?.date));
+          const missingYears = Array.from(selectedYearsSet).filter((year) => !seenYears.has(year));
+          if (missingYears.length > 0) {
+            const blanks = missingYears.map((year) => ({ date: year }));
+            pivotData = pivotData.concat(blanks);
+            pivotData.sort((a, b) => Number(a?.date) - Number(b?.date));
+          }
+          if (aggregatedTeams && aggregatedTeams.length > 0) {
+            const processed = pivotData.map((entry) => ({ ...entry }));
+            const EPS = 1e-9;
+            aggregatedTeams.forEach((teamName) => {
+              let prev = null;
+              processed.forEach((entry) => {
+                const value = entry[teamName];
+                if (value == null || Number.isNaN(value)) return;
+                if (prev != null && Math.abs(value - prev) <= EPS) {
+                  entry[teamName] = null;
+                } else {
+                  prev = value;
+                }
+              });
+            });
+            pivotData = processed;
+          }
         }
 
         setData(pivotData);
-        const m = {};
-        (teams || []).forEach((team) => {
-          const years = yearsForTeam(team);
-          if (years.length === 0) return;
-          years.forEach((ySelRaw) => {
-            const ySel = Number(ySelRaw);
-            const hd = pivotData.map((row) => {
-              const out = { date: row.date };
-              out.__isHighlight = row.date === ySel;
-              out[team] = row.date === ySel ? (row[team] ?? null) : null;
-              return out;
-            });
-            const hasCategory = pivotData.some((r) => r.date === ySel);
-            const hasValue = pivotData.some((r) => r.date === ySel && r[team] != null);
-            if (hasCategory && !hasValue) {
-              const idx = pivotData.findIndex((r) => r.date === ySel);
-              let anchor = null;
-              for (let i = idx - 1; i >= 0; i--) {
-                if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; }
-              }
-              if (anchor === null) {
-                for (let i = idx + 1; i < pivotData.length; i++) {
-                  if (pivotData[i][team] != null) { anchor = pivotData[i][team]; break; }
-                }
-              }
-              if (anchor !== null) { hd[idx][team] = anchor; }
-            }
-            if (!m[team]) m[team] = [];
-            m[team].push({ year: ySel, data: hd });
-          });
+        setDetailDataByYear(detailMap);
+        setSeasonOptions(options);
+        setDisplayedTeams(aggregatedTeams);
+        setSeriesAggregates({
+          seasonRange: aggregates.seasonRange ?? null,
+          detailRange: aggregates.detailRange ?? null,
         });
-        setHighlightDataByTeam(m);
-        setDisplayedTeams(teams);
-        if (!shouldUseDetailPrimary) {
-          setBrushRange([0, Math.max(0, pivotData.length - 1)]);
+        const activeFilter = seasonFilter;
+        const option = options.find((opt) => String(opt.value) === String(activeFilter));
+        if (option && Array.isArray(option.range)) {
+          applySeasonRange(option.range);
+        } else if (Array.isArray(aggregates.detailRange)) {
+          applySeasonRange(aggregates.detailRange);
+        } else {
+          clearSeasonRange();
         }
+        setLoading(false);
       })
       .catch((err) => {
+        if (!active) return;
         setError(err.message || "Failed to load rating data");
         setData([]);
+        setDetailDataByYear({});
+        setSeasonOptions([]);
         setDisplayedTeams([]);
-      })
-      .finally(() => {
+        setHighlightDataByTeam({});
+        setSeriesAggregates(null);
+        clearSeasonRange();
+        setDefaultDomain([0, 0]);
+        setXDomain([0, 0]);
+        setBrushRange([0, 0]);
         setLoading(false);
       });
-  }, [teams, selectedYear, selectedYearsByTeam, shouldUseDetailPrimary]);
+
+    return () => {
+      active = false;
+    };
+  }, [teams, seasonFilter, applySeasonRange, clearSeasonRange]);
+
+  useEffect(() => {
+    if (!Array.isArray(data) || data.length === 0) {
+      setHighlightDataByTeam({});
+      return;
+    }
+    const baseTeams = displayedTeams && displayedTeams.length > 0 ? displayedTeams : teams || [];
+    const map = buildHighlightSeries(data, baseTeams, yearsForTeam);
+    setHighlightDataByTeam(map);
+  }, [data, displayedTeams, teams, selectedYear, selectedYearsByTeam]);
+
+  useEffect(() => {
+    if (shouldUseDetailPrimary) {
+      return;
+    }
+    if (!Array.isArray(data) || data.length === 0) {
+      setXDomain([0, 0]);
+      setDefaultDomain([0, 0]);
+      setBrushRange([0, 0]);
+      return;
+    }
+    const range = seriesAggregates?.seasonRange;
+    if (
+      range &&
+      Number.isFinite(range.min) &&
+      Number.isFinite(range.max)
+    ) {
+      const minYear = Number(range.min);
+      const maxYear = Number(range.max);
+      setXDomain([minYear, maxYear]);
+      setDefaultDomain([minYear, maxYear]);
+    } else {
+      const years = data
+        .map((row) => Number(row?.date))
+        .filter((year) => Number.isFinite(year));
+      if (years.length > 0) {
+        const minYear = Math.min(...years);
+        const maxYear = Math.max(...years);
+        setXDomain([minYear, maxYear]);
+        setDefaultDomain([minYear, maxYear]);
+      } else {
+        setXDomain([0, 0]);
+        setDefaultDomain([0, 0]);
+      }
+    }
+    setBrushRange([0, Math.max(0, data.length - 1)]);
+  }, [shouldUseDetailPrimary, data, seriesAggregates]);
 
   const uniqueTeams = React.useMemo(
     () => Array.from(new Set(displayedTeams)),
@@ -520,19 +572,129 @@ export default function RatingChart({
 
   const chartData = shouldUseDetailPrimary ? filteredPrimaryData : primaryData;
 
+  const seasonOptionMap = React.useMemo(() => {
+    const map = new Map();
+    seasonOptions.forEach((opt) => {
+      map.set(String(opt.value), opt);
+    });
+    return map;
+  }, [seasonOptions]);
+
+  const detailSeasonTickInfo = React.useMemo(() => {
+    if (!shouldUseDetailPrimary) {
+      return { ticks: undefined, labels: new Map() };
+    }
+    if (seasonFilter && seasonFilter !== "ALL") {
+      return { ticks: undefined, labels: new Map() };
+    }
+    if (!detailDataByYear || typeof detailDataByYear !== "object") {
+      return { ticks: undefined, labels: new Map() };
+    }
+
+    const seasonEntries = Object.entries(detailDataByYear)
+      .filter(([key]) => key !== "ALL")
+      .map(([key, value]) => ({
+        season: Number(key),
+        rows: Array.isArray(value?.rows) ? value.rows : [],
+      }))
+      .filter(({ season }) => Number.isFinite(season))
+      .sort((a, b) => a.season - b.season);
+
+    if (seasonEntries.length === 0) {
+      return { ticks: undefined, labels: new Map() };
+    }
+
+    const uniqueSeasons = seasonEntries.map((entry) => entry.season);
+    const desiredTickCount = Math.min(MAX_SEASON_TICKS, uniqueSeasons.length);
+    const stride = Math.max(1, Math.ceil(uniqueSeasons.length / desiredTickCount));
+
+    const labels = new Map();
+    const ticks = [];
+    const entryMap = new Map(seasonEntries.map((entry) => [entry.season, entry.rows]));
+
+    const seasonTimestamp = (season, rows) => {
+      if (rows && rows.length) {
+        const firstTs = Number(rows[0]?.timestamp);
+        if (Number.isFinite(firstTs)) {
+          return firstTs;
+        }
+      }
+      return Date.UTC(season, 9, 15);
+    };
+
+    for (let index = 0; index < uniqueSeasons.length; index += stride) {
+      const season = uniqueSeasons[index];
+      const rows = entryMap.get(season);
+      const ts = seasonTimestamp(season, rows);
+      if (!Number.isFinite(ts)) continue;
+      if (!labels.has(ts)) {
+        ticks.push(ts);
+        labels.set(ts, formatSeasonShort(season));
+      }
+    }
+
+    const lastSeason = uniqueSeasons[uniqueSeasons.length - 1];
+    const lastRows = entryMap.get(lastSeason);
+    const lastTs = seasonTimestamp(lastSeason, lastRows);
+    if (Number.isFinite(lastTs) && !labels.has(lastTs)) {
+      ticks.push(lastTs);
+      labels.set(lastTs, formatSeasonShort(lastSeason));
+    }
+
+    return { ticks, labels };
+  }, [shouldUseDetailPrimary, seasonFilter, detailDataByYear]);
+
   useEffect(() => {
     if (!shouldUseDetailPrimary) return;
-    if (!chartData || chartData.length === 0) return;
+    if (!chartData || chartData.length === 0) {
+      setXDomain([0, 0]);
+      setDefaultDomain([0, 0]);
+      setBrushRange([0, 0]);
+      return;
+    }
     const timestamps = chartData
       .map((row) => Number(row.timestamp))
       .filter((v) => Number.isFinite(v));
-    if (timestamps.length === 0) return;
+    if (timestamps.length === 0) {
+      setXDomain([0, 0]);
+      setDefaultDomain([0, 0]);
+      setBrushRange([0, Math.max(0, chartData.length - 1)]);
+      return;
+    }
     const minTs = Math.min(...timestamps);
     const maxTs = Math.max(...timestamps);
-    setXDomain([minTs, maxTs]);
     setDefaultDomain([minTs, maxTs]);
-    setBrushRange([0, Math.max(0, chartData.length - 1)]);
-  }, [shouldUseDetailPrimary, chartData]);
+
+    let left = minTs;
+    let right = maxTs;
+    if (seasonSelectionRange) {
+      const [selLeft, selRight] = seasonSelectionRange;
+      if (Number.isFinite(selLeft) && Number.isFinite(selRight)) {
+        left = Math.max(minTs, Math.min(maxTs, Math.min(selLeft, selRight)));
+        right = Math.max(left, Math.min(maxTs, Math.max(selLeft, selRight)));
+      }
+    }
+
+    setXDomain([left, right]);
+
+    const indexed = chartData
+      .map((row, idx) => ({ idx, ts: Number(row.timestamp) }))
+      .filter((item) => Number.isFinite(item.ts));
+    if (indexed.length === 0) {
+      setBrushRange([0, Math.max(0, chartData.length - 1)]);
+      return;
+    }
+    let startIdx = indexed.find((item) => item.ts >= left)?.idx;
+    if (startIdx == null) startIdx = indexed[indexed.length - 1].idx;
+    let endIdx = [...indexed].reverse().find((item) => item.ts <= right)?.idx;
+    if (endIdx == null) endIdx = indexed[0].idx;
+    if (endIdx < startIdx) {
+      const swap = startIdx;
+      startIdx = endIdx;
+      endIdx = swap;
+    }
+    setBrushRange([startIdx, endIdx]);
+  }, [shouldUseDetailPrimary, chartData, seasonSelectionRange]);
 
   const allowedHoverSet = React.useMemo(() => new Set(primaryTeams || []), [primaryTeams]);
 
@@ -653,14 +815,40 @@ export default function RatingChart({
     );
   };
 
+  const detailTickLabels = detailSeasonTickInfo.labels;
+
   const formatDetailTick = React.useCallback((value) => {
     if (value == null) return "";
     const num = Number(value);
     if (!Number.isFinite(num)) return "";
+    if (detailTickLabels?.has(num)) {
+      return detailTickLabels.get(num) || "";
+    }
     const date = new Date(num);
     if (Number.isNaN(date.getTime())) return "";
     return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }, []);
+  }, [detailTickLabels]);
+
+  const DetailSeasonTick = (props) => {
+    const { x, y, payload } = props;
+    const value = payload ? Number(payload.value) : NaN;
+    const label = formatDetailTick(value);
+    if (!label) return null;
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          transform="rotate(15)"
+          textAnchor="start"
+          dx={4}
+          dy={6}
+          fontSize={10}
+          fill="#333"
+        >
+          {label}
+        </text>
+      </g>
+    );
+  };
 
   const SeasonDetailTooltip = ({ active, label, payload }) => {
     if (!showSeasonDetail || !active || !payload || payload.length === 0) return null;
@@ -773,8 +961,11 @@ export default function RatingChart({
       setBrushRange([left, right]);
       setXDomain([Number(leftValue), Number(rightValue)]);
       setAnimateLines(true);
+      if (shouldUseDetailPrimary) {
+        applySeasonRange([Number(leftValue), Number(rightValue)]);
+      }
     },
-    [data, chartData, defaultDomain, shouldUseDetailPrimary]
+    [data, chartData, defaultDomain, shouldUseDetailPrimary, applySeasonRange]
   );
 
   const resetZoom = React.useCallback(() => {
@@ -782,7 +973,10 @@ export default function RatingChart({
     setBrushRange([0, Math.max(0, dataset.length - 1)]);
     setXDomain(defaultDomain);
     setAnimateLines(true);
-  }, [data, chartData, defaultDomain, shouldUseDetailPrimary]);
+    if (shouldUseDetailPrimary) {
+      clearSeasonRange();
+    }
+  }, [data, chartData, defaultDomain, shouldUseDetailPrimary, clearSeasonRange]);
 
   const zoomRange = React.useMemo(() => {
     if (!showZoomControls) return null;
@@ -812,7 +1006,16 @@ export default function RatingChart({
                 className="border rounded-md px-2 py-1 text-sm text-gray-800"
                 value={String(seasonFilter)}
                 onChange={(event) => {
-                  setSeasonFilter(event.target.value || "ALL");
+                  const nextValue = event.target.value || "ALL";
+                  setSeasonFilter(nextValue);
+                  const option = seasonOptionMap.get(String(nextValue));
+                  if (option && Array.isArray(option.range)) {
+                    applySeasonRange(option.range);
+                  } else if (nextValue === "ALL" && Array.isArray(seriesAggregates?.detailRange)) {
+                    applySeasonRange(seriesAggregates.detailRange);
+                  } else {
+                    clearSeasonRange();
+                  }
                   setAnimateLines(true);
                 }}
               >
@@ -842,8 +1045,8 @@ export default function RatingChart({
                   dataKey={shouldUseDetailPrimary ? "timestamp" : "date"}
                   type="number"
                   domain={xDomain}
-                  ticks={xTicks}
-                  tick={shouldUseDetailPrimary ? undefined : <YearAwareTick />}
+                  ticks={shouldUseDetailPrimary ? detailSeasonTickInfo.ticks : xTicks}
+                  tick={shouldUseDetailPrimary ? <DetailSeasonTick /> : <YearAwareTick />}
                   tickFormatter={shouldUseDetailPrimary ? formatDetailTick : undefined}
                   allowDuplicatedCategory={false}
                   allowDataOverflow

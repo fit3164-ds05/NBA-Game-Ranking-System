@@ -9,9 +9,10 @@ Set RATINGS_CSV to override the path (with or without extension) at runtime.
 
 import os
 import math
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 import pandas as pd
 # Import that works when backend/ is on sys.path (tests run from backend)
@@ -87,6 +88,225 @@ def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, e
     sub["date"] = sub["GAME_DATE"].dt.strftime("%Y-%m-%d")
     out = sub.loc[:, ["date", "TEAM", "RATING"]].rename(columns={"TEAM": "team", "RATING": "rating"})
     return out
+
+
+def _format_season_label(year: int) -> str:
+    tail = abs(int(year)) % 100
+    nxt = (tail + 1) % 100
+    return f"{tail:02d}/{nxt:02d}"
+
+
+def _ensure_timestamp(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def build_series_bundle(df: pd.DataFrame) -> Dict[str, Any]:
+    """Return aggregated structures used by the frontend chart.
+
+    The bundle mirrors the JS-side transformations so the client can skip
+    expensive per-render pivoting.
+    """
+    if df is None or df.empty:
+        return {
+            "seasonPivot": [],
+            "seasonDetail": {},
+            "seasonOptions": [],
+            "seasonRange": None,
+            "detailRange": None,
+            "teams": [],
+        }
+
+    working = df.loc[:, ["date", "team", "rating"]].copy()
+    working = working.dropna(subset=["date", "team"])
+    if working.empty:
+        return {
+            "seasonPivot": [],
+            "seasonDetail": {},
+            "seasonOptions": [],
+            "seasonRange": None,
+            "detailRange": None,
+            "teams": [],
+        }
+
+    working["date_obj"] = pd.to_datetime(working["date"], errors="coerce", utc=True)
+    working = working.dropna(subset=["date_obj"])
+    if working.empty:
+        return {
+            "seasonPivot": [],
+            "seasonDetail": {},
+            "seasonOptions": [],
+            "seasonRange": None,
+            "detailRange": None,
+            "teams": []
+        }
+
+    working = working.sort_values("date_obj")
+
+    pivot_map: Dict[int, Dict[str, float]] = {}
+    detail_map: Dict[int, Dict[str, Any]] = {}
+    teams_set = set()
+
+    all_rows_accumulator = []
+
+    for record in working.itertuples(index=False):
+        team = record.team
+        rating = record.rating
+        if team is None or pd.isna(rating):
+            continue
+        dt_obj = record.date_obj
+        if pd.isna(dt_obj):
+            continue
+        dt: datetime = _ensure_timestamp(dt_obj.to_pydatetime())
+        month = dt.month
+        year = dt.year
+        season_start_year = year if month >= 9 else year - 1
+
+        season_start = datetime(season_start_year, 9, 15, tzinfo=timezone.utc)
+        season_end = datetime(season_start_year + 1, 6, 15, 23, 59, 59, tzinfo=timezone.utc)
+        if dt < season_start or dt > season_end:
+            continue
+
+        season_key = season_start_year
+        timestamp_ms = int(dt.timestamp() * 1000)
+
+        teams_set.add(team)
+
+        pivot_entry = pivot_map.setdefault(season_key, {"date": season_key})
+        pivot_entry[team] = float(rating)
+
+        season_detail = detail_map.setdefault(
+            season_key,
+            {
+                "label": _format_season_label(season_key),
+                "rows": {},
+            },
+        )
+
+        day_key = record.date
+        rows = season_detail["rows"]
+        detail_row = rows.get(day_key)
+        if not detail_row:
+            detail_row = {
+                "seasonKey": str(season_key),
+                "date": day_key,
+                "timestamp": timestamp_ms,
+                "values": {},
+            }
+            rows[day_key] = detail_row
+        detail_row["timestamp"] = timestamp_ms
+        detail_row["values"][team] = float(rating)
+
+    pivot_list = [pivot_map[key] for key in sorted(pivot_map.keys())]
+
+    detail_output: Dict[str, Any] = {}
+    detail_range = None
+    for season_key in sorted(detail_map.keys()):
+        info = detail_map[season_key]
+        rows_dict: Dict[str, Dict[str, Any]] = info["rows"]
+        rows_sorted = sorted(rows_dict.values(), key=lambda r: r["timestamp"])
+        season_rows = []
+        season_min = None
+        season_max = None
+        for idx, row in enumerate(rows_sorted, start=1):
+            values = {name: float(val) for name, val in row["values"].items()}
+            ts_val = row["timestamp"] if isinstance(row.get("timestamp"), (int, float)) else None
+            if ts_val is None:
+                try:
+                    ts_val = float(row["timestamp"])
+                except (TypeError, ValueError):
+                    ts_val = None
+            if ts_val is not None and math.isfinite(ts_val):
+                if season_min is None or ts_val < season_min:
+                    season_min = ts_val
+                if season_max is None or ts_val > season_max:
+                    season_max = ts_val
+            output_row = {
+                "seasonKey": str(season_key),
+                "date": row["date"],
+                "timestamp": row["timestamp"],
+                "dayIndex": idx,
+                "values": values,
+            }
+            season_rows.append(output_row)
+            all_rows_accumulator.append(output_row.copy())
+        detail_output[str(season_key)] = {
+            "label": info["label"],
+            "rows": season_rows,
+            "range": (
+                [int(season_min), int(season_max)]
+                if season_min is not None and season_max is not None
+                else None
+            ),
+        }
+        if season_rows:
+            min_ts = season_rows[0]["timestamp"]
+            max_ts = season_rows[-1]["timestamp"]
+            if detail_range is None:
+                detail_range = [min_ts, max_ts]
+            else:
+                detail_range[0] = min(detail_range[0], min_ts)
+                detail_range[1] = max(detail_range[1], max_ts)
+
+    if all_rows_accumulator:
+        all_rows_sorted = sorted(all_rows_accumulator, key=lambda r: r["timestamp"])
+        all_rows = []
+        for idx, row in enumerate(all_rows_sorted, start=1):
+            combined_row = row.copy()
+            combined_row["seasonKey"] = row.get("seasonKey")
+            combined_row["dayIndex"] = idx
+            all_rows.append(combined_row)
+        detail_output["ALL"] = {
+            "label": "All seasons",
+            "rows": all_rows,
+            "range": (
+                [int(detail_range[0]), int(detail_range[1])]
+                if detail_range is not None
+                else None
+            ),
+        }
+        if detail_range is None and all_rows:
+            detail_range = [all_rows[0]["timestamp"], all_rows[-1]["timestamp"]]
+
+    if detail_range is not None:
+        detail_range = [int(detail_range[0]), int(detail_range[1])]
+
+    if pivot_list:
+        years = [entry["date"] for entry in pivot_list if isinstance(entry.get("date"), (int, float))]
+        if years:
+            min_year = int(min(years))
+            max_year = int(max(years))
+            season_range = {"min": min_year, "max": max_year}
+        else:
+            season_range = None
+    else:
+        season_range = None
+
+    season_options = []
+    if "ALL" in detail_output:
+        season_options.append({
+            "value": "ALL",
+            "label": detail_output["ALL"].get("label"),
+            "range": detail_output["ALL"].get("range"),
+        })
+    numeric_keys = [key for key in detail_output.keys() if key != "ALL"]
+    numeric_keys.sort(key=lambda x: int(x), reverse=True)
+    for key in numeric_keys:
+        season_options.append({
+            "value": key,
+            "label": detail_output[key].get("label"),
+            "range": detail_output[key].get("range"),
+        })
+
+    return {
+        "seasonPivot": pivot_list,
+        "seasonDetail": detail_output,
+        "seasonOptions": season_options,
+        "seasonRange": season_range,
+        "detailRange": detail_range,
+        "teams": sorted(teams_set),
+    }
 
 def teams() -> List[str]:
     """Return all unique team names sorted alphabetically."""

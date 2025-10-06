@@ -7,7 +7,20 @@ vi.mock('../lib/api', () => {
   return {
     getTeams: vi.fn(async () => ['Boston Celtics', 'Los Angeles Lakers']),
     getSeasons: vi.fn(async (team) => (team === 'Boston Celtics' ? [2022, 2021] : [2021, 2020])),
-    getRatingsSeries: vi.fn(async () => []),
+    getRatingsSeries: vi.fn(async () => ({
+      data: [],
+      total: 0,
+      offset: 0,
+      limit: null,
+      aggregates: {
+        seasonPivot: [],
+        seasonDetail: {},
+        seasonOptions: [],
+        seasonRange: null,
+        detailRange: null,
+        teams: [],
+      },
+    })),
     predictGame: vi.fn(async ({ home_team, home_season, away_team, away_season }) => ({
       inputs: { home_team, home_season, away_team, away_season },
       home_rating: 1530,

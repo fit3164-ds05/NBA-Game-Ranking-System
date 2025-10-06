@@ -223,8 +223,15 @@ def ratings_series():
         sliced_df = df.iloc[offset:]
 
     records = sliced_df.to_dict(orient="records")
+    aggregates = ratings.build_series_bundle(df)
 
-    return jsonify(data=records, total=total, offset=offset, limit=limit)
+    return jsonify(
+        data=records,
+        total=total,
+        offset=offset,
+        limit=limit,
+        aggregates=aggregates,
+    )
 
 
 # ------------------------------------------- SHOT CHARTS AND PLAYER GAMES -------------------------------------------
