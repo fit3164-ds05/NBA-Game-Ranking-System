@@ -155,6 +155,14 @@ def _normalise_team(name: object) -> str:
     return "".join(ch.lower() for ch in name if ch.isalnum())
 
 
+def _primary_team_label(name: object) -> str:
+    """Prefer the core team label when full names include era ranges."""
+    if not isinstance(name, str):
+        return ""
+    base = name.split("(", 1)[0].strip()
+    return base or name
+
+
 @lru_cache(maxsize=1)
 def _load_games_table() -> pd.DataFrame:
     """Load full NBA game data for head-to-head summaries."""
@@ -179,10 +187,27 @@ def _load_games_table() -> pd.DataFrame:
             games[score_col] = pd.NA
     games["home_key"] = games["HOME_TEAM_NAME"].map(_normalise_team)
     games["away_key"] = games["AWAY_TEAM_NAME"].map(_normalise_team)
-    if "WINNER_TEAM_NAME" in games.columns:
-        games["winner_key"] = games["WINNER_TEAM_NAME"].map(_normalise_team)
+
+    winner_source = None
+    if "WINNER_TEAM_FULL_NAME" in games.columns:
+        winner_source = games["WINNER_TEAM_FULL_NAME"]
+    elif "WINNER_TEAM_NAME" in games.columns:
+        winner_source = games["WINNER_TEAM_NAME"]
+    if winner_source is not None:
+        games["winner_key"] = winner_source.map(lambda v: _normalise_team(_primary_team_label(v)))
     else:
         games["winner_key"] = ""
+
+    if "LOSER_TEAM_FULL_NAME" in games.columns:
+        loser_source = games["LOSER_TEAM_FULL_NAME"]
+    elif "LOSER_TEAM_NAME" in games.columns:
+        loser_source = games["LOSER_TEAM_NAME"]
+    else:
+        loser_source = None
+    if loser_source is not None:
+        games["loser_key"] = loser_source.map(lambda v: _normalise_team(_primary_team_label(v)))
+    else:
+        games["loser_key"] = ""
     return games
 
 
