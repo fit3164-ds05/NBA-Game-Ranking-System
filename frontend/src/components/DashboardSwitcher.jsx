@@ -9,7 +9,7 @@ const tabs = [
 
 export default function DashboardSwitcher({
   title = "Statistics Dashboard",
-  label = "Discover the data that matters",
+  label = "Discover the data in a creative way",
   description = "Switch between curated analytics views while staying in flow.",
 }) {
   const baseStyles = "px-5 py-2 text-sm font-medium transition-colors duration-200 rounded-full";
