@@ -64,7 +64,7 @@ export default function ShotChartD3({
   const [status, setStatus] = useState({ type: "idle", message: null });
 
   const chartOptions = useMemo(() => {
-    const base = { ...(options ?? {}) };
+    const base = { legendBaselineOffset: 0.5, ...(options ?? {}) };
     base.width = width;
     if (height) base.height = height;
     if (title) base.title = title;
@@ -178,9 +178,12 @@ export default function ShotChartD3({
       };
 
       const moveTip = (event) => {
+        if (!event) return;
+        const point = event.touches?.[0] ?? event.changedTouches?.[0] ?? event;
+        if (!point) return;
         const rect = host.getBoundingClientRect();
-        const x = event.clientX - rect.left + 16;
-        const y = event.clientY - rect.top + 16;
+        const x = point.clientX - rect.left + 16;
+        const y = point.clientY - rect.top + 16;
         tip.style.left = `${x}px`;
         tip.style.top = `${y}px`;
       };
@@ -227,20 +230,48 @@ export default function ShotChartD3({
         }
       };
 
-      const isHexagon = (element) =>
-        element?.classList?.contains?.("shot-chart-hexagon");
+      const attachTooltipHandlers = () => {
+        const hexagons = svg.selectAll(".shot-chart-hexagon");
+        if (!hexagons.size()) return false;
 
-      svg
-        .on("click.shotchart-tooltip", () => {
+        const showFromEvent = (datum) => {
           const evt = d3.event;
-          const target = evt?.target;
-          if (isHexagon(target)) {
-            showTip(evt, d3.select(target).datum());
-          } else {
-            hideTip({ immediate: true });
-          }
-        })
-        .on("mouseleave.shotchart-tooltip", () => hideTip({ immediate: true }));
+          if (!evt) return;
+          showTip(evt, datum);
+        };
+
+        const moveFromEvent = () => {
+          const evt = d3.event;
+          if (!evt) return;
+          moveTip(evt);
+        };
+
+        const hideWithDelay = () => hideTip();
+        const hideImmediate = () => hideTip({ immediate: true });
+
+        hexagons
+          .on("mouseover.shotchart-tooltip", function (datum) {
+            showFromEvent(datum);
+          })
+          .on("mousemove.shotchart-tooltip", moveFromEvent)
+          .on("mouseout.shotchart-tooltip", hideWithDelay)
+          .on("touchstart.shotchart-tooltip", function (datum) {
+            const evt = d3.event;
+            if (evt?.preventDefault) evt.preventDefault();
+            showFromEvent(datum);
+          })
+          .on("touchmove.shotchart-tooltip", moveFromEvent)
+          .on("touchend.shotchart-tooltip", hideImmediate)
+          .on("touchcancel.shotchart-tooltip", hideImmediate);
+
+        return true;
+      };
+
+      if (!attachTooltipHandlers()) {
+        window.requestAnimationFrame(attachTooltipHandlers);
+      }
+
+      svg.on("mouseleave.shotchart-tooltip", () => hideTip({ immediate: true }));
 
       setStatus({ type: "ready", message: null });
     } catch (err) {

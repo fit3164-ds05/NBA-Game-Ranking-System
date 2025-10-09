@@ -25,7 +25,7 @@
       this.drawTitle();
 
       // draw legend
-      this.drawLegend();
+      // this.drawLegend();
 
       // add data
       this.drawShots();
@@ -161,7 +161,11 @@
           hexagonRadiusSizes = this._hexagonRadiusSizes,
           hexagonFillValue = this._hexagonFillValue,
           keyWidth = this._keyWidth,
-          basketProtrusionLength = this._basketProtrusionLength;
+          basketProtrusionLength = this._basketProtrusionLength,
+          threePointSideRadius = this._threePointSideRadius,
+          legendBaselineOffset = (typeof this._legendBaselineOffset === 'number')
+            ? Math.max(0, this._legendBaselineOffset)
+            : basketProtrusionLength / 3;
 
       var heatRange = heatScale.range();
       var largestHexagonRadius = hexagonRadiusSizes[hexagonRadiusSizes.length - 1];
@@ -169,7 +173,7 @@
         (threePointSideRadius - keyWidth / 2) / 2 - 
         (courtWidth / 2 - threePointSideRadius);
       var colorXStart = colorXMid - (heatRange.length * largestHexagonRadius); 
-      var colorYStart = visibleCourtLength - basketProtrusionLength/3;
+      var colorYStart = visibleCourtLength - legendBaselineOffset;
       var hexbin = d3.hexbin();
       var hexagon = hexbin.hexagon(largestHexagonRadius);
       var colorLegend = this.base.append('g')
@@ -210,7 +214,8 @@
       var sizeXMid = (threePointSideRadius - keyWidth / 2) / 2 + 
         (courtWidth / 2 - threePointSideRadius);
       var sizeXStart = sizeXMid - (sizeLengendWidth / 2);
-      var sizeYStart = visibleCourtLength - basketProtrusionLength/3;
+      var sizeYStart = visibleCourtLength - legendBaselineOffset;
+      var sizeLabelX = sizeXStart + sizeLengendWidth;
       var sizeLegend = this.base.append('g')
         .classed('legend', true);
       sizeLegend.append("text")
@@ -236,7 +241,7 @@
             })
             .style('fill', '#999');
       sizeLegend.append("text")
-        .attr("x", sizeXStart)
+        .attr("x", sizeLabelX)
         .attr("y", sizeYStart)
         .attr("text-anchor", "start")  
         .text(this._sizeLegendLargeLabel); 
@@ -413,6 +418,8 @@
     sizeLegendSmallLabel: 'low',
     // label of end of hexagon size legend
     sizeLegendLargeLabel: 'high',
+    // distance in ft that legends sit above the baseline; defaults to basketProtrusionLength / 3
+    legendBaselineOffset: null,
     // distance from baseline where three point line because circular (ft)
     threePointCutoffLength: 14,
     // distance of three point line from basket (ft)
