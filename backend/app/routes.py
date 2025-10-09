@@ -16,6 +16,7 @@ from services.ratings import (
     summarize_matchup,
 )
 from services import ratings
+from services.team_history import team_year_bounds, active_years_for_team
 
 try:  # prefer absolute import when backend package is discoverable
     from backend.ml.game_features import build_matchup_features
@@ -67,7 +68,35 @@ def get_teams():
     # Get all available NBA teams
     # URL: GET /teams
     # Returns: JSON list of team names
-    return jsonify(teams=teams())
+    all_teams = teams()
+    bounds = {}
+    for name in all_teams:
+        years = active_years_for_team(name)
+        if years:
+            years_sorted = sorted({int(y) for y in years})
+            if years_sorted:
+                bounds[name] = {
+                    "team_id": None,
+                    "abbreviation": None,
+                    "first_year": years_sorted[0],
+                    "last_year": years_sorted[-1],
+                }
+    # Merge richer metadata when available
+    extra = team_year_bounds()
+    for name, meta in extra.items():
+        normalized = meta.copy()
+        normalized_first = normalized.get("first_year")
+        normalized_last = normalized.get("last_year")
+        if name in bounds:
+            if normalized_first is not None:
+                bounds[name]["first_year"] = int(normalized_first)
+            if normalized_last is not None:
+                bounds[name]["last_year"] = int(normalized_last)
+            if normalized.get("team_id") is not None:
+                bounds[name]["team_id"] = normalized["team_id"]
+            if normalized.get("abbreviation"):
+                bounds[name]["abbreviation"] = normalized["abbreviation"]
+    return jsonify(teams=all_teams, season_bounds=bounds)
 
 @api_bp.get("/seasons")
 def get_seasons():

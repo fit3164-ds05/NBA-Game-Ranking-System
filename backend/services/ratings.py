@@ -16,6 +16,7 @@ from typing import Optional, List
 import pandas as pd
 # Import that works when backend/ is on sys.path (tests run from backend)
 from utils.data_loader import load_table  # type: ignore
+from services.team_history import active_years_for_team
 
 # Build a robust path to the ratings CSV
 def _default_ratings_path() -> Path:
@@ -104,6 +105,14 @@ def seasons_for_team(team: str) -> List[int]:
         .unique()
         .tolist()
     )
+    allowed = active_years_for_team(team)
+    if allowed:
+        allowed_set = set(int(y) for y in allowed)
+        vals = [year for year in vals if year in allowed_set]
+        if not vals:
+            vals = list(allowed_set)
+    if not vals and allowed:
+        vals = list(set(int(y) for y in allowed))
     return sorted(vals, reverse=True)
 
 def latest_rating_in_season(team: str, year: int) -> Optional[float]:
@@ -111,6 +120,9 @@ def latest_rating_in_season(team: str, year: int) -> Optional[float]:
     Return the team's most recent rating within that season.
     If no rows match, return None.
     """
+    allowed_years = active_years_for_team(team)
+    if allowed_years and int(year) not in allowed_years:
+        return None
     df = load_full()
     sub = df[(df["TEAM"] == team) & (df["YEAR"] == int(year))].sort_values("GAME_DATE")
     if sub.empty:
