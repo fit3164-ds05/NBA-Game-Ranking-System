@@ -64,15 +64,20 @@ export default function PlayerSeasonPicker({
       }
     }
     run();
+    // Checking for stream updates
+    console.log("autoFetchShots", autoFetchShots);
+    console.log("player", player);
+    console.log("year", year);
+    console.log("onComplete", onComplete);
     return () => { cancelled = true; };
-  }, [player, year, autoFetchShots, onComplete]);
+  }, [player, year, autoFetchShots]);
 
   // If you don't want auto fetch, still notify parent when both chosen
   useEffect(() => {
     if (!autoFetchShots && player && year) {
       onComplete?.({ player, season: year });
     }
-  }, [autoFetchShots, player, year, onComplete]);
+  }, [autoFetchShots, player, year]);
 
   return (
     <div className="flex flex-col gap-3">

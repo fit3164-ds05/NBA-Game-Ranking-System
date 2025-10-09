@@ -69,7 +69,9 @@ export default function DashboardShotChart() {
                     value={summary?.attempts != null ? summary.attempts : "-"}
                   />
                 </div>
-
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Shot Overview
+                    </h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <QuickSummaryStat
                     label="Field Goals"
@@ -89,7 +91,7 @@ export default function DashboardShotChart() {
                   <QuickSummaryStat
                     label="Avg Distance"
                     primary={summary.avgDistance !== null ? `${summary.avgDistance.toFixed(1)} ft` : "-"}
-                    secondary={`${summary.misses} misses`}
+                    // secondary={`${summary.misses} misses`}
                   />
                 </div>
 

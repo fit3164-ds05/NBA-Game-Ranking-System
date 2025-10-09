@@ -110,7 +110,7 @@ def get_player_shotchart(
     player_id: int,
     season: str,
     team_id: Optional[int] = 0,
-    measure: str = "FGA",  # FGA | FG3A | FG3M | FGM | PTS
+    measure: str = "FGA",
 ) -> Dict[str, Any]:
     """
     Fetch shot chart detail for a player + season.
