@@ -5,7 +5,13 @@ import userEvent from '@testing-library/user-event'
 // Mock API layer via hoisted factory
 vi.mock('../lib/api', () => {
   return {
-    getTeams: vi.fn(async () => ['Boston Celtics', 'Los Angeles Lakers']),
+    getTeams: vi.fn(async () => ({
+      teams: ['Boston Celtics', 'Los Angeles Lakers'],
+      seasonBounds: {
+        'Boston Celtics': { first_year: 1946, last_year: 2025 },
+        'Los Angeles Lakers': { first_year: 1947, last_year: 2025 },
+      },
+    })),
     getSeasons: vi.fn(async (team) => (team === 'Boston Celtics' ? [2022, 2021] : [2021, 2020])),
     getRatingsSeries: vi.fn(async () => []),
     predictGame: vi.fn(async ({ home_team, home_season, away_team, away_season }) => ({

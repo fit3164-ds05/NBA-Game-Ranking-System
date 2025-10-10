@@ -96,7 +96,10 @@ export async function healthCheck() {
 // Teams list for dropdowns
 export async function getTeams() {
   const { data } = await api.get("/teams");
-  return data?.teams ?? [];
+  return {
+    teams: data?.teams ?? [],
+    seasonBounds: data?.season_bounds ?? {},
+  };
 }
 
 // Seasons for a selected team

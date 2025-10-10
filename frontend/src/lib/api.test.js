@@ -14,8 +14,22 @@ afterEach(() => {
 
 describe('lib/api', () => {
   it('getTeams returns list', async () => {
-    server.use(http.get(PATH('/teams'), () => HttpResponse.json({ teams: ['A', 'B'] })))
-    await expect(getTeams()).resolves.toEqual(['A', 'B'])
+    server.use(
+      http.get(PATH('/teams'), () =>
+        HttpResponse.json({
+          teams: ['A', 'B'],
+          season_bounds: {
+            A: { first_year: 1946, last_year: 1949 },
+          },
+        })
+      )
+    )
+    await expect(getTeams()).resolves.toEqual({
+      teams: ['A', 'B'],
+      seasonBounds: {
+        A: { first_year: 1946, last_year: 1949 },
+      },
+    })
   })
 
   it('getSeasons validates team param and returns seasons', async () => {

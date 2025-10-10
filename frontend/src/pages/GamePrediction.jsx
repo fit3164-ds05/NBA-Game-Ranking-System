@@ -4,11 +4,135 @@
 // Rules enforced:
 // - The same team can be picked for home and away, but the seasons must differ.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getTeams, getSeasons, predictGame } from "../lib/api";
 import RatingChart from "../components/RatingChart";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
 import { buildFactorNarrative } from "../utils/featureNarratives";
+
+function TrendUpIcon({ className = "", ...props }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M3 17h18" />
+      <path d="M4.5 12.5 9.5 7.5 13.5 11.5 20 5" />
+    </svg>
+  );
+}
+
+function TrendDownIcon({ className = "", ...props }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M3 17h18" />
+      <path d="m4.5 7.5 5 5 4-4 6.5 6.5" />
+    </svg>
+  );
+}
+
+function CompassIcon({ className = "", ...props }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="8.5" />
+      <path fill="currentColor" stroke="none" d="m10.3 10.3 7-2-2 7-7 2z" />
+      <circle
+        cx="12"
+        cy="12"
+        r="1.2"
+        fill="currentColor"
+        fillOpacity="0.2"
+        stroke="currentColor"
+        strokeWidth="0.6"
+      />
+    </svg>
+  );
+}
+
+function ShieldIcon({ className = "", ...props }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M12 3 19 7v5c0 5.4-3.7 9.9-7 11-3.3-1.1-7-5.6-7-11V7l7-4Z" />
+    </svg>
+  );
+}
+
+function TargetIcon({ className = "", ...props }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function StatusDotIcon({ className = "", ...props }) {
+  return (
+    <svg viewBox="0 0 8 8" fill="currentColor" className={className} aria-hidden="true" {...props}>
+      <circle cx="4" cy="4" r="3.5" />
+    </svg>
+  );
+}
+
+function formatSeasonLabel(year) {
+  const numeric = Number(year);
+  if (!Number.isFinite(numeric)) {
+    return String(year ?? "");
+  }
+  const startYear = numeric;
+  const endYear = numeric + 1;
+  const startShort = String(startYear).slice(-2).padStart(2, "0");
+  const endShort = String(endYear).slice(-2).padStart(2, "0");
+  return `${startShort}/${endShort}`;
+}
 
 // Simple reusable label component for form fields
 function FieldLabel({ children }) {
@@ -68,7 +192,7 @@ function TeamSelectCard({
           </option>
           {seasons.map((yr) => (
             <option key={yr} value={yr} disabled={disabledSeasonOptions.includes(yr)}>
-              {yr}
+              {formatSeasonLabel(yr)}
             </option>
           ))}
         </Select>
@@ -98,6 +222,46 @@ export default function GamePrediction() {
   const [error, setError] = useState(""); // Error message for UI
   const [result, setResult] = useState(null); // Prediction result from API
   const [activeModel, setActiveModel] = useState("xgboost");
+  const [teamSeasonBounds, setTeamSeasonBounds] = useState({});
+
+  const allowedSeasonLists = useMemo(() => {
+    const map = {};
+    if (teamSeasonBounds && typeof teamSeasonBounds === "object") {
+      Object.entries(teamSeasonBounds).forEach(([team, bounds]) => {
+        if (!bounds || typeof bounds !== "object") return;
+        const first = Number(bounds.first_year);
+        const last = Number(bounds.last_year);
+        if (!Number.isFinite(first) || !Number.isFinite(last)) return;
+        const start = Math.min(first, last);
+        const end = Math.max(first, last);
+        const years = [];
+        for (let year = end; year >= start; year -= 1) {
+          years.push(year);
+        }
+        map[team] = years;
+      });
+    }
+    return map;
+  }, [teamSeasonBounds]);
+
+  const clampSeasons = useCallback(
+    (team, seasons) => {
+      const incoming = Array.isArray(seasons)
+        ? seasons.filter((yr) => Number.isFinite(Number(yr))).map((yr) => Number(yr))
+        : [];
+      const allowed = allowedSeasonLists[team];
+      if (allowed && allowed.length) {
+        const allowedSet = new Set(allowed);
+        const filtered = incoming.filter((yr) => allowedSet.has(yr));
+        if (filtered.length) {
+          return Array.from(new Set(filtered)).sort((a, b) => b - a);
+        }
+        return allowed;
+      }
+      return Array.from(new Set(incoming)).sort((a, b) => b - a);
+    },
+    [allowedSeasonLists]
+  );
 
   // Derived: whether the same team is picked
   const sameTeam = homeTeam && awayTeam && homeTeam === awayTeam;
@@ -107,9 +271,10 @@ export default function GamePrediction() {
     let active = true;
     async function run() {
       try {
-        const list = await getTeams();
+        const { teams: list, seasonBounds } = await getTeams();
         if (!active) return;
         setTeams(list);
+        setTeamSeasonBounds(seasonBounds || {});
 
         // Pre-fill home/away teams if possible
         if (list?.length >= 2) {
@@ -138,12 +303,18 @@ export default function GamePrediction() {
       try {
         const list = await getSeasons(homeTeam);
         if (!active) return;
-        setHomeSeasons(list);
-
-        // Auto-select first season if none is chosen
-        if (!homeSeason && list?.length) {
-          setHomeSeason(list[0]);
-        }
+        const filtered = clampSeasons(homeTeam, list);
+        setHomeSeasons(filtered);
+        setHomeSeason((prev) => {
+          if (!Array.isArray(filtered) || filtered.length === 0) {
+            const allowed = allowedSeasonLists[homeTeam];
+            return allowed && allowed.length ? allowed[0] : undefined;
+          }
+          if (typeof prev === "number" && filtered.includes(prev)) {
+            return prev;
+          }
+          return filtered[0];
+        });
       } catch (e) {
         setError(e.message || "Failed to load seasons for home team");
       }
@@ -152,7 +323,7 @@ export default function GamePrediction() {
     return () => {
       active = false;
     };
-  }, [homeTeam]);
+  }, [homeTeam, clampSeasons, allowedSeasonLists]);
 
   // ===== Load away team seasons when away team changes =====
   useEffect(() => {
@@ -162,12 +333,18 @@ export default function GamePrediction() {
       try {
         const list = await getSeasons(awayTeam);
         if (!active) return;
-        setAwaySeasons(list);
-
-        // Auto-select first season if none is chosen
-        if (!awaySeason && list?.length) {
-          setAwaySeason(list[0]);
-        }
+        const filtered = clampSeasons(awayTeam, list);
+        setAwaySeasons(filtered);
+        setAwaySeason((prev) => {
+          if (!Array.isArray(filtered) || filtered.length === 0) {
+            const allowed = allowedSeasonLists[awayTeam];
+            return allowed && allowed.length ? allowed[0] : undefined;
+          }
+          if (typeof prev === "number" && filtered.includes(prev)) {
+            return prev;
+          }
+          return filtered[0];
+        });
       } catch (e) {
         setError(e.message || "Failed to load seasons for away team");
       }
@@ -176,7 +353,7 @@ export default function GamePrediction() {
     return () => {
       active = false;
     };
-  }, [awayTeam]);
+  }, [awayTeam, clampSeasons, allowedSeasonLists]);
 
   // ===== Season change handlers =====
   function onHomeSeasonChange(year) {
@@ -963,17 +1140,15 @@ function MarginDistribution({ margin, sigma, homeTeam, awayTeam, winProb }) {
 
 function ConfidenceBadge({ label }) {
   const map = {
-    high: { bg: "bg-emerald-100", text: "text-emerald-700", icon: "🟢" },
-    medium: { bg: "bg-amber-100", text: "text-amber-700", icon: "🟡" },
-    low: { bg: "bg-rose-100", text: "text-rose-700", icon: "🔴" },
-    unknown: { bg: "bg-gray-100", text: "text-gray-700", icon: "⚪️" },
+    high: { bg: "bg-emerald-100", text: "text-emerald-700", dot: "text-emerald-600" },
+    medium: { bg: "bg-amber-100", text: "text-amber-700", dot: "text-amber-600" },
+    low: { bg: "bg-rose-100", text: "text-rose-700", dot: "text-rose-600" },
+    unknown: { bg: "bg-gray-100", text: "text-gray-700", dot: "text-gray-500" },
   };
   const tone = map[label?.toLowerCase()] ?? map.unknown;
   return (
     <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${tone.bg} ${tone.text}`}>
-      <span aria-hidden="true" className="leading-none">
-        {tone.icon}
-      </span>
+      <StatusDotIcon className={`h-2.5 w-2.5 ${tone.dot}`} />
       <span>{label || "Unknown"} confidence</span>
     </span>
   );
@@ -999,12 +1174,13 @@ function InterpretationCard({
   awayTeam,
 }) {
   const homeLabel = homeTeam || "home team";
+  const iconClass = "mt-0.5 h-4 w-4 text-gray-500 flex-shrink-0";
   return (
     <div className="rounded-2xl border bg-white px-4 py-3">
       <h5 className="text-sm font-semibold text-gray-700">How to interpret</h5>
       <ul className="mt-2 space-y-2 text-sm text-gray-600">
         <li className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-0.5 text-base">📈</span>
+          <TrendUpIcon className={iconClass} />
           <span>
             {modelType === "xgb_simple"
               ? `Compact model pegs the home win chance at ${formatPercent(classifierProb)}.`
@@ -1013,32 +1189,32 @@ function InterpretationCard({
         </li>
         {typeof marginProb === "number" ? (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">📉</span>
+            <TrendDownIcon className={iconClass} />
             <span>
               Margin model translates {formatMargin(marginValue, marginSigma)} into {formatPercent(marginProb)} home win probability.
             </span>
           </li>
         ) : modelType === "xgb_simple" ? (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">📉</span>
+            <TrendDownIcon className={iconClass} />
             <span>The compact model does not provide a margin projection—focus on the probability and key drivers.</span>
           </li>
         ) : null}
         {leadDriver && (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">🧭</span>
+            <CompassIcon className={iconClass} />
             <span>
               Lead driver: <span className="font-medium">{leadDriver.label}</span> — {leadDriver.summary}
             </span>
           </li>
         )}
         <li className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-0.5 text-base">🛡️</span>
+          <ShieldIcon className={iconClass} />
           <span>Confidence drivers: {confidence.detail}.</span>
         </li>
         {confidence.interval && (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">🎯</span>
+            <TargetIcon className={iconClass} />
             <span>
               Calibrated 68% interval: {formatPercent(confidence.interval.lower_68)}–{formatPercent(confidence.interval.upper_68)} (based on {confidence.interval.count ?? 0} validation games).
             </span>

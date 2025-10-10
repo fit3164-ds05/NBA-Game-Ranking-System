@@ -45,7 +45,7 @@ export default function HistoricalRanking() {
     let active = true;
     async function run() {
       try {
-        const list = await getTeams();
+        const { teams: list } = await getTeams();
         if (!active) return;
         setTeams(list);
       } catch (e) {

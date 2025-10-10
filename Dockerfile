@@ -11,23 +11,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
     && rm -rf /var/lib/apt/lists/*
 
 # Install backend dependencies first (better build cache)
-COPY backend/requirements.txt /app/requirements.txt
-RUN python -m pip install --no-cache-dir -r /app/requirements.txt \
+COPY backend/requirements.txt /app/backend_requirements.txt
+RUN python -m pip install --no-cache-dir -r /app/backend_requirements.txt \
  && python -m pip show gunicorn || true
 
-# Copy backend code into /app
-COPY backend/ /app/
+# Copy backend code, preserving directory structure expected by imports
+COPY backend /app/backend
 
 # Ensure data exists; fail clearly if ratings CSV is missing
-RUN mkdir -p /app/data \
+RUN mkdir -p /app/backend/data \
  && echo "DEBUG: Listing /app" && ls -la /app || true \
- && echo "DEBUG: Listing /app/data" && ls -la /app/data || true \
+ && echo "DEBUG: Listing /app/backend/data" && ls -la /app/backend/data || true \
  && (\
-      test -f /app/data/full_ratings.parquet \
-   || test -f /app/data/full_ratings.feather \
-   || test -f /app/data/full_ratings.csv \
+      test -f /app/backend/data/full_ratings.parquet \
+   || test -f /app/backend/data/full_ratings.feather \
+   || test -f /app/backend/data/full_ratings.csv \
    || (echo "ERROR: Missing ratings data. Provide one of: full_ratings.parquet, full_ratings.feather, or full_ratings.csv in backend/data" && exit 1)\
     )
+
+WORKDIR /app/backend
 
 EXPOSE 5055
 
