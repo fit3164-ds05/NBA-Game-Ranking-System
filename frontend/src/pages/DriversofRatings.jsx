@@ -1,11 +1,11 @@
 import DashboardSwitcher from "../components/DashboardSwitcher";
 import FloatingCard from "../components/FloatingCard";
 
-export default function Dashboardfeature2() {
+export default function DriversofRatings() {
   return (
     <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
       <DashboardSwitcher
-        title="Team trajectories without the clutter"
+        title="The forces behind team ratings and wins"
         description="Glide across efficiencies, lineup stability, and schedule swings with a calm, analytical lens."
       />
 

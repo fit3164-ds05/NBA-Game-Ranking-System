@@ -5,8 +5,8 @@ export default function Dashboardfeature3() {
   return (
     <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
       <DashboardSwitcher
-        title="Player-level clarity at a glance"
-        description="Drop into usage spikes, shot efficiency contours, and matchup heatmaps rendered with a calm, minimal feel."
+        title="League Trends"
+        description="League Trends"
       />
 
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
