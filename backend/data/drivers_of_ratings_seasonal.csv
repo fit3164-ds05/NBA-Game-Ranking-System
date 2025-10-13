@@ -1,0 +1,175 @@
+SEASON,Metric,Correlation,Name,Description
+1996/97,ADV_NETRTG,0.3982402093818012,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+1997/98,ADV_NETRTG,0.3831671718096309,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+1998/99,ADV_NETRTG,0.31940505419702764,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+1999/00,ADV_NETRTG,0.34599832004015474,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2000/01,ADV_NETRTG,0.35322135129519333,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2001/02,ADV_NETRTG,0.3190886485533622,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2002/03,ADV_NETRTG,0.32112944426180684,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2003/04,ADV_NETRTG,0.3283255067807825,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2004/05,ADV_NETRTG,0.32723998767463147,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2005/06,ADV_NETRTG,0.3069590590709209,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2006/07,ADV_NETRTG,0.3140596352570632,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2007/08,ADV_NETRTG,0.36551398815254893,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2008/09,ADV_NETRTG,0.3476597925229039,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2009/10,ADV_NETRTG,0.3470135685874648,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2010/11,ADV_NETRTG,0.35135384623813004,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2011/12,ADV_NETRTG,0.34731168558972464,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2012/13,ADV_NETRTG,0.34386152096419315,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2013/14,ADV_NETRTG,0.34981544648290874,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2014/15,ADV_NETRTG,0.3430086035607253,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2015/16,ADV_NETRTG,0.35503454609365787,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2016/17,ADV_NETRTG,0.32200901730192916,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2017/18,ADV_NETRTG,0.32886885939819294,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2018/19,ADV_NETRTG,0.3364787231911308,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2019/20,ADV_NETRTG,0.32716546579281014,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2020/21,ADV_NETRTG,0.3096166426260325,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2021/22,ADV_NETRTG,0.32106034286163754,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2022/23,ADV_NETRTG,0.3031809814614704,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2023/24,ADV_NETRTG,0.35604246781825266,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+2024/25,ADV_NETRTG,0.36867728036815756,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+1996/97,ADV_OFFRTG,0.23900235208314924,Offensive Rating,Points scored per 100 possessions
+1997/98,ADV_OFFRTG,0.27704459152587957,Offensive Rating,Points scored per 100 possessions
+1998/99,ADV_OFFRTG,0.15083001900299342,Offensive Rating,Points scored per 100 possessions
+1999/00,ADV_OFFRTG,0.2252247783878137,Offensive Rating,Points scored per 100 possessions
+2000/01,ADV_OFFRTG,0.24993186432058107,Offensive Rating,Points scored per 100 possessions
+2001/02,ADV_OFFRTG,0.2528267222808498,Offensive Rating,Points scored per 100 possessions
+2002/03,ADV_OFFRTG,0.24764082127751397,Offensive Rating,Points scored per 100 possessions
+2003/04,ADV_OFFRTG,0.19575087764438015,Offensive Rating,Points scored per 100 possessions
+2004/05,ADV_OFFRTG,0.2566838488778153,Offensive Rating,Points scored per 100 possessions
+2005/06,ADV_OFFRTG,0.18134734380919584,Offensive Rating,Points scored per 100 possessions
+2006/07,ADV_OFFRTG,0.188962611109129,Offensive Rating,Points scored per 100 possessions
+2007/08,ADV_OFFRTG,0.25613338832250115,Offensive Rating,Points scored per 100 possessions
+2008/09,ADV_OFFRTG,0.2202402993523978,Offensive Rating,Points scored per 100 possessions
+2009/10,ADV_OFFRTG,0.25020372100436533,Offensive Rating,Points scored per 100 possessions
+2010/11,ADV_OFFRTG,0.215487125802381,Offensive Rating,Points scored per 100 possessions
+2011/12,ADV_OFFRTG,0.2362148940437136,Offensive Rating,Points scored per 100 possessions
+2012/13,ADV_OFFRTG,0.23544033063601955,Offensive Rating,Points scored per 100 possessions
+2013/14,ADV_OFFRTG,0.25477055395665704,Offensive Rating,Points scored per 100 possessions
+2014/15,ADV_OFFRTG,0.2721881339070782,Offensive Rating,Points scored per 100 possessions
+2015/16,ADV_OFFRTG,0.26726957499136333,Offensive Rating,Points scored per 100 possessions
+2016/17,ADV_OFFRTG,0.2657207283477705,Offensive Rating,Points scored per 100 possessions
+2017/18,ADV_OFFRTG,0.2508851825243175,Offensive Rating,Points scored per 100 possessions
+2018/19,ADV_OFFRTG,0.25390904770218536,Offensive Rating,Points scored per 100 possessions
+2019/20,ADV_OFFRTG,0.18753200164425937,Offensive Rating,Points scored per 100 possessions
+2020/21,ADV_OFFRTG,0.261237562750404,Offensive Rating,Points scored per 100 possessions
+2021/22,ADV_OFFRTG,0.24234432585451798,Offensive Rating,Points scored per 100 possessions
+2022/23,ADV_OFFRTG,0.18369561722033156,Offensive Rating,Points scored per 100 possessions
+2023/24,ADV_OFFRTG,0.2745853828080048,Offensive Rating,Points scored per 100 possessions
+2024/25,ADV_OFFRTG,0.2890214634256448,Offensive Rating,Points scored per 100 possessions
+1996/97,TRAD_PTS,0.11761699498578561,Points,Number of points scored
+1997/98,TRAD_PTS,0.16701161113935764,Points,Number of points scored
+1998/99,TRAD_PTS,0.03707654296143361,Points,Number of points scored
+1999/00,TRAD_PTS,0.14558091884123117,Points,Number of points scored
+2000/01,TRAD_PTS,0.20057694539322787,Points,Number of points scored
+2001/02,TRAD_PTS,0.2527588561665272,Points,Number of points scored
+2002/03,TRAD_PTS,0.22685120676837928,Points,Number of points scored
+2003/04,TRAD_PTS,0.13359215506205124,Points,Number of points scored
+2004/05,TRAD_PTS,0.19296481070582988,Points,Number of points scored
+2005/06,TRAD_PTS,0.11345620544983555,Points,Number of points scored
+2006/07,TRAD_PTS,0.12126726755338213,Points,Number of points scored
+2007/08,TRAD_PTS,0.16582582123155512,Points,Number of points scored
+2008/09,TRAD_PTS,0.11303369261581234,Points,Number of points scored
+2009/10,TRAD_PTS,0.15462265961255245,Points,Number of points scored
+2010/11,TRAD_PTS,0.10061679141246974,Points,Number of points scored
+2011/12,TRAD_PTS,0.2236274356559309,Points,Number of points scored
+2012/13,TRAD_PTS,0.2088705461724619,Points,Number of points scored
+2013/14,TRAD_PTS,0.2040713653187654,Points,Number of points scored
+2014/15,TRAD_PTS,0.2792932980197093,Points,Number of points scored
+2015/16,TRAD_PTS,0.2304877805574391,Points,Number of points scored
+2016/17,TRAD_PTS,0.2190356708521245,Points,Number of points scored
+2017/18,TRAD_PTS,0.2078202419662296,Points,Number of points scored
+2018/19,TRAD_PTS,0.22844174164640066,Points,Number of points scored
+2019/20,TRAD_PTS,0.1698088127012711,Points,Number of points scored
+2020/21,TRAD_PTS,0.17947960702718735,Points,Number of points scored
+2021/22,TRAD_PTS,0.17965321942251988,Points,Number of points scored
+2022/23,TRAD_PTS,0.1150229528766238,Points,Number of points scored
+2023/24,TRAD_PTS,0.17432803996884855,Points,Number of points scored
+2024/25,TRAD_PTS,0.23921097421814216,Points,Number of points scored
+1996/97,ADV_AST_TO,0.17317298561445746,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+1997/98,ADV_AST_TO,0.19650251858355092,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+1998/99,ADV_AST_TO,0.13041876298013474,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+1999/00,ADV_AST_TO,0.20075480413415359,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2000/01,ADV_AST_TO,0.15719743314018972,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2001/02,ADV_AST_TO,0.15078352997221314,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2002/03,ADV_AST_TO,0.20027138971547412,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2003/04,ADV_AST_TO,0.2316280571961647,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2004/05,ADV_AST_TO,0.11090039117809593,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2005/06,ADV_AST_TO,0.18303216409583864,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2006/07,ADV_AST_TO,0.17185056837983478,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2007/08,ADV_AST_TO,0.22856715165793487,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2008/09,ADV_AST_TO,0.13603479137998212,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2009/10,ADV_AST_TO,0.15213515359750385,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2010/11,ADV_AST_TO,0.13042967196498992,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2011/12,ADV_AST_TO,0.10582540740978022,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2012/13,ADV_AST_TO,0.09103113630105611,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2013/14,ADV_AST_TO,0.10201889696846929,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2014/15,ADV_AST_TO,0.17097469545018548,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2015/16,ADV_AST_TO,0.16273797199391293,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2016/17,ADV_AST_TO,0.1655835988631937,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2017/18,ADV_AST_TO,0.10914861918969206,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2018/19,ADV_AST_TO,0.139528855305337,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2019/20,ADV_AST_TO,0.05250880629014326,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2020/21,ADV_AST_TO,0.1101301294389412,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2021/22,ADV_AST_TO,0.13038276177816482,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2022/23,ADV_AST_TO,0.13046859986132306,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2023/24,ADV_AST_TO,0.1478418076448791,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+2024/25,ADV_AST_TO,0.18061789293450425,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+1996/97,ADV_AST_RATIO,0.18577780164329435,Assist Ratio,Number of assists per 100 possessions
+1997/98,ADV_AST_RATIO,0.23262739379504543,Assist Ratio,Number of assists per 100 possessions
+1998/99,ADV_AST_RATIO,0.20919517417918226,Assist Ratio,Number of assists per 100 possessions
+1999/00,ADV_AST_RATIO,0.2136627406701536,Assist Ratio,Number of assists per 100 possessions
+2000/01,ADV_AST_RATIO,0.1566291460829841,Assist Ratio,Number of assists per 100 possessions
+2001/02,ADV_AST_RATIO,0.07762749741618774,Assist Ratio,Number of assists per 100 possessions
+2002/03,ADV_AST_RATIO,0.14346176588289986,Assist Ratio,Number of assists per 100 possessions
+2003/04,ADV_AST_RATIO,0.23345113053531116,Assist Ratio,Number of assists per 100 possessions
+2004/05,ADV_AST_RATIO,0.05439047629421312,Assist Ratio,Number of assists per 100 possessions
+2005/06,ADV_AST_RATIO,0.15330708848958843,Assist Ratio,Number of assists per 100 possessions
+2006/07,ADV_AST_RATIO,0.14329417365544736,Assist Ratio,Number of assists per 100 possessions
+2007/08,ADV_AST_RATIO,0.19057484646127057,Assist Ratio,Number of assists per 100 possessions
+2008/09,ADV_AST_RATIO,0.13283938054897707,Assist Ratio,Number of assists per 100 possessions
+2009/10,ADV_AST_RATIO,0.14476494080220614,Assist Ratio,Number of assists per 100 possessions
+2010/11,ADV_AST_RATIO,0.14646575249893057,Assist Ratio,Number of assists per 100 possessions
+2011/12,ADV_AST_RATIO,0.09794452933669531,Assist Ratio,Number of assists per 100 possessions
+2012/13,ADV_AST_RATIO,0.12056360937235029,Assist Ratio,Number of assists per 100 possessions
+2013/14,ADV_AST_RATIO,0.14252443789906846,Assist Ratio,Number of assists per 100 possessions
+2014/15,ADV_AST_RATIO,0.18692335308421337,Assist Ratio,Number of assists per 100 possessions
+2015/16,ADV_AST_RATIO,0.1787997208542886,Assist Ratio,Number of assists per 100 possessions
+2016/17,ADV_AST_RATIO,0.194609765711009,Assist Ratio,Number of assists per 100 possessions
+2017/18,ADV_AST_RATIO,0.1149559615853949,Assist Ratio,Number of assists per 100 possessions
+2018/19,ADV_AST_RATIO,0.17348303843786758,Assist Ratio,Number of assists per 100 possessions
+2019/20,ADV_AST_RATIO,0.03675327643160708,Assist Ratio,Number of assists per 100 possessions
+2020/21,ADV_AST_RATIO,0.04639033660386057,Assist Ratio,Number of assists per 100 possessions
+2021/22,ADV_AST_RATIO,0.13268911223145402,Assist Ratio,Number of assists per 100 possessions
+2022/23,ADV_AST_RATIO,0.15762733784936664,Assist Ratio,Number of assists per 100 possessions
+2023/24,ADV_AST_RATIO,0.09758106481619863,Assist Ratio,Number of assists per 100 possessions
+2024/25,ADV_AST_RATIO,0.07196057009375162,Assist Ratio,Number of assists per 100 possessions
+1996/97,ADV_TS_PCT,0.39982026052327,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+1997/98,ADV_TS_PCT,0.3993418495885806,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+1998/99,ADV_TS_PCT,0.4102709707174573,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+1999/00,ADV_TS_PCT,0.40012184304824616,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2000/01,ADV_TS_PCT,0.22707722339323858,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2001/02,ADV_TS_PCT,0.21078808877917185,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2002/03,ADV_TS_PCT,0.21628014781453375,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2003/04,ADV_TS_PCT,0.16550531653122275,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2004/05,ADV_TS_PCT,0.22138626831307434,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2005/06,ADV_TS_PCT,0.14616346807217048,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2006/07,ADV_TS_PCT,0.14595692098405247,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2007/08,ADV_TS_PCT,0.2111083661644501,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2008/09,ADV_TS_PCT,0.1963369369991928,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2009/10,ADV_TS_PCT,0.21637209722906173,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2010/11,ADV_TS_PCT,0.22596154116845363,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2011/12,ADV_TS_PCT,0.2295949666534878,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2012/13,ADV_TS_PCT,0.27044170370035814,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2013/14,ADV_TS_PCT,0.27616748264523217,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2014/15,ADV_TS_PCT,0.2576434812797643,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2015/16,ADV_TS_PCT,0.23578747277751502,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2016/17,ADV_TS_PCT,0.23015779658046662,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2017/18,ADV_TS_PCT,0.2428465707991894,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2018/19,ADV_TS_PCT,0.206413039817576,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2019/20,ADV_TS_PCT,0.18622467262645317,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2020/21,ADV_TS_PCT,0.2268946609845575,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2021/22,ADV_TS_PCT,0.22429272280265938,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2022/23,ADV_TS_PCT,0.16793395445829265,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2023/24,ADV_TS_PCT,0.23191068416558933,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+2024/25,ADV_TS_PCT,0.2204025904873154,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
