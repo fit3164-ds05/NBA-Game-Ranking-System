@@ -48,6 +48,7 @@ Datasets_Analysis/
 backend/data/qa
 *.parquet
 *.feather
+!backend/data/full_ratings.parquet
 
 
 # Test temporary CSVs
