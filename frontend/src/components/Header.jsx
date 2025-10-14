@@ -1,11 +1,20 @@
 import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 
 export default function Header({title}){
     const baseStyles = "px-4 py-2 rounded-full transition-colors duration-200";
     const activeStyles = "bg-gray-800 text-white"; // dark when active
     const inactiveStyles = "bg-amber-600 text-gray-800 hover:bg-amber-500"; // when inactive
 
+    const location = useLocation();
+    const normalizedPath = location.pathname.toLowerCase();
+    const statisticsPaths = [
+        "/dashboardhome",
+        "/dashboardshotchart",
+        "/driversofratings",
+        "/leaguetrends"
+    ];
+    const isStatisticsActive = statisticsPaths.includes(normalizedPath);
 
 
         return (
@@ -16,7 +25,14 @@ export default function Header({title}){
 >
 
       <h1 className="text-2xl font-bold text-gray-800">
-        <Link to="/">NBA DATA DRIBBLE</Link>
+        <Link to="/" className="flex items-center gap-3">
+          <img
+            src= "/public/Data-Dribble-Logo-no-bg.png"
+            alt="NBA Data Dribble Logo"
+            className="h-10 w-10"
+          />
+          <span>NBA DATA DRIBBLE</span>
+        </Link>
       </h1>
 
       <nav className="space-x-4">
@@ -26,8 +42,8 @@ export default function Header({title}){
         >Historical Ratings</NavLink>
 
         <NavLink to="/dashboardhome"
-        className={({isActive}) =>
-        `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
+        className={() =>
+        `${baseStyles} ${isStatisticsActive ? activeStyles : inactiveStyles}`}
         >Statistics Dashboard</NavLink>
 
         <NavLink to="/gameprediction"
@@ -35,15 +51,7 @@ export default function Header({title}){
         `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
         >Game Predictions</NavLink>
 
-        <NavLink to="/about"
-        className={({isActive}) =>
-        `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
-        >About</NavLink>
 
-        <NavLink to="/contact"
-        className={({isActive}) =>
-        `${baseStyles} ${isActive ? activeStyles : inactiveStyles}`}
-        >Contact</NavLink>
       </nav>
     </header>
   )
