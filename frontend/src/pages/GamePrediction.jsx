@@ -10,6 +10,7 @@ import RatingChart from "../components/RatingChart";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
 import { buildFactorNarrative } from "../utils/featureNarratives";
 
+
 // Simple reusable label component for form fields
 function FieldLabel({ children }) {
   return <span className="block text-sm font-medium text-gray-700 mb-1">{children}</span>;
@@ -364,7 +365,7 @@ export default function GamePrediction() {
           {/* Submit button */}
           <button
             type="submit"
-            className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60"
+            className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
             disabled={loading}
           >
             {loading ? "Predicting" : "Predict"}
@@ -1004,7 +1005,12 @@ function InterpretationCard({
       <h5 className="text-sm font-semibold text-gray-700">How to interpret</h5>
       <ul className="mt-2 space-y-2 text-sm text-gray-600">
         <li className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-0.5 text-base">📈</span>
+          <img
+            src="/chartline.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
           <span>
             {modelType === "xgb_simple"
               ? `Compact model pegs the home win chance at ${formatPercent(classifierProb)}.`
@@ -1013,27 +1019,47 @@ function InterpretationCard({
         </li>
         {typeof marginProb === "number" ? (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">📉</span>
+            <img
+            src="/chartlinedown.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
             <span>
               Margin model translates {formatMargin(marginValue, marginSigma)} into {formatPercent(marginProb)} home win probability.
             </span>
           </li>
         ) : modelType === "xgb_simple" ? (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">📉</span>
+            <img
+            src="/chartlinedown.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
             <span>The compact model does not provide a margin projection—focus on the probability and key drivers.</span>
           </li>
         ) : null}
         {leadDriver && (
           <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-0.5 text-base">🧭</span>
+            <img
+            src="/clocklines.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
             <span>
               Lead driver: <span className="font-medium">{leadDriver.label}</span> — {leadDriver.summary}
             </span>
           </li>
         )}
         <li className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-0.5 text-base">🛡️</span>
+          <img
+            src="/shield.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
           <span>Confidence drivers: {confidence.detail}.</span>
         </li>
         {confidence.interval && (

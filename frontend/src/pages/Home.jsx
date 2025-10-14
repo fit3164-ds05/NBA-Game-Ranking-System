@@ -113,12 +113,11 @@ export default function Home() {
           </div>
       </section>
 
-      <img src="/Data-Dribble-Logo-no-bg.png" className="mt-30 h-30 w-30" alt="Data Dribble Logo" />
-
-
-      <footer className={`mt-5 px-2 text-center text-xs uppercase tracking-[0.35em] ${theme.outroText}`}>
+      <footer className={`mt-10 mb-0 text-center text-xs uppercase tracking-[0.35em] ${theme.outroText}`}>
         Crafted for hoop minds with an eye for detail
       </footer>
+
+      <img src="/Data-Dribble-Logo-no-bg.png" className="mt-10 h-30 w-30" alt="Data Dribble Logo" />
     </main>
   );
 }
