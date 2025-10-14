@@ -24,7 +24,7 @@ describe('RatingChart', () => {
     )
 
     // Heading present
-    expect(screen.getByText('Team Ratings Over Time')).toBeInTheDocument()
+    expect(screen.getByText('Seasonal Historical Ratings')).toBeInTheDocument()
 
     // Wait for data load to settle
     await waitFor(() => {
