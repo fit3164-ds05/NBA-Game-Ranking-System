@@ -83,7 +83,7 @@ export default function Home() {
 
       <section className="mt-24 w-full px-2 sm:px-6">
         <div className="space-y-16 bg-slate-50 p-10">
-          <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div className="space-y-6">
               <h2 className={`text-4xl font-semibold sm:text-5xl ${theme.highlightTitle}`}>
                 Flow from big-picture Rankings to precise shot charts in seconds.
@@ -103,9 +103,9 @@ export default function Home() {
                 tone="light"
                 className={featureBase}
                 padding="p-7"
-                title="Made for long sessions"
+                title="Made to answer age old questions"
                 titleSize="text-s"
-                body="Switch between light and dark instantly to match your environment and focus window."
+                body="Predict game outcomes of historical teams to see how they stack up against today's lineups."
                 bodySize="text-sm"
               />
             </div>
@@ -113,9 +113,11 @@ export default function Home() {
           </div>
       </section>
 
-      <footer className={`mt-20 px-2 text-center text-xs uppercase tracking-[0.35em] ${theme.outroText}`}>
+      <footer className={`mt-10 mb-0 text-center text-xs uppercase tracking-[0.35em] ${theme.outroText}`}>
         Crafted for hoop minds with an eye for detail
       </footer>
+
+      <img src="/Data-Dribble-Logo-no-bg.png" className="mt-10 h-30 w-30" alt="Data Dribble Logo" />
     </main>
   );
 }

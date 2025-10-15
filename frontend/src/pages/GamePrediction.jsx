@@ -541,7 +541,7 @@ export default function GamePrediction() {
           {/* Submit button */}
           <button
             type="submit"
-            className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60"
+            className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
             disabled={loading}
           >
             {loading ? "Predicting" : "Predict"}
@@ -1180,7 +1180,12 @@ function InterpretationCard({
       <h5 className="text-sm font-semibold text-gray-700">How to interpret</h5>
       <ul className="mt-2 space-y-2 text-sm text-gray-600">
         <li className="flex items-start gap-2">
-          <TrendUpIcon className={iconClass} />
+          <img
+            src="/chartline.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
           <span>
             {modelType === "xgb_simple"
               ? `Compact model pegs the home win chance at ${formatPercent(classifierProb)}.`
@@ -1189,27 +1194,47 @@ function InterpretationCard({
         </li>
         {typeof marginProb === "number" ? (
           <li className="flex items-start gap-2">
-            <TrendDownIcon className={iconClass} />
+            <img
+            src="/chartlinedown.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
             <span>
               Margin model translates {formatMargin(marginValue, marginSigma)} into {formatPercent(marginProb)} home win probability.
             </span>
           </li>
         ) : modelType === "xgb_simple" ? (
           <li className="flex items-start gap-2">
-            <TrendDownIcon className={iconClass} />
+            <img
+            src="/chartlinedown.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
             <span>The compact model does not provide a margin projection—focus on the probability and key drivers.</span>
           </li>
         ) : null}
         {leadDriver && (
           <li className="flex items-start gap-2">
-            <CompassIcon className={iconClass} />
+            <img
+            src="/clocklines.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
             <span>
               Lead driver: <span className="font-medium">{leadDriver.label}</span> — {leadDriver.summary}
             </span>
           </li>
         )}
         <li className="flex items-start gap-2">
-          <ShieldIcon className={iconClass} />
+          <img
+            src="/shield.svg"
+            alt=""
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5"
+          />
           <span>Confidence drivers: {confidence.detail}.</span>
         </li>
         {confidence.interval && (

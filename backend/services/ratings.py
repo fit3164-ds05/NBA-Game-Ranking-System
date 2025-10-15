@@ -109,10 +109,6 @@ def seasons_for_team(team: str) -> List[int]:
     if allowed:
         allowed_set = set(int(y) for y in allowed)
         vals = [year for year in vals if year in allowed_set]
-        if not vals:
-            vals = list(allowed_set)
-    if not vals and allowed:
-        vals = list(set(int(y) for y in allowed))
     return sorted(vals, reverse=True)
 
 def latest_rating_in_season(team: str, year: int) -> Optional[float]:

@@ -2,6 +2,8 @@
 
 A modular, data-driven engine for producing up-to-date NBA team rankings and head-to-head predictions. This project combines classical rating methods (Elo / Glicko), Bayesian uncertainty modelling (TrueSkill2 / Bradley–Terry), machine-learning “learning-to-rank” algorithms (XGBoost / LambdaMART) and graph-based strength-of-schedule metrics. You can deploy it as a free proof-of-concept or on a low-cost VPS for continuous use.
 
+This tool calculates the historical ratings for each NBA team using the Elo rating system.
+
 ---
 
 ## Fast Data Files (Parquet/Arrow)
