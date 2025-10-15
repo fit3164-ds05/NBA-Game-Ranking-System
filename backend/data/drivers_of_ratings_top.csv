@@ -1,0 +1,7 @@
+Metric,Correlation,Name,Description
+ADV_NETRTG,0.33977802705429283,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+ADV_TS_PCT,0.24245857946795923,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+ADV_OFFRTG,0.225873273047874,Offensive Rating,Points scored per 100 possessions
+FF_EFG_PCT,0.19210319868713346,Effective Field Goal Percentage,Field goal percentage adjusting for made 3-point field goals being 1.5 times more valuable than made 2-point field goals
+TRAD_FG_PCT,0.17371086708062108,Field Goal Percentage,The percentage of field goal attempts a team makes
+TRAD_PTS,0.15364021890388907,Points,Number of points scored
