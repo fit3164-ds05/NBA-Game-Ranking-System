@@ -1,7 +1,0 @@
-Metric,Correlation,Name,Description
-ADV_NETRTG,0.3397780270542929,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
-ADV_OFFRTG,0.22587327304787402,Offensive Rating,Points scored per 100 possessions
-TRAD_PTS,0.1536402189038889,Points,Number of points scored
-ADV_AST_TO,0.14416958207147573,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
-ADV_AST_RATIO,0.14322691949837846,Assist Ratio,Number of assists per 100 possessions
-ADV_TS_PCT,0.13838270984105652,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
