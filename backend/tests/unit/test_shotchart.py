@@ -187,6 +187,7 @@ def test_get_player_shotchart_trims_payload(monkeypatch):
     assert captured["player_id"] == 23
     assert captured["team_id"] == 1610612747
     assert captured["season_nullable"] == "2024-25"
+    assert captured["season_type_all_star"] == "Regular Season"
 
 
 def test_get_player_shotchart_invalid_measure(monkeypatch):
@@ -195,3 +196,22 @@ def test_get_player_shotchart_invalid_measure(monkeypatch):
 
     with pytest.raises(ValueError):
         shotchart.get_player_shotchart(1, "2024-25", measure="XYZ")
+
+
+def test_get_player_shotchart_defaults_all_teams(monkeypatch):
+    frame = pd.DataFrame({})
+    captured = _stub_shotchart_detail(monkeypatch, frame)
+
+    payload = shotchart.get_player_shotchart(42, "2023-24")
+    assert payload["teamId"] == 0
+    assert captured["team_id"] == 0
+    assert captured["season_type_all_star"] == "Regular Season"
+
+
+def test_get_player_shotchart_playoffs(monkeypatch):
+    frame = pd.DataFrame({})
+    captured = _stub_shotchart_detail(monkeypatch, frame)
+
+    shotchart.get_player_shotchart(7, "2023-24", team_id=1610612738, season_type="Playoffs")
+    assert captured["season_type_all_star"] == "Playoffs"
+    assert captured["team_id"] == 1610612738

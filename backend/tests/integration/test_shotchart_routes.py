@@ -71,7 +71,7 @@ def test_player_shots_valid_request(monkeypatch):
     monkeypatch.setattr(
         routes_mod,
         "get_player_shotchart",
-        lambda player_id, season, team_id=0, measure="FGA": {
+        lambda player_id, season, team_id=0, measure="FGA", season_type=None: {
             "playerId": player_id,
             "season": season,
             "teamId": team_id,
@@ -139,3 +139,36 @@ def test_player_shots_service_failure(monkeypatch):
     payload = res.get_json()
     assert payload["error"] == "Failed to load shot chart"
     assert payload["detail"] == "stats api offline"
+
+
+def test_player_shots_forwards_season_type(monkeypatch):
+    captured = {}
+
+    def _capture(player_id, season, team_id=0, measure="FGA", season_type=None):
+        captured.update(
+            {
+                "player_id": player_id,
+                "season": season,
+                "team_id": team_id,
+                "measure": measure,
+                "season_type": season_type,
+            }
+        )
+        return {"playerId": player_id, "season": season, "teamId": team_id, "measure": measure, "count": 0, "shots": []}
+
+    monkeypatch.setattr(routes_mod, "get_player_shotchart", _capture)
+
+    client = app.test_client()
+    res = client.get(
+        "/api/nba/players/8/shots",
+        query_string={
+            "season": "2023-24",
+            "season_type": "Playoffs",
+            "team_id": 1610612744,
+            "measure": "pts",
+        },
+    )
+    assert res.status_code == 200
+    assert captured["season_type"] == "Playoffs"
+    assert captured["measure"] == "PTS"
+    assert captured["team_id"] == 1610612744
