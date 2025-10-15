@@ -49,6 +49,8 @@ backend/data/qa
 *.parquet
 *.feather
 !backend/data/full_ratings.parquet
+!backend/data/ratings_elo.parquet
+!backend/data/ratings_elo.csv
 
 
 # Test temporary CSVs

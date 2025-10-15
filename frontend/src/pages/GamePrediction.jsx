@@ -468,9 +468,9 @@ export default function GamePrediction() {
     <div className="flex w-full flex-col gap-6 text-slate-900">
       {/* Page header */}
       <header className="mb-4">
-        <h1 className="text-2xl md:text-3xl font-semibold">Predict a game outcome</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold">Game Outcome Predictor</h1>
         <p className="text-gray-600 mt-2">
-          Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
+          This tool predicts the outcome of an imaginary game between two teams at any point in their history.
         </p>
       </header>
 
@@ -483,69 +483,76 @@ export default function GamePrediction() {
 
       {/* Main form */}
       <form onSubmit={onPredict} className="space-y-6">
-        {/* Team selectors */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <TeamSelectCard
-            title="Home"
-            teams={teams}
-            seasons={homeSeasons}
-            team={homeTeam}
-            season={homeSeason}
-            onTeam={(t) => {
-              setHomeTeam(t);
-              setHomeSeason(undefined);
-              setHomeSeasons([]);
-            }}
-            onSeason={onHomeSeasonChange}
-            disabledSeasonOptions={disabledHomeSeasons}
-            help="Home selection and season"
-          />
+        <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-4">
+          <p className="text-sm text-gray-600">
+            Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
+          </p>
 
-          <TeamSelectCard
-            title="Away"
-            teams={teams}
-            seasons={awaySeasons}
-            team={awayTeam}
-            season={awaySeason}
-            onTeam={(t) => {
-              setAwayTeam(t);
-              setAwaySeason(undefined);
-              setAwaySeasons([]);
-            }}
-            onSeason={onAwaySeasonChange}
-            disabledSeasonOptions={disabledAwaySeasons}
-            help="Away selection and season"
-          />
-        </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <TeamSelectCard
+              title="Home"
+              teams={teams}
+              seasons={homeSeasons}
+              team={homeTeam}
+              season={homeSeason}
+              onTeam={(t) => {
+                setHomeTeam(t);
+                setHomeSeason(undefined);
+                setHomeSeasons([]);
+              }}
+              onSeason={onHomeSeasonChange}
+              disabledSeasonOptions={disabledHomeSeasons}
+              help="Home selection and season"
+            />
 
-        {/* Actions row */}
-        <div className="bg-white border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-3 justify-between">
-          {/* Swap/reset buttons */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
-              onClick={swapTeams}
-            >
-              Swap teams
-            </button>
-            <button
-              type="button"
-              className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
-              onClick={resetAll}
-            >
-              Reset
-            </button>
+            <TeamSelectCard
+              title="Away"
+              teams={teams}
+              seasons={awaySeasons}
+              team={awayTeam}
+              season={awaySeason}
+              onTeam={(t) => {
+                setAwayTeam(t);
+                setAwaySeason(undefined);
+                setAwaySeasons([]);
+              }}
+              onSeason={onAwaySeasonChange}
+              disabledSeasonOptions={disabledAwaySeasons}
+              help="Away selection and season"
+            />
           </div>
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
-            disabled={loading}
-          >
-            {loading ? "Predicting" : "Predict"}
-          </button>
+          <div className="flex flex-col gap-3 md:grid md:grid-cols-3 md:items-center">
+            <div className="flex justify-center md:justify-start">
+              <button
+                type="button"
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
+                onClick={swapTeams}
+              >
+                Swap home and away teams
+              </button>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                type="submit"
+                className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
+                disabled={loading}
+              >
+                {loading ? "Predicting" : "Predict"}
+              </button>
+            </div>
+
+            <div className="flex justify-center md:justify-end">
+              <button
+                type="button"
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
+                onClick={resetAll}
+              >
+                Reset teams and seasons
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Error display */}
