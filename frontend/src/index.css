@@ -6,9 +6,3 @@ html, body, #root {
   height: 100%;
   width: 100%;
 }
-
-@theme {
-  --background-image-home-hero: url('/hero.jpg');
-  --background-image-home-nba: url('/NBA.jpg');
-  --background-image-home-steph: url('/steph.jpg')
-}

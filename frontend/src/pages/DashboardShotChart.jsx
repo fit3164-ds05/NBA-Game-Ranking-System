@@ -28,7 +28,7 @@ export default function DashboardShotChart() {
   return (
     <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
       <DashboardSwitcher
-        title="Shot charts tuned for quick reads"
+        title="Shot charts tuned for exploration"
         description="Select a player and season, then glide through the spatial story behind their scoring."
       />
 

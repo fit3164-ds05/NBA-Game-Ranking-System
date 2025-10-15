@@ -299,6 +299,10 @@ export default function RatingChart({
   }, [showSeasonDetail, selectedSeasonDetail, detailDataByYear]);
 
   const detailSeasonLabel = detailSeasonInfo?.label ?? "";
+  const detailHeading =
+    selectedSeasonDetail == null
+      ? "Game-by-Game rating will appear when a season is selected."
+      : `Game-by-Game Historical Ratings (Season ${detailSeasonLabel || "____/__"})`;
 
   const detailTeams = React.useMemo(() => {
     if (!showSeasonDetail || !detailSeasonInfo || !detailSeasonInfo.rows || !uniqueTeams) return [];
@@ -648,7 +652,7 @@ export default function RatingChart({
   return (
     <div className="space-y-6">
       <div className="bg-white border rounded-2xl p-4 shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">Team Ratings Over Time</h2>
+        <h2 className="text-lg font-semibold mb-4">Seasonal Historical Ratings</h2>
         {loading && <p>Loading rating data...</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
         {!loading && !error && data.length === 0 && (
@@ -741,17 +745,19 @@ export default function RatingChart({
             {showZoomControls && data.length > 1 && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Timeline focus</span>
+                  <span className="text-sm font-medium text-gray-600">
+                    Adjust the start and/or end points of the blue bar to select the range of seasons
+                  </span>
                   <button
                     type="button"
                     className="text-sm text-blue-600 hover:text-blue-500"
                     onClick={resetZoom}
                   >
-                    Reset view
+                    Reset season slider
                   </button>
                 </div>
                 <div className="relative">
-                  <ResponsiveContainer width="100%" height={60}>
+                  <ResponsiveContainer width="100%" height={100}>
                     <LineChart
                       data={data}
                       margin={{ top: 0, right: 16, left: 16, bottom: 0 }}
@@ -771,8 +777,8 @@ export default function RatingChart({
                         dataKey="date"
                         startIndex={brushRange[0]}
                         endIndex={brushRange[1]}
-                        height={20}
-                        travellerWidth={10}
+                        height={70}
+                        travellerWidth={12}
                         stroke="#2563eb"
                         fill="rgba(37, 99, 235, 0.08)"
                         onChange={handleBrushChange}
@@ -780,7 +786,7 @@ export default function RatingChart({
                     </LineChart>
                   </ResponsiveContainer>
                   {zoomRange && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-4 text-[10px] font-medium text-gray-600">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-4 text-xs sm:text-sm font-semibold text-gray-700 transform -translate-y-8">
                       <span>{zoomRange.leftLabel}</span>
                       <span>{zoomRange.rightLabel}</span>
                     </div>
@@ -795,7 +801,7 @@ export default function RatingChart({
       {showSeasonDetail && (
         <div className="bg-white border rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Season Detail View</h3>
+            <h3 className="text-lg font-semibold">{detailHeading}</h3>
             <div className="flex items-center gap-2">
               <label htmlFor="season-detail-select" className="text-sm font-medium text-gray-600">
                 Season view
@@ -805,11 +811,17 @@ export default function RatingChart({
                 className="border rounded-md px-2 py-1 text-sm"
                 value={selectedSeasonDetail != null ? String(selectedSeasonDetail) : ""}
                 onChange={(event) => {
-                  const next = Number(event.target.value);
+                  const { value } = event.target;
+                  if (value === "") {
+                    setSelectedSeasonDetail(null);
+                    return;
+                  }
+                  const next = Number(value);
                   setSelectedSeasonDetail(Number.isNaN(next) ? null : next);
                 }}
                 disabled={seasonOptions.length === 0}
               >
+                <option value="">Select Season</option>
                 {seasonOptions.map(({ startYear, label }) => (
                   <option key={startYear} value={String(startYear)}>
                     {label}
@@ -822,6 +834,13 @@ export default function RatingChart({
             <p>Loading rating data...</p>
           ) : error ? (
             <p className="text-red-600">Error: {error}</p>
+          ) : selectedSeasonDetail == null ? (
+            <div className="space-y-1">
+
+              <p className="text-xs text-gray-500">
+                Please select a season from the Season View dropdown.
+              </p>
+            </div>
           ) : detailData.length === 0 ? (
             <p>No detailed rating data available for the selected season.</p>
           ) : (
