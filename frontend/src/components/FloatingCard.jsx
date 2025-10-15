@@ -10,6 +10,7 @@ export default function FloatingCard({
   body,
   bodySize = "text-sm",
   bodyClassName,
+  bodyAfterChildren = false,
   tone = "light",
   padding = "p-6",
   className = "",
@@ -48,18 +49,34 @@ export default function FloatingCard({
       .filter(Boolean)
       .join(" ");
 
+  const bodyMarginClass = bodyAfterChildren
+    ? children
+      ? "mt-4"
+      : title
+        ? "mt-4"
+        : ""
+    : title
+      ? "mt-2"
+      : "";
+
+  const bodyElement =
+    body
+      ? <p className={[computedBodyClass, bodyMarginClass].filter(Boolean).join(" ")}>{body}</p>
+      : null;
+
   const computedChildrenWrapper =
-    childrenClassName ?? (body || title ? "mt-6" : "mt-4");
+    childrenClassName ?? ((title || (!bodyAfterChildren && body)) ? "mt-6" : "mt-4");
 
   return (
     <div className={rootClassName}>
       {title ? <h2 className={computedTitleClass}>{title}</h2> : null}
-      {body ? <p className={`${computedBodyClass} ${title ? "mt-2" : ""}`}>{body}</p> : null}
+      {!bodyAfterChildren ? bodyElement : null}
       {children
         ? wrapChildren
           ? <div className={computedChildrenWrapper}>{children}</div>
           : children
         : null}
+      {bodyAfterChildren ? bodyElement : null}
     </div>
   );
 }
