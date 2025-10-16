@@ -346,7 +346,7 @@ export default function ShotChartD3({
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
-    padding: "64px 0 24px",
+    paddingBottom: "24px",
     boxSizing: "border-box",
   };
 
@@ -357,6 +357,7 @@ export default function ShotChartD3({
     alignItems: "flex-start",
     width: "100%",
     overflow: "visible",
+    marginTop: "24px",
   };
 
   return (
