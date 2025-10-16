@@ -5,12 +5,82 @@ import PlayerSeasonPicker from "../components/PlayerSeasonPicker";
 import ShotChartD3 from "../components/ShotChartD3";
 import { computeShotSummary, formatPct } from "../lib/shotSummary";
 
+const PERIOD_COLORS = [
+  "#075985",
+  "#0ea5e9",
+  "#22d3ee",
+  "#0f766e",
+  "#34d399",
+  "#f97316",
+  "#facc15",
+  "#a855f7",
+  "#f472b6",
+];
+
 export default function DashboardShotChart() {
   const [selection, setSelection] = useState(null); // { player, season, shots }
 
   const shotPayload = selection?.shots;
   const chartShots = shotPayload?.shots ?? [];
   const summary = useMemo(() => computeShotSummary(chartShots), [chartShots]);
+  const periodBreakdown = useMemo(() => {
+    if (!Array.isArray(chartShots) || chartShots.length === 0) return [];
+
+    const totals = new Map();
+
+    chartShots.forEach((shot) => {
+      const rawPeriod = shot?.period ?? shot?.PERIOD;
+      const periodNumber = Number(rawPeriod);
+      const key =
+        Number.isFinite(periodNumber) && periodNumber > 0 ? periodNumber : "unknown";
+
+      const madeFlag =
+        shot?.made ??
+        shot?.SHOT_MADE_FLAG ??
+        shot?.shot_made_flag ??
+        shot?.SHOT_MADE ??
+        shot?.made_flag;
+
+      const entry = totals.get(key) ?? { attempts: 0, makes: 0 };
+      entry.attempts += 1;
+      if (Number(madeFlag) === 1) entry.makes += 1;
+      totals.set(key, entry);
+    });
+
+    const formatLabel = (key) => {
+      if (key === "unknown") return "Unknown";
+      if (key <= 4) return `Q${key}`;
+      const otIndex = key - 4;
+      return otIndex === 1 ? "OT" : `OT${otIndex}`;
+    };
+
+    const sorted = Array.from(totals.entries()).sort((a, b) => {
+      const [keyA] = a;
+      const [keyB] = b;
+      if (keyA === "unknown") return 1;
+      if (keyB === "unknown") return -1;
+      return keyA - keyB;
+    });
+
+    return sorted.map(([key, stats]) => {
+      const attempts = stats.attempts;
+      const makes = stats.makes;
+      const fgPct = attempts > 0 ? makes / attempts : null;
+      const ratio = attempts / chartShots.length;
+      return {
+        key,
+        label: formatLabel(key),
+        attempts,
+        makes,
+        fgPct,
+        ratio,
+      };
+    });
+  }, [chartShots]);
+  const totalPeriodMakes = useMemo(
+    () => periodBreakdown.reduce((sum, period) => sum + period.makes, 0),
+    [periodBreakdown],
+  );
 
   const summaryItems = [
     { label: "Player", value: selection?.player?.name ?? "-" },
@@ -32,7 +102,7 @@ export default function DashboardShotChart() {
         description="Select a player and season, then glide through the spatial story behind their scoring."
       />
 
-        <FloatingCard
+      <FloatingCard
           tone="light"
           title="Player shot data"
           titleSize="text-lg"
@@ -148,18 +218,22 @@ export default function DashboardShotChart() {
 
           <FloatingCard
             tone="light"
-            className="lg:col-span-8 flex flex-col items-center"
+            className="lg:col-span-8 flex-col items-center"
             wrapChildren={false}
           >
             <div className="w-full max-w-4xl">
               {chartShots.length > 0 ? (
-                <div className="rounded-[26px] bg-white/90 p-4 shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
+                <div className="rounded-[10px] bg-white/90 px-4 pt-4 pb-4 shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
                   <ShotChartD3
                     data={chartShots}
                     coordSystem="nba"
                     width={720}
-                    className="rounded-[26px] bg-white"
+                    height={500}
+                    className="bg-white"
                     options={{
+                      legendOffsetY: 5,
+                      legendViewBoxPadding: 10,
+                      legendPaddingBottom: 10,
                       hexagonBinVisibleThreshold: 0,
                       hexagonRadiusThreshold: 0,
                     }}
@@ -175,19 +249,97 @@ export default function DashboardShotChart() {
         </section>
 
         {shotPayload && (
-          <FloatingCard tone="light" wrapChildren={false}>
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-900">
-                Raw payload
-                <span className="text-xs uppercase tracking-[0.3em] text-amber-500/80 transition-transform duration-200 group-open:rotate-90">
-                  ▶
-                </span>
-              </summary>
-              <pre className="mt-4 max-h-96 overflow-auto rounded-2xl bg-white px-4 py-3 text-xs text-slate-600 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
+          <>
+            {periodBreakdown.length > 0 ? (
+              <FloatingCard
+                tone="light"
+                title="Shot distribution by period"
+                titleSize="text-lg"
+                wrapChildren={false}
+              >
+                <div className="mt-4 space-y-5 text-sm text-slate-600">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
+                      <span>Quarter scoring completeness</span>
+                      <span>Total makes: {totalPeriodMakes || "0"}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {periodBreakdown.map((period, index) => {
+                        const color = PERIOD_COLORS[index % PERIOD_COLORS.length];
+                        const scoreRatio =
+                          totalPeriodMakes > 0
+                            ? period.makes / totalPeriodMakes
+                            : period.attempts / chartShots.length;
+                        const fillPercent = Math.min(100, Math.max(0, scoreRatio * 100));
+                        return (
+                          <div key={period.label}>
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                              <span className="flex items-center gap-2">
+                                <span
+                                  className="inline-block h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                  aria-hidden="true"
+                                />
+                                {period.label}
+                              </span>
+                              <span className="tabular-nums text-slate-600">
+                                {formatPct(scoreRatio)}
+                              </span>
+                            </div>
+                            <div className="relative mt-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${fillPercent}%`,
+                                  backgroundColor: color,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="overflow-hidden rounded border text-xs">
+                    <table className="min-w-full divide-y divide-slate-200 text-left">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Period</th>
+                          <th className="px-3 py-2 font-medium">Shots</th>
+                          <th className="px-3 py-2 font-medium">Makes</th>
+                          <th className="px-3 py-2 font-medium">FG%</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {periodBreakdown.map((period) => (
+                          <tr key={period.label}>
+                            <td className="px-3 py-2">{period.label}</td>
+                            <td className="px-3 py-2">{period.attempts}</td>
+                            <td className="px-3 py-2">{period.makes}</td>
+                            <td className="px-3 py-2">{formatPct(period.fgPct)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </FloatingCard>
+            ) : null}
+
+            <FloatingCard tone="light" wrapChildren={false}>
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-900">
+                  Raw payload
+                  <span className="text-xs uppercase tracking-[0.3em] text-amber-500/80 transition-transform duration-200 group-open:rotate-90">
+                    ▶
+                  </span>
+                </summary>
+                <pre className="mt-4 max-h-96 overflow-auto rounded-2xl bg-white px-4 py-3 text-xs text-slate-600 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
 {JSON.stringify(shotPayload, null, 2)}
-              </pre>
-            </details>
-          </FloatingCard>
+                </pre>
+              </details>
+            </FloatingCard>
+          </>
         )}
     </div>
   );

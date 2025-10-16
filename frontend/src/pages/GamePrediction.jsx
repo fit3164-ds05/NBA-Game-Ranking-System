@@ -10,6 +10,9 @@ import RatingChart from "../components/RatingChart";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
 import { buildFactorNarrative } from "../utils/featureNarratives";
 import FloatingCard from "../components/FloatingCard";
+import chartLineIcon from "../assets/chartline.svg";
+import chartLineDownIcon from "../assets/chartlinedown.svg";
+import clockLinesIcon from "../assets/clocklines.svg";
 
 function TrendUpIcon({ className = "", ...props }) {
   return (
@@ -464,7 +467,7 @@ export default function GamePrediction() {
       {/* Page header */}
       <FloatingCard
         title="Predict a game outcome"
-        body="Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ."
+        body="Choose teams and seasons to compare rankings and predict a winner over the seasons chosen. You can pick the same team on both sides as long as the seasons differ."
       />
 
       {/* Loading state for team list */}
@@ -1179,7 +1182,7 @@ function InterpretationCard({
       <ul className="mt-2 space-y-2 text-sm text-gray-600">
         <li className="flex items-start gap-2">
           <img
-            src="/chartline.svg"
+            src={chartLineIcon}
             alt=""
             aria-hidden="true"
             className="mt-0.5 h-5 w-5"
@@ -1193,7 +1196,7 @@ function InterpretationCard({
         {typeof marginProb === "number" ? (
           <li className="flex items-start gap-2">
             <img
-            src="/chartlinedown.svg"
+            src={chartLineDownIcon}
             alt=""
             aria-hidden="true"
             className="mt-0.5 h-5 w-5"
@@ -1205,7 +1208,7 @@ function InterpretationCard({
         ) : modelType === "xgb_simple" ? (
           <li className="flex items-start gap-2">
             <img
-            src="/chartlinedown.svg"
+            src={chartLineDownIcon}
             alt=""
             aria-hidden="true"
             className="mt-0.5 h-5 w-5"
@@ -1216,7 +1219,7 @@ function InterpretationCard({
         {leadDriver && (
           <li className="flex items-start gap-2">
             <img
-            src="/clocklines.svg"
+            src={clockLinesIcon}
             alt=""
             aria-hidden="true"
             className="mt-0.5 h-5 w-5"
@@ -1227,12 +1230,7 @@ function InterpretationCard({
           </li>
         )}
         <li className="flex items-start gap-2">
-          <img
-            src="/shield.svg"
-            alt=""
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5"
-          />
+          <ShieldIcon className="mt-0.5 h-5 w-5 text-gray-500" aria-hidden="true" />
           <span>Confidence drivers: {confidence.detail}.</span>
         </li>
         {confidence.interval && (

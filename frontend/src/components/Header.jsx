@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
+import logo from '../assets/Data-Dribble-Logo-no-bg.png';
 
 export default function Header({title}){
     const baseStyles = "px-4 py-2 rounded-full transition-colors duration-200";
@@ -27,7 +28,7 @@ export default function Header({title}){
       <h1 className="text-2xl font-bold text-gray-800">
         <Link to="/" className="flex items-center gap-3">
           <img
-            src= "/public/Data-Dribble-Logo-no-bg.png"
+            src= {logo}
             alt="NBA Data Dribble Logo"
             className="h-10 w-10"
           />

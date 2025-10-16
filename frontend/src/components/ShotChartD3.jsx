@@ -1,20 +1,70 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const COURT_WIDTH_FT = 50;
-const VISIBLE_HALF_COURT_FT = 47; // plugin uses ~47 ft of the 94 ft court
+const DEFAULT_COURT_LENGTH_HALF_FT = 47;
+const DEFAULT_THREE_POINT_RADIUS_FT = 23.75;
+const DEFAULT_BASKET_PROTRUSION_FT = 4;
+const DEFAULT_BASKET_DIAMETER_FT = 1.5;
+const NBA_UNITS_PER_FOOT = 10;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-function nbaToChartUnits(rawX, rawY) {
+function resolveGeometry(options) {
+  const courtWidthFt = Number(options?.courtWidth) || COURT_WIDTH_FT;
+  const courtLengthHalfFt =
+    options?.courtLength != null && Number.isFinite(Number(options.courtLength))
+      ? Number(options.courtLength) / 2
+      : DEFAULT_COURT_LENGTH_HALF_FT;
+  const threePointRadiusFt =
+    options?.threePointRadius != null && Number.isFinite(Number(options.threePointRadius))
+      ? Number(options.threePointRadius)
+      : DEFAULT_THREE_POINT_RADIUS_FT;
+  const basketProtrusionFt =
+    options?.basketProtrusionLength != null &&
+    Number.isFinite(Number(options.basketProtrusionLength))
+      ? Number(options.basketProtrusionLength)
+      : DEFAULT_BASKET_PROTRUSION_FT;
+  const basketDiameterFt =
+    options?.basketDiameter != null && Number.isFinite(Number(options.basketDiameter))
+      ? Number(options.basketDiameter)
+      : DEFAULT_BASKET_DIAMETER_FT;
+
+  const visibleCourtLengthFt =
+    threePointRadiusFt +
+    basketProtrusionFt +
+    (courtLengthHalfFt - (threePointRadiusFt + basketProtrusionFt)) / 2;
+
+  const hoopCenterY = visibleCourtLengthFt - (basketProtrusionFt + basketDiameterFt / 2);
+
+  return {
+    courtWidthFt,
+    visibleCourtLengthFt,
+    hoopCenterY,
+  };
+}
+
+const DEFAULT_GEOMETRY = resolveGeometry();
+
+function nbaToChartUnits(rawX, rawY, geometry = DEFAULT_GEOMETRY) {
   const x = Number(rawX);
   const y = Number(rawY);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  const chartX = clamp(((x + 250) / 500) * COURT_WIDTH_FT, 0, COURT_WIDTH_FT);
-  const chartY = clamp((y / 470) * VISIBLE_HALF_COURT_FT, 0, VISIBLE_HALF_COURT_FT);
+
+  const { courtWidthFt, visibleCourtLengthFt, hoopCenterY } = geometry;
+
+  const xFeet = x / NBA_UNITS_PER_FOOT;
+  const yFeetFromHoop = Math.abs(y) / NBA_UNITS_PER_FOOT;
+  const baselineOffset = visibleCourtLengthFt - hoopCenterY;
+
+  const chartX = clamp(courtWidthFt / 2 + xFeet, 0, courtWidthFt);
+  const chartY = clamp(baselineOffset + yFeetFromHoop, 0, visibleCourtLengthFt);
   return { x: chartX, y: chartY };
 }
 
-function normalizeShots(rows, coordSystem) {
+function normalizeShots(rows, coordSystem, geometryOptions) {
+  const geometry = resolveGeometry(geometryOptions);
+  const { courtWidthFt, visibleCourtLengthFt } = geometry;
+
   return (rows ?? [])
     .map((shot) => {
       let rawX = shot.x ?? shot.loc_x ?? shot.LOC_X;
@@ -29,14 +79,14 @@ function normalizeShots(rows, coordSystem) {
       if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
 
       if (coordSystem === "nba") {
-        const converted = nbaToChartUnits(x, y);
+        const converted = nbaToChartUnits(x, y, geometry);
         if (!converted) return null;
         x = converted.x;
         y = converted.y;
       }
 
-      x = clamp(x, 0, COURT_WIDTH_FT);
-      y = clamp(y, 0, VISIBLE_HALF_COURT_FT);
+      x = clamp(x, 0, courtWidthFt);
+      y = clamp(y, 0, visibleCourtLengthFt);
 
       return {
         x,
@@ -70,8 +120,8 @@ export default function ShotChartD3({
   }, [options, width, height]);
 
   const shots = useMemo(
-    () => normalizeShots(data, coordSystem),
-    [data, coordSystem],
+    () => normalizeShots(data, coordSystem, chartOptions),
+    [data, coordSystem, chartOptions],
   );
 
   useEffect(() => {
@@ -104,6 +154,10 @@ export default function ShotChartD3({
 
     try {
       const svg = d3.select(host).append("svg");
+      svg
+        .style("display", "block")
+        .style("margin", "0 auto")
+        .style("overflow", "visible");
       const chart = svg.chart("BasketballShotChart", chartOptions);
       chart.draw(shots);
 
@@ -289,11 +343,25 @@ export default function ShotChartD3({
   const containerStyle = {
     position: "relative",
     minHeight: "420px",
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    padding: "64px 0 24px",
+    boxSizing: "border-box",
+  };
+
+  const hostStyle = {
+    position: "relative",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    width: "100%",
+    overflow: "visible",
   };
 
   return (
     <div className={className} style={containerStyle}>
-      <div ref={containerRef} />
+      <div ref={containerRef} style={hostStyle} />
       {renderOverlay && (
         <div
           style={{
