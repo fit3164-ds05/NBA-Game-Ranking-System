@@ -288,7 +288,7 @@ def player_shots(player_id: int):
     season = request.args.get("season")
     if not season:
         return jsonify({"error": "Missing required query param: season"}), 400
-
+    season_type = request.args.get("season_type")
     team_id = request.args.get("team_id", default=0, type=int)
     measure = request.args.get("measure", default="FGA")
 
@@ -302,7 +302,13 @@ def player_shots(player_id: int):
         return jsonify({"error": f"Invalid measure '{measure}'. Allowed: {sorted(list(allowed_measures))}"}), 400
 
     try:
-        payload = get_player_shotchart(player_id, season, team_id=team_id, measure=measure)
+        payload = get_player_shotchart(
+            player_id,
+            season,
+            team_id=team_id,
+            measure=measure,
+            season_type=season_type,
+        )
         return jsonify(payload)
     except KeyError as ke:
         # If the services layer signalled a bad measure or missing key, surface it cleanly

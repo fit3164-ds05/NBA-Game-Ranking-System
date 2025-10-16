@@ -479,40 +479,44 @@ export default function GamePrediction() {
 
       {/* Main form */}
       <form onSubmit={onPredict} className="space-y-6">
-        {/* Team selectors */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <TeamSelectCard
-            title="Home"
-            teams={teams}
-            seasons={homeSeasons}
-            team={homeTeam}
-            season={homeSeason}
-            onTeam={(t) => {
-              setHomeTeam(t);
-              setHomeSeason(undefined);
-              setHomeSeasons([]);
-            }}
-            onSeason={onHomeSeasonChange}
-            disabledSeasonOptions={disabledHomeSeasons}
-            help="Home selection and season"
-          />
+        <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-4">
+          <p className="text-sm text-gray-600">
+            Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
+          </p>
 
-          <TeamSelectCard
-            title="Away"
-            teams={teams}
-            seasons={awaySeasons}
-            team={awayTeam}
-            season={awaySeason}
-            onTeam={(t) => {
-              setAwayTeam(t);
-              setAwaySeason(undefined);
-              setAwaySeasons([]);
-            }}
-            onSeason={onAwaySeasonChange}
-            disabledSeasonOptions={disabledAwaySeasons}
-            help="Away selection and season"
-          />
-        </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <TeamSelectCard
+              title="Home"
+              teams={teams}
+              seasons={homeSeasons}
+              team={homeTeam}
+              season={homeSeason}
+              onTeam={(t) => {
+                setHomeTeam(t);
+                setHomeSeason(undefined);
+                setHomeSeasons([]);
+              }}
+              onSeason={onHomeSeasonChange}
+              disabledSeasonOptions={disabledHomeSeasons}
+              help="Home selection and season"
+            />
+
+            <TeamSelectCard
+              title="Away"
+              teams={teams}
+              seasons={awaySeasons}
+              team={awayTeam}
+              season={awaySeason}
+              onTeam={(t) => {
+                setAwayTeam(t);
+                setAwaySeason(undefined);
+                setAwaySeasons([]);
+              }}
+              onSeason={onAwaySeasonChange}
+              disabledSeasonOptions={disabledAwaySeasons}
+              help="Away selection and season"
+            />
+          </div>
 
         {/* Actions row */}
         <FloatingCard
@@ -539,15 +543,27 @@ export default function GamePrediction() {
             </button>
           </div>
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
-            disabled={loading}
-          >
-            {loading ? "Predicting" : "Predict"}
-          </button>
-        </FloatingCard>
+            <div className="flex justify-center">
+              <button
+                type="submit"
+                className="rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
+                disabled={loading}
+              >
+                {loading ? "Predicting" : "Predict"}
+              </button>
+            </div>
+
+            <div className="flex justify-center md:justify-end">
+              <button
+                type="button"
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
+                onClick={resetAll}
+              >
+                Reset teams and seasons
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Error display */}
         {error && (

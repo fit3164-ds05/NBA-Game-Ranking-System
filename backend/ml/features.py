@@ -120,6 +120,37 @@ def load_team_metrics() -> pd.DataFrame:
     return df
 
 
+def _load_ratings_fallback(kind: str) -> pd.DataFrame:
+    """
+    Load alternate ratings when primary artifacts are unavailable.
+
+    Currently supports Elo via backend/data/team_ratings.csv so the XGBoost
+    pipeline can operate even if parquet dependencies are missing in prod.
+    """
+    if kind == "elo":
+        csv_path = Path("backend/data/team_ratings.csv")
+        if not csv_path.exists():
+            raise FileNotFoundError(
+                "ratings fallback failed: backend/data/team_ratings.csv not found"
+            )
+        fallback = pd.read_csv(csv_path)
+        rename_map = {}
+        if "DATE" in fallback.columns:
+            rename_map["DATE"] = "GAME_DATE"
+        if "TEAM_FULL_NAME" in fallback.columns:
+            rename_map["TEAM_FULL_NAME"] = "TEAM"
+        if rename_map:
+            fallback = fallback.rename(columns=rename_map)
+        keep = [c for c in ["GAME_DATE", "TEAM", "RATING"] if c in fallback.columns]
+        if len(keep) < 3:
+            missing = {"GAME_DATE", "TEAM", "RATING"} - set(fallback.columns)
+            raise KeyError(
+                f"team_ratings.csv missing columns required for fallback: {sorted(missing)}"
+            )
+        return fallback.loc[:, keep]
+    raise FileNotFoundError(f"No fallback configured for ratings kind '{kind}'")
+
+
 def load_ratings(kind: str = "elo") -> pd.DataFrame:
     """Load ratings table for the given kind (elo|glicko|trueskill).
 
@@ -129,14 +160,37 @@ def load_ratings(kind: str = "elo") -> pd.DataFrame:
       - RATING: numeric rating
     """
     stem = f"backend/data/ratings_{kind}"
+    r: pd.DataFrame | None = None
+    load_error: Exception | None = None
+
     if load_table:
-        r = load_table(stem)
-    else:
+        try:
+            r = load_table(stem)
+        except (FileNotFoundError, ImportError) as exc:
+            load_error = exc
+
+    if r is None:
         p = Path(stem)
-        if p.with_suffix(".parquet").exists():
-            r = pd.read_parquet(p.with_suffix(".parquet"))
-        else:
-            r = pd.read_csv(p.with_suffix(".csv"))
+        try:
+            if p.with_suffix(".parquet").exists():
+                r = pd.read_parquet(p.with_suffix(".parquet"))
+            elif p.with_suffix(".csv").exists():
+                r = pd.read_csv(p.with_suffix(".csv"))
+            else:
+                raise FileNotFoundError(f"No artifact found for {stem}")
+        except Exception as exc:
+            load_error = exc
+            r = None
+
+    if r is None:
+        try:
+            r = _load_ratings_fallback(kind)
+        except Exception as fallback_exc:
+            if load_error is not None:
+                raise type(load_error)(
+                    f"Failed to load ratings_{kind}: {load_error}; fallback error: {fallback_exc}"
+                ) from fallback_exc
+            raise
     # Normalize columns
     cols = {c.lower(): c for c in r.columns}
     # # QUESTION: Confirm exact column names in ratings files

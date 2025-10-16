@@ -105,12 +105,14 @@ def get_player_seasons(player_id: int) -> List[str]:
     return seasons
 
 
+# Include season_type and measure in cache key to avoid stale combinations
 @lru_cache(maxsize=512)
 def get_player_shotchart(
     player_id: int,
     season: str,
     team_id: Optional[int] = 0,
     measure: str = "FGA",
+    season_type: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Fetch shot chart detail for a player + season.
@@ -121,12 +123,12 @@ def get_player_shotchart(
     time.sleep(SLEEP)
 
     context_measure = resolve_context_measure(measure)
-
+    resolved_season_type = (season_type or season_type_default()).strip()
 
     sc = shotchartdetail.ShotChartDetail(
         team_id=team_id or 0,
         player_id=player_id,
-        season_type_all_star="Regular Season",
+        season_type_all_star=resolved_season_type,
         season_nullable=season,  # e.g. '2024-25'
         context_measure_simple=context_measure,  # validates measure
         # Other useful filters you might later expose:
