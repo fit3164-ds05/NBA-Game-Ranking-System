@@ -9,6 +9,7 @@ import { getTeams, getSeasons, predictGame } from "../lib/api";
 import RatingChart from "../components/RatingChart";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
 import { buildFactorNarrative } from "../utils/featureNarratives";
+import FloatingCard from "../components/FloatingCard";
 
 function TrendUpIcon({ className = "", ...props }) {
   return (
@@ -168,20 +169,16 @@ function TeamSelectCard({
   help,
 }) {
   return (
-    <div className="bg-white border rounded-2xl p-4 shadow-sm">
-      <h3 className="text-lg font-medium mb-3">{title}</h3>
-
-      {/* Team dropdown */}
-      <Select label="Team" value={team} onChange={(e) => onTeam(e.target.value)}>
-        {teams.map((t) => (
-          <option key={t} value={t}>
-            {t}
-          </option>
-        ))}
-      </Select>
-
-      {/* Season dropdown */}
-      <div className="mt-3">
+    <FloatingCard tone="light" padding="p-5" wrapChildren={false}>
+      <div className="space-y-3">
+        <h3 className="text-lg font-medium">{title}</h3>
+        <Select label="Team" value={team} onChange={(e) => onTeam(e.target.value)}>
+          {teams.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </Select>
         <Select
           label="Season"
           value={season ?? ""}
@@ -196,11 +193,9 @@ function TeamSelectCard({
             </option>
           ))}
         </Select>
+        {help && <p className="text-xs text-gray-500">{help}</p>}
       </div>
-
-      {/* Optional helper text */}
-      {help && <p className="text-xs text-gray-500 mt-2">{help}</p>}
-    </div>
+    </FloatingCard>
   );
 }
 
@@ -467,18 +462,16 @@ export default function GamePrediction() {
   return (
     <div className="flex w-full flex-col gap-6 text-slate-900">
       {/* Page header */}
-      <header className="mb-4">
-        <h1 className="text-2xl md:text-3xl font-semibold">Predict a game outcome</h1>
-        <p className="text-gray-600 mt-2">
-          Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
-        </p>
-      </header>
+      <FloatingCard
+        title="Predict a game outcome"
+        body="Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ."
+      />
 
       {/* Loading state for team list */}
       {loadingTeams && (
-        <div className="rounded-2xl border p-4 bg-white shadow-sm">
+        <FloatingCard tone="light" padding="p-4" wrapChildren={false}>
           Loading teams
-        </div>
+        </FloatingCard>
       )}
 
       {/* Main form */}
@@ -519,7 +512,12 @@ export default function GamePrediction() {
         </div>
 
         {/* Actions row */}
-        <div className="bg-white border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-3 justify-between">
+        <FloatingCard
+          tone="light"
+          padding="p-4"
+          className="flex flex-col md:flex-row items-start md:items-center gap-3 justify-between"
+          wrapChildren={false}
+        >
           {/* Swap/reset buttons */}
           <div className="flex items-center gap-3">
             <button
@@ -546,7 +544,7 @@ export default function GamePrediction() {
           >
             {loading ? "Predicting" : "Predict"}
           </button>
-        </div>
+        </FloatingCard>
 
         {/* Error display */}
         {error && (
@@ -563,7 +561,7 @@ export default function GamePrediction() {
         />
 
         {/* Prediction result display */}
-        <div className="bg-white border rounded-2xl p-4 shadow-sm">
+        <FloatingCard tone="light" padding="p-4" wrapChildren={false}>
           {!result && !loading && (
             <p className="text-gray-600">Your prediction will appear here.</p>
           )}
@@ -577,7 +575,7 @@ export default function GamePrediction() {
               onSelectModel={setActiveModel}
             />
           )}
-        </div>
+        </FloatingCard>
       </form>
     </div>
   );

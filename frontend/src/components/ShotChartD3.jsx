@@ -54,7 +54,6 @@ export default function ShotChartD3({
   coordSystem = "legacy",
   width = 640,
   height,
-  title,
   options,
   className,
   emptyMessage = "No shot data available.",
@@ -67,9 +66,8 @@ export default function ShotChartD3({
     const base = { legendBaselineOffset: 0.5, ...(options ?? {}) };
     base.width = width;
     if (height) base.height = height;
-    if (title) base.title = title;
     return base;
-  }, [options, width, height, title]);
+  }, [options, width, height]);
 
   const shots = useMemo(
     () => normalizeShots(data, coordSystem),

@@ -11,6 +11,7 @@ import {
   Brush,
 } from "recharts";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
+import FloatingCard from "./FloatingCard";
 
 
 export default function RatingChart({
@@ -651,7 +652,7 @@ export default function RatingChart({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border rounded-2xl p-4 shadow-sm">
+      <FloatingCard tone="light" padding="p-6" wrapChildren={false}>
         <h2 className="text-lg font-semibold mb-4">Seasonal Historical Ratings</h2>
         {loading && <p>Loading rating data...</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
@@ -666,16 +667,16 @@ export default function RatingChart({
                 onMouseLeave={handleChartMouseLeave}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                type="number"
-                domain={xDomain}
-                ticks={xTicks}
-                tick={<YearAwareTick />}
-                allowDuplicatedCategory={false}
-                allowDataOverflow
-                allowDecimals={false}
-              />
+                <XAxis
+                  dataKey="date"
+                  type="number"
+                  domain={xDomain}
+                  ticks={xTicks}
+                  tick={<YearAwareTick />}
+                  allowDuplicatedCategory={false}
+                  allowDataOverflow
+                  allowDecimals={false}
+                />
                 <YAxis
                   domain={yDomain}
                   ticks={yTicks}
@@ -796,10 +797,10 @@ export default function RatingChart({
             )}
           </div>
         )}
-      </div>
+      </FloatingCard>
 
       {showSeasonDetail && (
-        <div className="bg-white border rounded-2xl p-4 shadow-sm">
+        <FloatingCard tone="light" padding="p-6" wrapChildren={false}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">{detailHeading}</h3>
             <div className="flex items-center gap-2">
@@ -893,7 +894,7 @@ export default function RatingChart({
               </LineChart>
             </ResponsiveContainer>
           )}
-        </div>
+        </FloatingCard>
       )}
 
     </div>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import RatingChart from "../components/RatingChart";
 import { getTeams } from "../lib/api";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
+import RatingChart from "../components/RatingChart";
+import FloatingCard from "../components/FloatingCard";
 
 function pickTextColor(background) {
   if (!background) return "#1f2937";
@@ -76,14 +77,10 @@ export default function HistoricalRanking() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Historical Ratings</h2>
-      <p className="text-sm text-gray-600">
-        This tool calculates the historical ratings for each NBA team using the Elo rating system.
-      </p>
-      <h3 className="text-lg font-semibold text-gray-800">Filter teams</h3>
-      <p className="text-sm text-gray-600">
-        Select one or more teams to highlight their historical ratings below. Use the filter buttons or click directly on the chart lines to toggle teams.
-      </p>
+      <FloatingCard tone="light" padding="p-6" wrapChildren={false}
+        title = "Historical Ratings"
+        body = "Select one or more teams to highlight their historical ratings below. Use the filter buttons or click directly on the chart lines to toggle teams.">
+      </FloatingCard>
 
       {/* Team highlight buttons */}
       <div className="flex flex-wrap gap-2">

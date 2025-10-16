@@ -117,22 +117,14 @@ export default function DashboardShotChart() {
                             return (
                               <tr key={zone.zone}>
                                 <td className="px-3 py-2">{zone.zone}</td>
-                                <td className="px-3 py-2">{`${zone.makes}/${zone.attempts}`}</td>
-                                <td className="px-3 py-2">{formatPct(pct)}</td>
-                                <td className="px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className="h-2 flex-1 rounded bg-slate-200">
-                                      <div
-                                        className="h-2 rounded bg-sky-400"
-                                        style={{ width: `${Math.max(volume * 100, 4)}%` }}
-                                      />
-                                    </div>
-                                    <span className="tabular-nums text-slate-500">{formatPct(volume)}</span>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                                  <td className="px-3 py-2">{`${zone.makes}/${zone.attempts}`}</td>
+                                  <td className="px-3 py-2">{formatPct(pct)}</td>
+                                  <td className="px-3 py-2">
+                                    <span className="tabular-nums text-slate-600">{formatPct(volume)}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
@@ -166,7 +158,6 @@ export default function DashboardShotChart() {
                     data={chartShots}
                     coordSystem="nba"
                     width={720}
-                    title={`${selection?.player?.name ?? ""} ${selection?.season ?? ""}`.trim()}
                     className="rounded-[26px] bg-white"
                     options={{
                       hexagonBinVisibleThreshold: 0,

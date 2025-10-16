@@ -21,14 +21,11 @@
       // draw base court
       this.drawCourt();
 
-      // add title
-      this.drawTitle();
-
-      // draw legend
-      // this.drawLegend();
-
       // add data
       this.drawShots();
+
+      // draw legend below the court
+      this.drawLegend();
     },
      
     // helper to create an arc path
@@ -53,6 +50,9 @@
     drawCourt: function () {
       var courtWidth = this._courtWidth,
           visibleCourtLength = this._visibleCourtLength,
+          legendViewBoxPadding = (typeof this._legendViewBoxPadding === 'number')
+            ? Math.max(0, this._legendViewBoxPadding)
+            : 0,
           keyWidth = this._keyWidth
           threePointRadius = this._threePointRadius,
           threePointSideRadius = this._threePointSideRadius, 
@@ -67,10 +67,12 @@
 
       var base = this.base
         .attr('width', this._width)
-        .attr('viewBox', "0 0 " + courtWidth + " " + visibleCourtLength)
+        .attr('viewBox', "0 0 " + courtWidth + " " + (visibleCourtLength + legendViewBoxPadding))
+        .attr('overflow', 'visible')
+        .style('overflow', 'visible')
         .append('g')
           .attr('class', 'shot-chart-court');
-      if (this._height) base.attr('height', this._height);
+      if (this._height) this.base.attr('height', this._height + legendViewBoxPadding);
                        
       base.append("rect")
         .attr('class', 'shot-chart-court-key')
@@ -144,14 +146,7 @@
     },
 
     // add title to svg
-    drawTitle: function () {
-      this.base.append("text")
-        .classed('shot-chart-title', true)
-        .attr("x", (this._courtWidth / 2))             
-        .attr("y", (this._courtLength / 2 - this._visibleCourtLength) / 3)
-        .attr("text-anchor", "middle")  
-        .text(this._title);
-    },
+    drawTitle: function () {},
 
     // add legends to svg
     drawLegend: function () {
@@ -163,9 +158,20 @@
           keyWidth = this._keyWidth,
           basketProtrusionLength = this._basketProtrusionLength,
           threePointSideRadius = this._threePointSideRadius,
+          hostNode = this.base.node() && this.base.node().parentNode
+            ? d3.select(this.base.node().parentNode)
+            : null,
+          legendOffsetY = (typeof this._legendOffsetY === 'number')
+            ? this._legendOffsetY
+            : 6,
           legendBaselineOffset = (typeof this._legendBaselineOffset === 'number')
-            ? Math.max(0, this._legendBaselineOffset)
-            : basketProtrusionLength / 3;
+            ? this._legendBaselineOffset
+            : basketProtrusionLength / 3,
+          legendPaddingBottom = (typeof this._legendPaddingBottom === 'number')
+            ? this._legendPaddingBottom
+            : 72;
+
+      if (hostNode) hostNode.style('padding-bottom', legendPaddingBottom + 'px');
 
       var heatRange = heatScale.range();
       var largestHexagonRadius = hexagonRadiusSizes[hexagonRadiusSizes.length - 1];
@@ -173,15 +179,19 @@
         (threePointSideRadius - keyWidth / 2) / 2 - 
         (courtWidth / 2 - threePointSideRadius);
       var colorXStart = colorXMid - (heatRange.length * largestHexagonRadius); 
-      var colorYStart = visibleCourtLength - legendBaselineOffset;
+      var colorYStart = visibleCourtLength + legendOffsetY;
+      var colorTitleX = (typeof this._legendTitleX === 'number') ? this._legendTitleX : colorXMid;
+      var colorTitleY = (typeof this._legendTitleY === 'number')
+        ? this._legendTitleY
+        : colorYStart - largestHexagonRadius * 2;
       var hexbin = d3.hexbin();
       var hexagon = hexbin.hexagon(largestHexagonRadius);
       var colorLegend = this.base.append('g')
         .classed('legend', true);
       colorLegend.append("text")
         .classed('legend-title', true)
-        .attr("x", colorXMid)             
-        .attr("y", colorYStart - largestHexagonRadius * 2)
+        .attr("x", colorTitleX)
+        .attr("y", colorTitleY)
         .attr("text-anchor", "middle")  
         .text(this._colorLegendTitle);
       colorLegend.append("text")
@@ -214,14 +224,18 @@
       var sizeXMid = (threePointSideRadius - keyWidth / 2) / 2 + 
         (courtWidth / 2 - threePointSideRadius);
       var sizeXStart = sizeXMid - (sizeLengendWidth / 2);
-      var sizeYStart = visibleCourtLength - legendBaselineOffset;
+      var sizeYStart = visibleCourtLength + legendOffsetY;
       var sizeLabelX = sizeXStart + sizeLengendWidth;
+      var sizeTitleX = (typeof this._sizeLegendTitleX === 'number') ? this._sizeLegendTitleX : sizeXMid;
+      var sizeTitleY = (typeof this._sizeLegendTitleY === 'number')
+        ? this._sizeLegendTitleY
+        : sizeYStart - largestHexagonRadius * 2;
       var sizeLegend = this.base.append('g')
         .classed('legend', true);
       sizeLegend.append("text")
         .classed('legend-title', true)
-        .attr("x", sizeXMid)             
-        .attr("y", sizeYStart - largestHexagonRadius * 2)
+        .attr("x", sizeTitleX)
+        .attr("y", sizeTitleY)
         .attr("text-anchor", "middle")  
         .text(this._sizeLegendTitle);
       sizeLegend.append("text")
@@ -384,7 +398,7 @@
     // d3 scale for hexagon colors
     heatScale: d3.scale.quantize()
       .domain([0, 1])
-      .range(['#5458A2', '#6689BB', '#FADC97', '#F08460', '#B02B48']),
+      .range(['#bbd1f7ff', '#99bff8ff', '#548ef2ff', '#3475f6ff', '#044df9ff']),
     // height of svg
     height: undefined,
     // method of aggregating points into a bin
@@ -418,8 +432,19 @@
     sizeLegendSmallLabel: 'low',
     // label of end of hexagon size legend
     sizeLegendLargeLabel: 'high',
-    // distance in ft that legends sit above the baseline; defaults to basketProtrusionLength / 3
-    legendBaselineOffset: null,
+    // explicit overrides for legend title positions (ft units); defaults auto-center
+    legendTitleX: null,
+    legendTitleY: null,
+    sizeLegendTitleX: null,
+    sizeLegendTitleY: null,
+    // distance in ft that legends sit relative to the baseline (negative pushes below)
+    legendBaselineOffset: -12,
+    // additional offset (ft) applied after the court baseline to position legends
+    legendOffsetY: 6,
+    // extra padding added below the svg container to accommodate the legend (px)
+    legendPaddingBottom: 96,
+    // additional virtual space appended to the svg viewBox to fit the legend (ft)
+    legendViewBoxPadding: 54,
     // distance from baseline where three point line because circular (ft)
     threePointCutoffLength: 14,
     // distance of three point line from basket (ft)
@@ -427,7 +452,7 @@
     // distance of corner three point line from basket (ft)
     threePointSideRadius: 22, 
     // title of chart
-    title: 'Shot chart',
+    title: '',
     // method to determine x position of a bin on the court
     translateX: function (d) { return d.x; },
     // method to determine y position of a bin on the court
