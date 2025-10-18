@@ -1,0 +1,63 @@
+﻿Metric,Name,Description
+TRAD_PTS,Points,Number of points scored
+TRAD_FGM,Field Goals Made,Number of field goals that a team has made (both 2 and 3 pointers)
+TRAD_FGA,Field Goals Attempted,Number of field goals that a team has attempted (both 2 and 3 pointers)
+TRAD_FG_PCT,Field Goal Percentage,Percentage of field goal attempts made
+TRAD_3PM,3 Point Field Goals Made,Number of 3 point field goals made
+TRAD_3PA,3 Point Field Goals Attempted,Number of 3 point field goals attempted
+TRAD_3P_PCT,3 Point Field Goal Percentage,Percentage of 3 point field goal attempts made
+TRAD_FTM,Free Throws Made,Number of free throws made
+TRAD_FTA,Free Throws Attempted,Number of free throws attempted
+TRAD_FT_PCT,Free Throw Percentage,Percentage of free throw attempts made
+TRAD_OREB,Offensive Rebounds,Number of rebounds obtained while on offense
+TRAD_DREB,Defensive Rebounds,Number of rebounds obtained while on defense
+TRAD_REB,Rebounds,Number of rebounds collected
+TRAD_AST,Assists Made,Number of assists made
+TRAD_TOV,Turnovers,Number of times the offensive team loses the ball to the defensive team
+TRAD_STL,Steals,"Number of times the defensive team takes the ball from the offensive team, causing a turnover"
+TRAD_BLK,Blocks,"Number of times the offensive team attempts a shot, and the defensive team tips the ball, blocking their chance to score"
+TRAD_PF,Personal Fouls,Number of personal fouls committed
+TRAD_PLUS_MINUS,Plus-Minus,The point differential when a team is on the floor
+TRAD_MIN,Minutes,The number of minutes when a team is on the floor
+ADV_OFFRTG,Offensive Rating,Points scored per 100 possessions
+ADV_DEFRTG,Defensive Rating,Points allowed per 100 possessions
+ADV_NETRTG,Net Rating,Point differential per 100 possessions (points scored - points allowed per 100 possessions)
+ADV_AST_PCT,Assist Percentage,Percentage of  field goals assisted on
+ADV_AST_TO,Assist to Turnover Ratio,Number of assists compared to the number of turnovers
+ADV_AST_RATIO,Assist Ratio,Number of assists per 100 possessions
+ADV_OREB_PCT,Offensive Rebound Percentage,Percentage of available offensive rebounds a team obtains
+ADV_DREB_PCT,Defensive Rebound Percentage,Percentage of available defensive rebounds a team obtains
+ADV_REB_PCT,Rebound Percentage,Percentage of available rebounds a team collects
+ADV_TS_PCT,True Shooting Percentage,Shooting percentage that factors in the value of three-point field goals and free throws in addition to two-point field goals
+ADV_PACE,Pace,Number of possesions per 48 minutes
+FF_EFG_PCT,Effective Field Goal Percentage,Field goal percentage adjusting for made 3-point field goals being 1.5 times more valuable than made 2-point field goals
+FF_FTA_RATE,Free Throw Attempt Rate,Number of free throw attempts shot in comparison to the number of field goal attempts shot
+FF_TOV_PCT,Turnover Percentage,Percentage of plays that end in a turnover
+FF_OREB_PCT,Offensive Rebound Percentage,Percentage of available offensive rebounds obtained
+FF_OPP_EFG_PCT,Opponent Effective Field Goal Percentage,Opponent's field goal percentage adjusting for made 3-point field goals being 1.5 times more valuable than made 2-point field goals
+FF_OPP_FTA_RATE,Opponent Free Throw Attempt Rate,Opponent's number of free throw attempts shot in comparison to the number of field goal attempts shot
+FF_OPP_TOV_PCT,Opponent Turnover Percentage,Opponent's percentage of plays that end in a turnover
+FF_OPP_OREB_PCT,Opponent Offensive Rebound Percentage,Opponent's percentage of available offensive rebounds obtained
+MISC_PTS_OFF_TO,Points Off Turnovers,Number of points scored following an opponent's turnover
+MISC_2ND_PTS,Second Chance Points,Percentage of isolation plays where free throws are shot as the result of a shooting foul
+MISC_FBPS,Fast Break Points,Number of points scored while on a fast break
+MISC_PITP,Points in the Paint,Number of points scored inside the paint
+MISC_OPP_PTS_OFF_TO,Opponent Points Off Turnovers,Opponent's number of points scored following an opponent's turnover
+MISC_OPP_2ND_PTS,Opponent Second Chance Points,Opponent's percentage of isolation plays where free throws are shot as the result of a shooting foul
+MISC_OPP_FBPS,Opponent Fast Break Points,Opponent's number of points scored while on a fast break
+MISC_OPP_PITP,Opponent Points in the Paint,Opponent's number of points scored in the paint
+SCOR_PCTFGA_2PT,Percent of Field Goals Attempted (2 pointers),Percentage of field goals attempted that are 2 pointers
+SCOR_PCTFGA_3PT,Percent of Field Goals Attempted (3 pointers),Percentage of field goals attempted that are 3 pointers
+SCOR_PCTPTS_2PT,Percent of Points (2 pointers),Percentage of points scored that are from 2 point field goals
+SCOR_PCTPTS_2PT_MR,Percent of Points (2 pointers: mid range),Percentage of points scored that are from 2 point field goals outside the paint
+SCOR_PCTPTS_3PT,Percent of Points (3 pointers),Percentage of points scored that are from 3 point field goals
+SCOR_PCTPTS_FBPS,Percent of Points (fast break points),Percentage of points  scored that are from fast break opportunities
+SCOR_PCTPTS_FT,Percent of Points (free throws),Percentage of points free scored that are from free throws
+SCOR_PCTPTS_OFF_TO,Percent of Points (off turnovers),Percentage of points scored that are scored on the possession after forcing an opponent turnover
+SCOR_PCTPTS_PITP,Percent of Points (points in the paint),Percentage of points scored that are from 2 point field goals inside the paint
+SCOR_2FGM__PCTAST,Percent of 2 Point Field Goals Made Assisted,Percentage of 2 point field goals made that are assisted by a teammate
+SCOR_2FGM__PCTUAST,Percent of 2 Point Field Goals Made Unassisted,Percentage of 2 point field goals made that are not assisted by a teammate
+SCOR_3FGM__PCTAST,Percent of 3 Pointers Made Assisted,Percentage of 3 point field goals made that are assisted by a teammate
+SCOR_3FGM__PCTUAST,Percent of 3 Pointers Made Unassisted,Percentage of 3 point field goals made that are not assisted by a teammate
+SCOR_FGM__PCTAST,Percent of Field Goals Made Assisted,Percentage of field goals made that are assisted by a teammate
+SCOR_FGM__PCTUAST,Percent of Field Goals Made Unassisted,Percentage of field goals made that are not assisted by a teammate
