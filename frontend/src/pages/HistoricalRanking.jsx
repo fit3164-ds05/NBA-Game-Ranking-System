@@ -158,10 +158,6 @@ export default function HistoricalRanking() {
         bodySize="text-sm"
         childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
       >
-        <p className="text-slate-500">
-          Our historical rating system uses the Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
-        </p>
-
         <p className="ext-slate-500">
           Our historical rating system uses a basic Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
         </p>
