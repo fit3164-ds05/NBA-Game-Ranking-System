@@ -76,7 +76,8 @@ export default function HistoricalRanking() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex w-full flex-col gap-6 text-slate-900">
+      {/* Page header */}
       <FloatingCard tone="light" padding="p-6" wrapChildren={false}
         title = "Historical Ratings"
         body = "Select one or more teams to highlight their historical ratings below. Use the filter buttons or click directly on the chart lines to toggle teams.">
@@ -146,6 +147,13 @@ export default function HistoricalRanking() {
           />
         )}
       </div>
+
+      {/* Ratings explanation */}
+      <FloatingCard tone="light" padding="p-6" wrapChildren={false}
+        title = "Explanation of Historical Ratings"
+        body = "Select one or more teams to highlight their historical ratings below.\nUse the filter buttons or click directly on the chart lines to toggle teams.">
+      </FloatingCard>
+    
     </div>
   );
 }
