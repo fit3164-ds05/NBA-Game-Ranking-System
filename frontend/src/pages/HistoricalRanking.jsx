@@ -163,15 +163,36 @@ export default function HistoricalRanking() {
         </p>
 
         <p className="ext-slate-500">
-          The Elo rating system is built on the principle that each team 
+          Our historical rating system uses a basic Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
         </p>
-          
-        <ul>
-          <li>item 1</li>
-          <li>item 2</li>
-          <li>item 3</li>
-        </ul>
 
+        <p className="ext-slate-500">
+          The Elo rating system is built on the principle that each team starts with a rating, and this rating changes after every game based on the result. 
+        </p>
+
+        <p className="ext-slate-500">
+          The long-term average Elo rating is 1500. As such, each team starts with a rating of 100.
+        </p>
+
+        <p className="ext-slate-500">
+          The amount of points gained or lost depends on the relative strength of opponents, as determined by their ratings. If a higher-rated team defeats a lower-rated team, the higher-rated team gains only a few points, while the lower-rated team loses only a few points. However, if the lower-rated team pulls off an upset and defeats the higher-rated team, they gain more points, and the higher-rated team loses more points. 
+        </p>
+
+        <p className="ext-slate-500">
+          Basic Elo ratings are calculated using the formula Rn = Ro + K(W - We), where: Rn is the team's new rating after the game, Ro is the team's rating prior to the game, W is the result of the game (1 for a win, 0 for a loss), We is the expected match result, and K is the K-factor.
+        </p>
+
+        <p className="ext-slate-500">
+          The K-factor determines the sensitivity of ratings to new matches. It is set to efficiently account for new data but not overreact to it. Our Elo ratings are calculated using a K-factor of 32.
+        </p>
+
+        <p className="ext-slate-500">
+          The expected match result is calculated using the formula We = 1/(1 + 10 ^ ((Ropp - Ro) / 400)), where Ropp is the opponent's rating before the game, and Ro is the team's rating before the game.
+        </p>
+
+        <p className="ext-slate-500">
+          In view of full transparency, our Elo rating system also has a several areas for improvement. It does not account for home-court advantage, margin of victory, season-to-season carry-over, and league expansion/contraction.
+        </p>        
       </FloatingCard>
     
     </div>
