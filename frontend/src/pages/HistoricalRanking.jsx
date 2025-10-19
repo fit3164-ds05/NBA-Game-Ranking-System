@@ -149,9 +149,29 @@ export default function HistoricalRanking() {
       </div>
 
       {/* Ratings explanation */}
-      <FloatingCard tone="light" padding="p-6" wrapChildren={false}
-        title = "Explanation of Historical Ratings"
-        body = "Select one or more teams to highlight their historical ratings below.\nUse the filter buttons or click directly on the chart lines to toggle teams.">
+      <FloatingCard
+        tone="light"
+        className="lg:col-span-4"
+        title="Explanation of Historical Ratings"
+        titleSize="text-lg"
+        body=""
+        bodySize="text-sm"
+        childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
+      >
+        <p className="text-slate-500">
+          Our historical rating system uses the Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
+        </p>
+
+        <p className="ext-slate-500">
+          The Elo rating system is built on the principle that each team 
+        </p>
+          
+        <ul>
+          <li>item 1</li>
+          <li>item 2</li>
+          <li>item 3</li>
+        </ul>
+
       </FloatingCard>
     
     </div>
