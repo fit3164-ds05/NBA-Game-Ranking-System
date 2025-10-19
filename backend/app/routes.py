@@ -16,6 +16,7 @@ from services.ratings import (
     summarize_matchup,
 )
 from services import ratings
+from services.drivers import load_drivers, load_drivers_seasonal
 from services.team_history import team_year_bounds, active_years_for_team
 
 try:  # prefer absolute import when backend package is discoverable
@@ -108,6 +109,32 @@ def get_seasons():
         # Validate that the team query parameter is provided
         return jsonify(error="team query param required"), 400
     return jsonify(team=team, seasons=seasons_for_team(team))
+
+@api_bp.get("/drivers-of-ratings")
+def get_drivers_of_ratings():
+    """
+    Return the correlation strengths between model ratings and underlying metrics.
+    """
+    try:
+        data = load_drivers()
+    except FileNotFoundError:
+        return jsonify(error="drivers_of_ratings_top.csv not found"), 404
+    except Exception as exc:  # pragma: no cover - defensive
+        current_app.logger.exception("Failed to load drivers dataset: %s", exc)
+        return jsonify(error="Failed to load drivers dataset"), 500
+    return jsonify(data=data)
+
+@api_bp.get("/drivers-of-ratings/seasonal")
+def get_drivers_of_ratings_seasonal():
+    """Return correlation trends by season for each metric."""
+    try:
+        data = load_drivers_seasonal()
+    except FileNotFoundError:
+        return jsonify(error="drivers_of_ratings_seasonal.csv not found"), 404
+    except Exception as exc:  # pragma: no cover
+        current_app.logger.exception("Failed to load seasonal drivers dataset: %s", exc)
+        return jsonify(error="Failed to load seasonal drivers dataset"), 500
+    return jsonify(data=data)
 
 @api_bp.post("/predict")
 def predict():

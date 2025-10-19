@@ -200,6 +200,29 @@ getRatingsSeries.clearCache = ({ persist = true } = {}) => {
   }
 };
 
+// Drivers of ratings correlations
+export async function getDriversOfRatings() {
+  const { data } = await api.get("/drivers-of-ratings");
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return [];
+}
+
+export async function getDriversOfRatingsSeasonal() {
+  const { data } = await api.get("/drivers-of-ratings/seasonal");
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return [];
+}
+
 getRatingsSeries._hydrateFromStorageForTests = () => {
   loadCacheFromStorage();
 };
