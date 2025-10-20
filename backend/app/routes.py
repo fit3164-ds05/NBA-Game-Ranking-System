@@ -17,6 +17,7 @@ from services.ratings import (
 )
 from services import ratings
 from services.drivers import load_drivers, load_drivers_seasonal
+from services.league_trends import load_fga_composition, load_scoring_zone_composition
 from services.team_history import team_year_bounds, active_years_for_team
 
 try:  # prefer absolute import when backend package is discoverable
@@ -134,6 +135,30 @@ def get_drivers_of_ratings_seasonal():
     except Exception as exc:  # pragma: no cover
         current_app.logger.exception("Failed to load seasonal drivers dataset: %s", exc)
         return jsonify(error="Failed to load seasonal drivers dataset"), 500
+    return jsonify(data=data)
+
+@api_bp.get("/league-trends/fg-composition")
+def get_league_trends_fg_composition():
+    """Return stacked field goal attempt composition by season."""
+    try:
+        data = load_fga_composition()
+    except FileNotFoundError:
+        return jsonify(error="team_metrics_seasonal.csv not found"), 404
+    except Exception as exc:  # pragma: no cover - defensive
+        current_app.logger.exception("Failed to load FGA composition dataset: %s", exc)
+        return jsonify(error="Failed to load field goal attempt composition"), 500
+    return jsonify(data=data)
+
+@api_bp.get("/league-trends/scoring-zones")
+def get_league_trends_scoring_zones():
+    """Return stacked scoring zone contribution by season."""
+    try:
+        data = load_scoring_zone_composition()
+    except FileNotFoundError:
+        return jsonify(error="team_metrics_seasonal.csv not found"), 404
+    except Exception as exc:  # pragma: no cover - defensive
+        current_app.logger.exception("Failed to load scoring zone dataset: %s", exc)
+        return jsonify(error="Failed to load scoring zone composition"), 500
     return jsonify(data=data)
 
 @api_bp.post("/predict")

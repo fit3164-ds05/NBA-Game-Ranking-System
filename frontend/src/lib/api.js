@@ -223,6 +223,28 @@ export async function getDriversOfRatingsSeasonal() {
   return [];
 }
 
+export async function getLeagueFGComposition() {
+  const { data } = await api.get("/league-trends/fg-composition");
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return [];
+}
+
+export async function getLeagueScoringZones() {
+  const { data } = await api.get("/league-trends/scoring-zones");
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return [];
+}
+
 getRatingsSeries._hydrateFromStorageForTests = () => {
   loadCacheFromStorage();
 };
