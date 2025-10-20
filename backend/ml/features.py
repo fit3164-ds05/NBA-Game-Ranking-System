@@ -21,7 +21,8 @@ Notes:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
+from functools import lru_cache
+from typing import List, Tuple, Dict
 
 import numpy as np
 import pandas as pd
@@ -71,14 +72,29 @@ def load_team_metrics() -> pd.DataFrame:
     Ensures GAME_DATE is datetime64[ns].
     """
     stem = "backend/data/team_metrics_dataset"
+    df: pd.DataFrame | None = None
     if load_table:
-        df = load_table(stem)
-    else:
+        try:
+            df = load_table(stem)
+        except FileNotFoundError:
+            df = None
+    if df is None:
         p = Path(stem)
         if p.with_suffix(".parquet").exists():
-            df = pd.read_parquet(p.with_suffix(".parquet"))
-        else:
+            try:
+                df = pd.read_parquet(p.with_suffix(".parquet"))
+            except ImportError:
+                df = None
+        if df is None and p.with_suffix(".csv").exists():
             df = pd.read_csv(p.with_suffix(".csv"))
+        if df is None:
+            fallback = Path("backend/data/team_metrics.csv")
+            if fallback.exists():
+                df = pd.read_csv(fallback)
+            else:
+                raise FileNotFoundError(
+                    "team_metrics dataset not found (looked for team_metrics_dataset.[parquet|csv] and team_metrics.csv)"
+                )
     if not pd.api.types.is_datetime64_any_dtype(df["GAME_DATE"]):
         df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce")
     if "TRAD_win" not in df.columns and "WINLOSS" in df.columns:
@@ -118,6 +134,112 @@ def load_team_metrics() -> pd.DataFrame:
                 df["TEAM_NAME"] = df["AWAY_TEAM_NAME"]
                 df.loc[home_mask, "TEAM_NAME"] = df.loc[home_mask, "HOME_TEAM_NAME"]
     return df
+
+
+TEAM_REFERENCE_PATH = Path("backend/data/nba_teams.csv")
+
+
+@lru_cache(maxsize=1)
+def _load_team_reference() -> pd.DataFrame:
+    """Return dataframe mapping team identifiers to metadata."""
+    if TEAM_REFERENCE_PATH.exists():
+        refs = pd.read_csv(TEAM_REFERENCE_PATH, encoding="utf-8-sig")
+        if "TEAM_ID" in refs.columns:
+            refs["TEAM_ID"] = pd.to_numeric(refs["TEAM_ID"], errors="coerce").astype("Int64")
+        return refs
+    raise FileNotFoundError("backend/data/nba_teams.csv not found; required for team ratings features")
+
+
+def _load_team_ratings_raw() -> pd.DataFrame:
+    """Load team_ratings dataset with DATE column parsed."""
+    stem = "backend/data/team_ratings"
+    if load_table:
+        df = load_table(stem)
+    else:
+        p = Path(stem)
+        if p.with_suffix(".parquet").exists():
+            df = pd.read_parquet(p.with_suffix(".parquet"))
+        else:
+            df = pd.read_csv(p.with_suffix(".csv"))
+    if "DATE" not in df.columns:
+        raise KeyError("team_ratings dataset missing DATE column")
+    df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
+    return df
+
+
+@lru_cache(maxsize=1)
+def _prepare_team_ratings_features() -> pd.DataFrame:
+    """
+    Return per-team pre-game rating features derived from team_ratings.csv.
+
+    Columns: TEAM_ID, GAME_DATE, TR_RATING_PRE, TR_RATING_DELTA,
+             TR_RATING_ROLL5, TR_RATING_ROLL10
+    """
+    raw = _load_team_ratings_raw().copy()
+    refs = _load_team_reference()
+    full_map = {
+        str(row["TEAM_FULL_NAME"]).strip(): row["TEAM_ID"]
+        for _, row in refs.iterrows()
+        if pd.notna(row.get("TEAM_FULL_NAME")) and pd.notna(row.get("TEAM_ID"))
+    }
+    name_map = {
+        str(row["TEAM_NAME"]).strip(): row["TEAM_ID"]
+        for _, row in refs.iterrows()
+        if pd.notna(row.get("TEAM_NAME")) and pd.notna(row.get("TEAM_ID"))
+    }
+    upper_full_map = {key.upper(): val for key, val in full_map.items()}
+
+    def resolve_team_id(name: str) -> int | None:
+        if not isinstance(name, str):
+            return None
+        key = name.strip()
+        if not key:
+            return None
+        if key in full_map:
+            return int(full_map[key])
+        base = key.split("(")[0].strip()
+        if base in name_map:
+            return int(name_map[base])
+        if base in full_map:
+            return int(full_map[base])
+        upper = base.upper()
+        if upper in upper_full_map:
+            return int(upper_full_map[upper])
+        return None
+
+    raw["TEAM_NAME"] = raw["TEAM_FULL_NAME"].astype(str).str.split("(").str[0].str.strip()
+    raw["TEAM_ID"] = raw["TEAM_FULL_NAME"].apply(resolve_team_id)
+    mask_missing = raw["TEAM_ID"].isna()
+    if mask_missing.any():
+        raw.loc[mask_missing, "TEAM_ID"] = raw.loc[mask_missing, "TEAM_NAME"].apply(resolve_team_id)
+    raw = raw.dropna(subset=["TEAM_ID", "DATE"]).copy()
+    raw["TEAM_ID"] = raw["TEAM_ID"].astype(int)
+    raw = raw.sort_values(["TEAM_ID", "DATE"])
+
+    grouped = raw.groupby("TEAM_ID", sort=False)
+    prev_rating = grouped["RATING"].shift(1)
+    prev_prev_rating = grouped["RATING"].shift(2)
+
+    raw["TR_RATING_PRE"] = prev_rating
+    raw["TR_RATING_DELTA"] = prev_rating - prev_prev_rating
+    raw["TR_RATING_ROLL5"] = prev_rating.groupby(raw["TEAM_ID"]).transform(lambda s: s.rolling(5, min_periods=2).mean())
+    raw["TR_RATING_ROLL10"] = prev_rating.groupby(raw["TEAM_ID"]).transform(lambda s: s.rolling(10, min_periods=4).mean())
+
+    raw["GAME_DATE"] = raw["DATE"].dt.normalize()
+
+    features = raw.dropna(subset=["TR_RATING_PRE"]).loc[
+        :,
+        [
+            "TEAM_ID",
+            "GAME_DATE",
+            "TR_RATING_PRE",
+            "TR_RATING_DELTA",
+            "TR_RATING_ROLL5",
+            "TR_RATING_ROLL10",
+        ],
+    ]
+    features["TR_RATING_DELTA"] = features["TR_RATING_DELTA"].fillna(0.0)
+    return features
 
 
 def _load_ratings_fallback(kind: str) -> pd.DataFrame:
@@ -378,7 +500,97 @@ def attach_ratings(game_df: pd.DataFrame, ratings_kind: str = "elo") -> pd.DataF
     return out
 
 
-def build_features(ratings_kind: str = "elo") -> Tuple[pd.DataFrame, List[str]]:
+def _ensure_team_abbreviations(game_df: pd.DataFrame) -> pd.DataFrame:
+    """Attach team abbreviations when missing so Elo ratings can join."""
+    out = game_df.copy()
+    refs = _load_team_reference()
+    id_to_abbr: Dict[int, str] = {
+        int(row["TEAM_ID"]): str(row["TEAM_ABBR"]).strip()
+        for _, row in refs.iterrows()
+        if pd.notna(row.get("TEAM_ID")) and pd.notna(row.get("TEAM_ABBR"))
+    }
+    if "HOME_TEAM_ABBREVIATION" not in out.columns:
+        out["HOME_TEAM_ABBREVIATION"] = out.get("HOME_TEAM_ID", pd.Series(dtype=int)).map(id_to_abbr)
+    if "AWAY_TEAM_ABBREVIATION" not in out.columns:
+        out["AWAY_TEAM_ABBREVIATION"] = out.get("AWAY_TEAM_ID", pd.Series(dtype=int)).map(id_to_abbr)
+    return out
+
+
+def build_team_ratings_features(ratings_kind: str = "elo") -> Tuple[pd.DataFrame, List[str]]:
+    """
+    Build game-level feature table using team_ratings-derived metrics.
+    """
+    df = load_team_metrics()
+    rating_features = _prepare_team_ratings_features()
+    df = df.merge(rating_features, on=["TEAM_ID", "GAME_DATE"], how="left")
+
+    refs = _load_team_reference()
+    id_to_abbr: Dict[int, str] = {
+        int(row["TEAM_ID"]): str(row["TEAM_ABBR"]).strip()
+        for _, row in refs.iterrows()
+        if pd.notna(row.get("TEAM_ID")) and pd.notna(row.get("TEAM_ABBR"))
+    }
+    df["TEAM_ABBREVIATION"] = df.get("TEAM_ID", pd.Series(dtype=int)).map(id_to_abbr)
+    df["HOME_TEAM_ABBREVIATION"] = df.get("HOME_TEAM_ID", pd.Series(dtype=int)).map(id_to_abbr)
+    df["AWAY_TEAM_ABBREVIATION"] = df.get("AWAY_TEAM_ID", pd.Series(dtype=int)).map(id_to_abbr)
+
+    feature_cols = [
+        "TR_RATING_PRE",
+        "TR_RATING_DELTA",
+        "TR_RATING_ROLL5",
+        "TR_RATING_ROLL10",
+    ]
+
+    games, _ = to_game_level(df, feature_cols)
+    games = _ensure_team_abbreviations(games)
+    games = attach_ratings(games, ratings_kind=ratings_kind)
+
+    if "HOME_RATING_PRE" in games.columns:
+        games.rename(columns={"HOME_RATING_PRE": "HOME_ELO_PRE"}, inplace=True)
+    if "AWAY_RATING_PRE" in games.columns:
+        games.rename(columns={"AWAY_RATING_PRE": "AWAY_ELO_PRE"}, inplace=True)
+    elo_valid = games.get("rating_diff").notna().any()
+    if not elo_valid:
+        games["rating_diff"] = games.get("DIFF_TR_RATING_PRE", 0.0)
+    if "HOME_ELO_PRE" not in games.columns or games["HOME_ELO_PRE"].isna().all():
+        games["HOME_ELO_PRE"] = games.get("HOME_TR_RATING_PRE", 0.0)
+    if "AWAY_ELO_PRE" not in games.columns or games["AWAY_ELO_PRE"].isna().all():
+        games["AWAY_ELO_PRE"] = games.get("AWAY_TR_RATING_PRE", 0.0)
+
+    # Align rating_diff with the TR rating features so training and inference share the same signal.
+    games["HOME_ELO_PRE"] = games["HOME_TR_RATING_PRE"]
+    games["AWAY_ELO_PRE"] = games["AWAY_TR_RATING_PRE"]
+    games["rating_diff"] = games["HOME_TR_RATING_PRE"] - games["AWAY_TR_RATING_PRE"]
+
+    numeric_cols = ["HOME_ELO_PRE", "AWAY_ELO_PRE", "rating_diff", "is_playoffs", "YEAR"]
+    for base in feature_cols:
+        numeric_cols.extend([f"HOME_{base}", f"AWAY_{base}", f"DIFF_{base}"])
+
+    for col in numeric_cols:
+        if col not in games.columns:
+            games[col] = np.nan
+
+    core_required = ["HOME_TR_RATING_PRE", "AWAY_TR_RATING_PRE", "rating_diff"]
+    games = games.dropna(subset=[c for c in core_required if c in games.columns]).copy()
+
+    fill_targets = [col for col in numeric_cols if col in games.columns]
+    medians = games[fill_targets].median(numeric_only=True)
+    games[fill_targets] = games[fill_targets].fillna(medians)
+    games[fill_targets] = games[fill_targets].fillna(0.0)
+
+    diff_cols = sorted({c for c in fill_targets if c.startswith("DIFF_")})
+    home_cols = sorted({c for c in fill_targets if c.startswith("HOME_TR_")})
+    away_cols = sorted({c for c in fill_targets if c.startswith("AWAY_TR_")})
+
+    X_cols = ["rating_diff", "HOME_ELO_PRE", "AWAY_ELO_PRE", "is_playoffs", "YEAR"]
+    X_cols.extend(diff_cols)
+    X_cols.extend(home_cols)
+    X_cols.extend(away_cols)
+
+    return games, X_cols
+
+
+def build_features(ratings_kind: str = "elo", feature_source: str = "metrics") -> Tuple[pd.DataFrame, List[str]]:
     """Build game-level feature table and return (games_df, X_cols).
 
     - Loads team metrics, creates rolling pre-game features.
@@ -389,6 +601,10 @@ def build_features(ratings_kind: str = "elo") -> Tuple[pd.DataFrame, List[str]]:
         games_df: columns include X_cols, y_cls, y_reg, rating_diff, is_playoffs, YEAR
         X_cols: list of feature columns to train on
     """
+    if feature_source == "ratings":
+        return build_team_ratings_features(ratings_kind=ratings_kind)
+    if feature_source != "metrics":
+        raise ValueError(f"Unknown feature_source '{feature_source}'. Expected 'metrics' or 'ratings'.")
     df = load_team_metrics()
     metric_cols = select_metric_cols(df)
     df_roll = build_team_rolling(df, metric_cols)

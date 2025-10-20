@@ -38,6 +38,12 @@ const FEATURE_LABELS = {
   FF_OPP_FTA_RATE: "Opponent free-throw rate",
   FF_OPP_OREB_PCT: "Opponent offensive rebound %",
   FF_OPP_TOV_PCT: "Opponent turnover %",
+  TR_RATING_PRE: "Team rating strength",
+  TR_RATING_DELTA: "Team rating momentum",
+  TR_RATING_ROLL5: "Five-game rating average",
+  TR_RATING_ROLL10: "Ten-game rating average",
+  HOME_ELO_PRE: "Home Elo rating",
+  AWAY_ELO_PRE: "Away Elo rating",
 };
 
 const FEATURE_DESCRIPTORS = {
@@ -71,6 +77,10 @@ const FEATURE_DESCRIPTORS = {
   TRAD_FTA: "free-throw attempts",
   TRAD_FTM: "free throws made",
   TRAD_PF: "personal fouls",
+  TR_RATING_PRE: "season-level team rating strength",
+  TR_RATING_DELTA: "change in team rating prior to the game",
+  TR_RATING_ROLL5: "five-game average team rating",
+  TR_RATING_ROLL10: "ten-game average team rating",
 };
 
 const DIFF_LIKE_FEATURES = new Set(["rating_diff"]);

@@ -60,8 +60,8 @@ def prepare_groups(features: List[str]):
     return groups, feature_to_group, mandatory, optional
 
 
-def tune_cls(ratings_kind: str = "elo", n_trials: int = 50):
-    games, X_cols = build_features(ratings_kind=ratings_kind)
+def tune_cls(ratings_kind: str = "elo", n_trials: int = 50, feature_source: str = "metrics"):
+    games, X_cols = build_features(ratings_kind=ratings_kind, feature_source=feature_source)
     baseline = load_feature_list("cls")
     if baseline:
         X_cols = [f for f in X_cols if f in baseline]
@@ -136,8 +136,8 @@ def tune_cls(ratings_kind: str = "elo", n_trials: int = 50):
     }, indent=2))
 
 
-def tune_reg(ratings_kind: str = "elo", n_trials: int = 50):
-    games, X_cols = build_features(ratings_kind=ratings_kind)
+def tune_reg(ratings_kind: str = "elo", n_trials: int = 50, feature_source: str = "metrics"):
+    games, X_cols = build_features(ratings_kind=ratings_kind, feature_source=feature_source)
     games = games.dropna(subset=["y_reg"]).copy()
     baseline = load_feature_list("reg")
     if baseline:
@@ -215,7 +215,8 @@ def tune_reg(ratings_kind: str = "elo", n_trials: int = 50):
 if __name__ == "__main__":
     task = sys.argv[1] if len(sys.argv) > 1 else "cls"
     rk = sys.argv[2] if len(sys.argv) > 2 else "elo"
+    fs = sys.argv[3] if len(sys.argv) > 3 else "metrics"
     if task == "cls":
-        tune_cls(ratings_kind=rk)
+        tune_cls(ratings_kind=rk, feature_source=fs)
     else:
-        tune_reg(ratings_kind=rk)
+        tune_reg(ratings_kind=rk, feature_source=fs)

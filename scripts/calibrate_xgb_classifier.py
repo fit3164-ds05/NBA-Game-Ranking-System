@@ -12,9 +12,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score
 
 import joblib
+import argparse
 
 # Ensure repo root in sys.path
 import sys
@@ -23,6 +23,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.ml.features import build_features
+from backend.ml.metrics import accuracy_score
 from backend.ml.splits import time_split
 
 MODELS_DIR = ROOT / "backend" / "models"
@@ -43,12 +44,22 @@ def wilson_interval(p_hat: float, n: int, z: float = 1.0) -> tuple[float, float]
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Calibrate XGBoost classifier probabilities.")
+    parser.add_argument("--ratings-kind", default="elo", help="Ratings source used during training")
+    parser.add_argument(
+        "--feature-source",
+        choices=["metrics", "ratings"],
+        default="metrics",
+        help="Feature family to rebuild for calibration",
+    )
+    args = parser.parse_args()
+
     if not MODEL_PATH.exists():
         raise FileNotFoundError(f"Classifier model not found at {MODEL_PATH}")
     feats = [line.strip() for line in FEATURES_PATH.read_text().splitlines() if line.strip()]
 
     print("[calibrate] building feature matrix…")
-    games, _ = build_features()
+    games, _ = build_features(ratings_kind=args.ratings_kind, feature_source=args.feature_source)
     _, valid_df, test_df = time_split(games)
     calib_df = pd.concat([valid_df, test_df], ignore_index=True)
 
@@ -97,6 +108,8 @@ def main() -> None:
         "feature_file": str(FEATURES_PATH.name),
         "bins": records,
         "overall_accuracy": overall_acc,
+        "feature_source": args.feature_source,
+        "ratings_kind": args.ratings_kind,
         "notes": "Wilson 68% intervals computed on validation+test split",
     }
 

@@ -21,7 +21,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from xgboost import XGBRegressor
 
 # Ensure repo root on sys.path
@@ -30,6 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.ml.features import build_features
+from backend.ml.metrics import mean_absolute_error, mean_squared_error
 from backend.ml.splits import time_split
 from backend.ml.feature_groups import select_features_by_groups
 
@@ -100,6 +100,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--early-stopping-rounds", type=int, default=75, help="Rounds with no improvement before stopping")
     parser.add_argument("--verbosity", type=int, default=0, help="XGBoost training verbosity (0=silent)")
     parser.add_argument(
+        "--feature-source",
+        choices=["metrics", "ratings"],
+        default="metrics",
+        help="Feature family to use when building the training matrix",
+    )
+    parser.add_argument(
         "--feature-list",
         help="Optional newline-delimited file listing features to keep (others will be dropped)",
     )
@@ -116,7 +122,7 @@ def main(argv: list[str] | None = None) -> None:
     ratings_kind = args.ratings_kind
     models_dir, run_dir = prepare_run_dirs(Path(args.out_dir))
 
-    games, X_cols = build_features(ratings_kind=ratings_kind)
+    games, X_cols = build_features(ratings_kind=ratings_kind, feature_source=args.feature_source)
     feature_filter: list[str] | None = None
     if args.feature_list:
         feature_path = Path(args.feature_list)
@@ -236,7 +242,7 @@ def main(argv: list[str] | None = None) -> None:
             "params": base_params,
         },
         "run_dir": str(run_dir),
-        "feature_source": args.feature_list,
+        "feature_source": args.feature_source,
         "feature_groups": selected_groups_meta,
     }
 

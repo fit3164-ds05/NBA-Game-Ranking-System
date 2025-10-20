@@ -232,16 +232,22 @@ def build_matchup_features(
     away_vec = away_vec.reindex(roll_cols).fillna(0.0)
     diff = (home_vec - away_vec).fillna(0.0)
 
-    home_rating, home_rating_year = _lookup_rating(home_team, int(home_year), ratings_kind)
-    away_rating, away_rating_year = _lookup_rating(away_team, int(away_year), ratings_kind)
+    home_tr_rating = float(home_vec.get("TR_RATING_PRE", 0.0))
+    away_tr_rating = float(away_vec.get("TR_RATING_PRE", 0.0))
+    home_rating_year = int(home_year_used)
+    away_rating_year = int(away_year_used)
 
     features: Dict[str, float] = {
-        "rating_diff": float(home_rating - away_rating),
+        "rating_diff": float(home_tr_rating - away_tr_rating),
+        "HOME_ELO_PRE": float(home_tr_rating),
+        "AWAY_ELO_PRE": float(away_tr_rating),
         "is_playoffs": 1.0 if season_type and "playoff" in season_type.lower() else 0.0,
         "YEAR": float(max(home_year_used, away_year_used)),
     }
     for col, value in diff.items():
         features[f"DIFF_{col}"] = float(value)
+        features[f"HOME_{col}"] = float(home_vec.get(col, 0.0))
+        features[f"AWAY_{col}"] = float(away_vec.get(col, 0.0))
 
     metadata = {
         "home": {

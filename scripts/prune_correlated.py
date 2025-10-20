@@ -58,6 +58,17 @@ def parse_args() -> argparse.Namespace:
         "--out-file",
         help="Output file for pruned feature list (default: xgb_<model>_features_pruned_corr.txt)",
     )
+    parser.add_argument(
+        "--feature-source",
+        choices=["metrics", "ratings"],
+        default="metrics",
+        help="Feature family used to rebuild the training matrix",
+    )
+    parser.add_argument(
+        "--ratings-kind",
+        default="elo",
+        help="Ratings table used when rebuilding features (default: elo)",
+    )
     return parser.parse_args()
 
 
@@ -136,7 +147,7 @@ def main() -> None:
     importance_order = load_importance_order(importance_csv)
 
     # Build training split and compute correlations
-    games, X_cols = build_features(ratings_kind="elo")  # features unaffected by ratings kind for structure
+    games, X_cols = build_features(ratings_kind=args.ratings_kind, feature_source=args.feature_source)
     train, _, _ = time_split(games)
     available = [f for f in features if f in train.columns]
     missing = [f for f in features if f not in train.columns]
@@ -152,7 +163,8 @@ def main() -> None:
 
     summary = {
         "model": args.model,
-        "feature_source": args.feature_list,
+        "feature_source": args.feature_source,
+        "ratings_kind": args.ratings_kind,
         "importance_csv": str(importance_csv),
         "baseline_count": len(features),
         "available_count": len(available),

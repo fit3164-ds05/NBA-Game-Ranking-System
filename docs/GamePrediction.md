@@ -6,6 +6,11 @@ This view blends three families of signals to explain a single matchup predictio
 * **XGBoost (simple)** – compact classifier trained on the most influential features.  It trades a little accuracy for sharper, human-scale explanations.
 * **Ratings (logistic)** – the legacy Glicko/Elo-style baseline computed from season-ending ratings.
 
+As of this iteration the XGBoost feature matrix is derived from `backend/data/team_ratings.csv`
+combined with Elo snapshots. Team-season profiles are aggregated from the historical rating
+series (`TR_RATING_*` features) so both training and on-demand inference align around the same
+data source.
+
 ## Response Payload
 
 `POST /api/predict` returns:
@@ -62,9 +67,15 @@ The script builds the full feature matrix, scores the validation+test split, bin
 
 ## Updating models
 
-1. `python scripts/train_xgb_classification.py` and `python scripts/train_xgb_regression.py`
-2. `python scripts/train_xgb_simple.py --top-k 20`
-3. `python scripts/calibrate_xgb_classifier.py`
-4. Restart the backend so `/api/predict` loads the refreshed artefacts.
+1. `python scripts/precompute_team_profiles.py --feature-source ratings`
+2. `python scripts/train_xgb_classification.py --feature-source ratings`
+3. `python scripts/train_xgb_regression.py --feature-source ratings`
+4. `python scripts/train_xgb_simple.py --feature-source ratings --top-k 20`
+5. `python scripts/calibrate_xgb_classifier.py --feature-source ratings`
+6. Restart the backend so `/api/predict` loads the refreshed artefacts.
+
+> The training scripts rely on XGBoost's scikit-learn bindings. Ensure `scikit-learn`
+> is installed in your environment before running them (e.g.
+> `pip install scikit-learn`).
 
 With those artefacts in place the Game Prediction UI automatically reflects the new probabilities, confidence, key drivers, and head-to-head context.

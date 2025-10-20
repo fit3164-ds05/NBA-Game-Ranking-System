@@ -20,7 +20,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 from xgboost import XGBClassifier
 
 # Ensure repo root on sys.path
@@ -30,6 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.ml.features import build_features
+from backend.ml.metrics import accuracy_score, log_loss, roc_auc_score
 from backend.ml.splits import time_split
 
 OUT_DIR = ROOT / "backend" / "models"
@@ -44,6 +44,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ratings-kind", default="elo", help="Ratings source (elo|glicko|trueskill)")
     parser.add_argument("--eta", type=float, default=0.1, help="Learning rate for compact model")
     parser.add_argument("--max-depth", type=int, default=4, help="Tree depth for compact model")
+    parser.add_argument(
+        "--feature-source",
+        choices=["metrics", "ratings"],
+        default="metrics",
+        help="Feature family to use when building the training matrix",
+    )
     return parser.parse_args()
 
 
@@ -108,7 +114,7 @@ def main() -> None:
     args = parse_args()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    games, feature_names = build_features(ratings_kind=args.ratings_kind)
+    games, feature_names = build_features(ratings_kind=args.ratings_kind, feature_source=args.feature_source)
     train_df, valid_df, test_df = time_split(games)
 
     y_tr = train_df["y_cls"].astype(int).values
@@ -140,6 +146,8 @@ def main() -> None:
         "valid": evaluate(compact, X_va, y_va),
         "test": evaluate(compact, X_te, y_te),
         "features": selected,
+        "feature_source": args.feature_source,
+        "ratings_kind": args.ratings_kind,
     }
 
     joblib.dump(compact, SIMPLE_MODEL_PATH)

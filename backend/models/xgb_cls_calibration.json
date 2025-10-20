@@ -1,0 +1,110 @@
+{
+  "model": "xgb_cls_winprob.joblib",
+  "feature_file": "xgb_cls_features.txt",
+  "bins": [
+    {
+      "low": -0.001,
+      "high": 0.1,
+      "count": 6,
+      "successes": 0,
+      "empirical_rate": 0.0,
+      "mean_prob": 0.08774659782648087,
+      "lower_68": 0.0,
+      "upper_68": 0.14285714285714285
+    },
+    {
+      "low": 0.1,
+      "high": 0.2,
+      "count": 75,
+      "successes": 19,
+      "empirical_rate": 0.25333333333333335,
+      "mean_prob": 0.16557545959949493,
+      "lower_68": 0.20658471870796818,
+      "upper_68": 0.3065731760288739
+    },
+    {
+      "low": 0.2,
+      "high": 0.3,
+      "count": 267,
+      "successes": 79,
+      "empirical_rate": 0.2958801498127341,
+      "mean_prob": 0.2600764036178589,
+      "lower_68": 0.268750039144241,
+      "upper_68": 0.3245335429453112
+    },
+    {
+      "low": 0.3,
+      "high": 0.4,
+      "count": 462,
+      "successes": 166,
+      "empirical_rate": 0.3593073593073593,
+      "mean_prob": 0.3559795618057251,
+      "lower_68": 0.3373110827528647,
+      "upper_68": 0.38191137945015896
+    },
+    {
+      "low": 0.4,
+      "high": 0.5,
+      "count": 817,
+      "successes": 368,
+      "empirical_rate": 0.4504283965728274,
+      "mean_prob": 0.4525606632232666,
+      "lower_68": 0.43309293315798486,
+      "upper_68": 0.46788506195203944
+    },
+    {
+      "low": 0.5,
+      "high": 0.6,
+      "count": 1203,
+      "successes": 627,
+      "empirical_rate": 0.5211970074812967,
+      "mean_prob": 0.5545210838317871,
+      "lower_68": 0.50678258559851,
+      "upper_68": 0.5355762183882009
+    },
+    {
+      "low": 0.6,
+      "high": 0.7,
+      "count": 1175,
+      "successes": 745,
+      "empirical_rate": 0.6340425531914894,
+      "mean_prob": 0.6457319259643555,
+      "lower_68": 0.6198815212280099,
+      "upper_68": 0.647975621629133
+    },
+    {
+      "low": 0.7,
+      "high": 0.8,
+      "count": 829,
+      "successes": 606,
+      "empirical_rate": 0.7310012062726177,
+      "mean_prob": 0.744203507900238,
+      "lower_68": 0.7153283715847252,
+      "upper_68": 0.746117411547805
+    },
+    {
+      "low": 0.8,
+      "high": 0.9,
+      "count": 284,
+      "successes": 229,
+      "empirical_rate": 0.8063380281690141,
+      "mean_prob": 0.836418867111206,
+      "lower_68": 0.781830815113805,
+      "upper_68": 0.8286955006756687
+    },
+    {
+      "low": 0.9,
+      "high": 1.0,
+      "count": 14,
+      "successes": 14,
+      "empirical_rate": 1.0,
+      "mean_prob": 0.9323396682739258,
+      "lower_68": 0.9333333333333333,
+      "upper_68": 1.0
+    }
+  ],
+  "overall_accuracy": 0.6266562743569758,
+  "feature_source": "ratings",
+  "ratings_kind": "elo",
+  "notes": "Wilson 68% intervals computed on validation+test split"
+}
