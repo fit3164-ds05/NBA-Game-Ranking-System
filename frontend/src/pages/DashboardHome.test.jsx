@@ -17,7 +17,8 @@ describe('DashboardHome page', () => {
     renderWithRouter()
 
     expect(screen.getByText('Statistics Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Discover the data that matters')).toBeInTheDocument()
+    expect(screen.getByText('Discover NBA data interactively')).toBeInTheDocument()
+    expect(screen.getByText('Move from league-wide signals to focused breakdowns with a single gesture.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/dashboardhome')
     expect(screen.getByRole('link', { name: 'Shot Chart' })).toHaveAttribute('href', '/dashboardshotchart')
   })
@@ -25,9 +26,8 @@ describe('DashboardHome page', () => {
   it('shows the momentum and spotlight cards', () => {
     renderWithRouter()
 
-    expect(screen.getAllByText('Momentum Pulse').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('League Pace').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Spotlight').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('What comes next').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Shot Charts').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Drivers of Ratings').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('League Trends').length).toBeGreaterThan(0)
   })
 })
