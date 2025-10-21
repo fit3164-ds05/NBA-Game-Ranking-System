@@ -200,6 +200,19 @@ getRatingsSeries.clearCache = ({ persist = true } = {}) => {
   }
 };
 
+export async function getSeasonalRatings({ teams = [] } = {}) {
+  const params = {};
+  if (Array.isArray(teams) && teams.length) params.teams = teams.join(",");
+  const { data } = await api.get("/ratings/seasonal", { params });
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return [];
+}
+
 // Drivers of ratings correlations
 export async function getDriversOfRatings() {
   const { data } = await api.get("/drivers-of-ratings");

@@ -9,6 +9,12 @@ vi.mock('../lib/api', () => ({
     { date: '2021-12-20', team: 'Los Angeles Lakers', rating: 1510 },
     { date: '2022-04-01', team: 'Los Angeles Lakers', rating: 1530 },
   ]),
+  getSeasonalRatings: vi.fn(async () => [
+    { season: '2020/21', team: 'Boston Celtics', rating: 1485 },
+    { season: '2020/21', team: 'Los Angeles Lakers', rating: 1495 },
+    { season: '2021/22', team: 'Boston Celtics', rating: 1520 },
+    { season: '2021/22', team: 'Los Angeles Lakers', rating: 1530 },
+  ]),
 }))
 
 import RatingChart from './RatingChart'

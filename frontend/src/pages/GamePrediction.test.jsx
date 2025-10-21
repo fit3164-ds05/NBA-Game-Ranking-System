@@ -14,6 +14,12 @@ vi.mock('../lib/api', () => {
     })),
     getSeasons: vi.fn(async (team) => (team === 'Boston Celtics' ? [2022, 2021] : [2021, 2020])),
     getRatingsSeries: vi.fn(async () => []),
+    getSeasonalRatings: vi.fn(async () => [
+      { season: '2020/21', team: 'Boston Celtics', rating: 1485 },
+      { season: '2020/21', team: 'Los Angeles Lakers', rating: 1490 },
+      { season: '2021/22', team: 'Boston Celtics', rating: 1520 },
+      { season: '2021/22', team: 'Los Angeles Lakers', rating: 1530 },
+    ]),
     predictGame: vi.fn(async ({ home_team, home_season, away_team, away_season }) => ({
       inputs: { home_team, home_season, away_team, away_season },
       home_rating: 1530,

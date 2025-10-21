@@ -3,6 +3,11 @@ import { getTeams } from "../lib/api";
 import { getTeamColor, getTeamHighlightColor } from "../lib/teamColors";
 import RatingChart from "../components/RatingChart";
 import FloatingCard from "../components/FloatingCard";
+import {
+  computeCurrentSeasonEnd,
+  formatTeamLabel,
+  stripParenthetical,
+} from "../utils/teamLabels";
 
 function pickTextColor(background) {
   if (!background) return "#1f2937";
@@ -27,28 +32,32 @@ function pickTextColor(background) {
   return "#1f2937";
 }
 
-/**
- * HistoricalRanking page
- * Renders all NBA teams and allows users to highlight any subset.
- * - All teams are always shown in the chart.
- * - Clicking a team button toggles whether that team is highlighted.
- * - Users can quickly highlight or clear all teams with the bulk actions.
- * - Below the controls, a RatingChart visualises the ratings with highlighted teams emphasized.
- */
 export default function HistoricalRanking() {
   const [teams, setTeams] = useState([]); // All teams from API
   const [highlighted, setHighlighted] = useState([]); // Highlighted teams
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [error, setError] = useState("");
+  const [teamDisplayNames, setTeamDisplayNames] = useState({});
 
   // Load teams on mount
   useEffect(() => {
     let active = true;
     async function run() {
       try {
-        const { teams: list } = await getTeams();
+        const { teams: list, seasonBounds } = await getTeams();
         if (!active) return;
         setTeams(list);
+        const seasonEnd = computeCurrentSeasonEnd(seasonBounds);
+        const mapped = {};
+        (list || []).forEach((team) => {
+          const base = stripParenthetical(team) || team;
+          const bound =
+            seasonBounds?.[team] ??
+            seasonBounds?.[base] ??
+            seasonBounds?.[team.replace(/\s+\(.+\)$/, "").trim()];
+          mapped[team] = formatTeamLabel(team, bound, seasonEnd);
+        });
+        setTeamDisplayNames(mapped);
       } catch (e) {
         if (active) setError(e.message || "Failed to load teams");
       } finally {
@@ -109,7 +118,7 @@ export default function HistoricalRanking() {
                   : undefined
               }
             >
-              {team}
+              {teamDisplayNames[team] || team}
             </button>
           );
         })}

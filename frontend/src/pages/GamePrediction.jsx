@@ -13,6 +13,11 @@ import FloatingCard from "../components/FloatingCard";
 import chartLineIcon from "../assets/chartline.svg";
 import chartLineDownIcon from "../assets/chartlinedown.svg";
 import clockLinesIcon from "../assets/clocklines.svg";
+import {
+  computeCurrentSeasonEnd,
+  formatTeamLabel,
+  stripParenthetical,
+} from "../utils/teamLabels";
 
 function TrendUpIcon({ className = "", ...props }) {
   return (
@@ -169,6 +174,7 @@ function TeamSelectCard({
   onTeam,
   onSeason,
   disabledSeasonOptions = [],
+  teamDisplayNames = {},
   help,
 }) {
   return (
@@ -178,7 +184,7 @@ function TeamSelectCard({
         <Select label="Team" value={team} onChange={(e) => onTeam(e.target.value)}>
           {teams.map((t) => (
             <option key={t} value={t}>
-              {t}
+              {teamDisplayNames?.[t] || t}
             </option>
           ))}
         </Select>
@@ -221,6 +227,7 @@ export default function GamePrediction() {
   const [result, setResult] = useState(null); // Prediction result from API
   const [activeModel, setActiveModel] = useState("xgboost");
   const [teamSeasonBounds, setTeamSeasonBounds] = useState({});
+  const [teamDisplayNames, setTeamDisplayNames] = useState({});
 
   const allowedSeasonLists = useMemo(() => {
     const map = {};
@@ -272,14 +279,54 @@ export default function GamePrediction() {
         const { teams: list, seasonBounds } = await getTeams();
         if (!active) return;
         setTeams(list);
-        setTeamSeasonBounds(seasonBounds || {});
 
-        // Pre-fill home/away teams if possible
-        if (list?.length >= 2) {
-          setHomeTeam(list[0]);
-          setAwayTeam(list[1]);
-        } else if (list?.length === 1) {
-          setHomeTeam(list[0]);
+        const bounds = seasonBounds || {};
+        setTeamSeasonBounds(bounds);
+        const seasonEnd = computeCurrentSeasonEnd(bounds);
+        const mapped = {};
+        (list || []).forEach((team) => {
+          const base = stripParenthetical(team) || team;
+          const bound =
+            bounds?.[team] ??
+            bounds?.[base] ??
+            bounds?.[team.replace(/\s+\(.+\)$/, "").trim()];
+          mapped[team] = formatTeamLabel(team, bound, seasonEnd);
+        });
+        setTeamDisplayNames(mapped);
+
+        if (Array.isArray(list) && list.length > 0) {
+          const normalised = list.map((name) => ({
+            raw: name,
+            base: (stripParenthetical(name) || name).toLowerCase(),
+          }));
+          const findByBase = (target) => {
+            const lower = target.toLowerCase();
+            const found = normalised.find((entry) => entry.base === lower);
+            return found?.raw;
+          };
+
+          if (list.length === 1) {
+            setHomeTeam(list[0]);
+            setAwayTeam("");
+          } else {
+            const preferredHome = findByBase("Atlanta Hawks");
+            const preferredAway = findByBase("Boston Celtics");
+
+            let homeChoice = preferredHome || list[0];
+            let awayChoice =
+              preferredAway ||
+              list.find((teamName) => teamName !== homeChoice) ||
+              list[1] ||
+              "";
+
+            if (homeChoice === awayChoice) {
+              const fallback = list.find((teamName) => teamName !== homeChoice);
+              awayChoice = fallback ?? "";
+            }
+
+            setHomeTeam(homeChoice);
+            setAwayTeam(awayChoice);
+          }
         }
       } catch (e) {
         setError(e.message || "Failed to load teams");
@@ -498,6 +545,7 @@ export default function GamePrediction() {
               }}
               onSeason={onHomeSeasonChange}
               disabledSeasonOptions={disabledHomeSeasons}
+              teamDisplayNames={teamDisplayNames}
               help="Home selection and season"
             />
 
@@ -514,6 +562,7 @@ export default function GamePrediction() {
               }}
               onSeason={onAwaySeasonChange}
               disabledSeasonOptions={disabledAwaySeasons}
+              teamDisplayNames={teamDisplayNames}
               help="Away selection and season"
             />
           </div>
@@ -592,6 +641,7 @@ export default function GamePrediction() {
               result={result}
               activeModel={activeModel}
               onSelectModel={setActiveModel}
+              teamDisplayNames={teamDisplayNames}
             />
           )}
         </FloatingCard>
@@ -693,7 +743,7 @@ function describeMarginExpectation(margin) {
 }
 
 
-function ResultPanel({ result, activeModel, onSelectModel }) {
+function ResultPanel({ result, activeModel, onSelectModel, teamDisplayNames }) {
   const models = result?.models ?? {};
   const availableModels = result?.available_models ?? [];
   const orderedModels = [...availableModels].sort((a, b) => {
@@ -735,6 +785,18 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
   const predictedMargin = typeof active?.predicted_margin === "number" ? active.predicted_margin : null;
   const predictedWinner = winProb !== null ? (winProb >= 0.5 ? homeTeamName : awayTeamName) : null;
   const winnerProb = winProb !== null && predictedWinner ? (predictedWinner === homeTeamName ? winProb : 1 - winProb) : null;
+  let xgboostFriendlyMessage = null;
+  if (result?.xgboost_error) {
+    const match = String(result.xgboost_error).match(/team ['"]([^'"]+)['"]/i);
+    const missingTeamRaw = match ? match[1] : null;
+    const displayName =
+      (missingTeamRaw && teamDisplayNames?.[missingTeamRaw]) ||
+      missingTeamRaw ||
+      null;
+    xgboostFriendlyMessage = displayName
+      ? `Not enough data is available for ${displayName} to run the XGBoost model.`
+      : "Not enough data is available to run the XGBoost model for this matchup.";
+  }
 
   return (
     <div className="space-y-4">
@@ -749,10 +811,10 @@ function ResultPanel({ result, activeModel, onSelectModel }) {
         <p className="text-xs text-gray-400">Model bundle {result.model_version}</p>
       </div>
 
-      {!!result.xgboost_error && (
-        <p className="text-sm text-red-600 border border-red-100 bg-red-50 rounded-lg px-3 py-2">
-          XGBoost unavailable: {result.xgboost_error}
-        </p>
+      {!!xgboostFriendlyMessage && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {xgboostFriendlyMessage}
+        </div>
       )}
 
       {orderedModels.length > 0 && (
