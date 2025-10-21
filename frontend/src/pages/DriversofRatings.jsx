@@ -78,7 +78,7 @@ export default function DriversofRatings() {
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <FloatingCard
           tone="light"
-          className="lg:col-span-8"
+          className="lg:col-span-6"
           title="Top drivers"
           titleSize="text-lg"
           body="Team metrics with the greatest correlation with historical ratings"
@@ -101,7 +101,7 @@ export default function DriversofRatings() {
 
         <FloatingCard
           tone="light"
-          className="lg:col-span-4"
+          className="lg:col-span-6"
           title="Explanation"
           titleSize="text-lg"
           body=""
@@ -133,60 +133,62 @@ export default function DriversofRatings() {
         </FloatingCard>
       </section>
 
-      <FloatingCard
-        tone="light"
-        title="Top drivers over time"
-        className="lg:col-span-8"
-        titleSize="text-lg"
-        body="Seasonal correlations between the top drivers and historical ratings"
-        bodySize="text-sm"
-        childrenClassName="mt-6"
-      >
-        {seasonalLoading ? (
-          <div className="flex h-64 items-center justify-center text-sm text-slate-500">
-            Loading seasonal drivers...
-          </div>
-        ) : seasonalError ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-rose-600">
-            <span className="font-semibold">
-              Unable to display the seasonal trends.
-            </span>
-            <span className="text-xs text-rose-500">{seasonalError}</span>
-          </div>
-        ) : (
-          <DriversSeasonalChart rows={seasonalRows} />
-        )}
-      </FloatingCard>
-
-      <FloatingCard
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <FloatingCard
           tone="light"
-          className="lg:col-span-4"
-          title="Explanation"
+          title="Top drivers over time"
+          className="lg:col-span-8"
           titleSize="text-lg"
-          body=""
+          body="Seasonal correlations between the top drivers and historical ratings"
           bodySize="text-sm"
-          childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
+          childrenClassName="mt-6"
         >
-          <p className="text-slate-500">
-            <i>Top Drivers Over Time</i> illustrates how the importance of the top drivers of historical ratings have evolved over the time, from 1996/97 to now, highlighting where certain metrics gained or lost influence on overall ratings.
-          </p>
-
-          <p className="text-slate-500">
-            <i>Net rating</i> has consistently remained essentially the most important driver of historical ratings, confirming its status as the most comprehensive single indicator of team strength by capturing both offensive and defensive performance.
-          </p>
-
-          <p className="text-slate-500">
-            <i>Points</i> per game, by contrast, shows considerable fluctuation. Its correlation with ratings rises and falls unpredictably, suggesting that raw scoring alone is not a stable indicator of team strength.
-          </p>  
-
-          <p className="text-slate-500">
-            <i>True Shooting Percentage</i> begins as the leading metric in the first four seasons, but then settles into a lower range for the next two decades. This shift may reflect changes in league-wide scoring efficiency or diminishing marginal returns from shooting optimisation.
-          </p>
-
-          <p className="text-slate-500">
-            Interestingly, <i>Offensive Rating</i>, <i>Effective Field Goal Percentage</i>, and <i>Field Goal Percentage</i> don’t exhibit a clear long-term trend, but they move in lockstep, rising and falling together season by season. This suggests they’re capturing similar underlying dynamics in team performance, likely tied to scoring efficiency and shot selection.
-          </p>
+          {seasonalLoading ? (
+            <div className="flex h-64 items-center justify-center text-sm text-slate-500">
+              Loading seasonal drivers...
+            </div>
+          ) : seasonalError ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-rose-600">
+              <span className="font-semibold">
+                Unable to display the seasonal trends.
+              </span>
+              <span className="text-xs text-rose-500">{seasonalError}</span>
+            </div>
+          ) : (
+            <DriversSeasonalChart rows={seasonalRows} />
+          )}
         </FloatingCard>
+
+        <FloatingCard
+            tone="light"
+            className="lg:col-span-4"
+            title="Explanation"
+            titleSize="text-lg"
+            body=""
+            bodySize="text-sm"
+            childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
+          >
+            <p className="text-slate-500">
+              <i>Top Drivers Over Time</i> illustrates how the importance of the top drivers of historical ratings have evolved over the time, from 1996/97 to now, highlighting where certain metrics gained or lost influence on overall ratings.
+            </p>
+
+            <p className="text-slate-500">
+              <i>Net rating</i> has consistently remained essentially the most important driver of historical ratings, confirming its status as the most comprehensive single indicator of team strength by capturing both offensive and defensive performance.
+            </p>
+
+            <p className="text-slate-500">
+              <i>Points</i> per game, by contrast, shows considerable fluctuation. Its correlation with ratings rises and falls unpredictably, suggesting that raw scoring alone is not a stable indicator of team strength.
+            </p>  
+
+            <p className="text-slate-500">
+              <i>True Shooting Percentage</i> begins as the leading metric in the first four seasons, but then settles into a lower range for the next two decades. This shift may reflect changes in league-wide scoring efficiency or diminishing marginal returns from shooting optimisation.
+            </p>
+
+            <p className="text-slate-500">
+              Interestingly, <i>Offensive Rating</i>, <i>Effective Field Goal Percentage</i>, and <i>Field Goal Percentage</i> don’t exhibit a clear long-term trend, but they move in lockstep, rising and falling together season by season. This suggests they’re capturing similar underlying dynamics in team performance, likely tied to scoring efficiency and shot selection.
+            </p>
+          </FloatingCard>
+        </section>
     </div>
   );
 }
