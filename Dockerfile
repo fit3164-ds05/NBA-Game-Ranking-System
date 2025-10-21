@@ -18,16 +18,24 @@ RUN python -m pip install --no-cache-dir -r /app/backend_requirements.txt \
 # Copy backend code, preserving directory structure expected by imports
 COPY backend /app/backend
 
-# Ensure data exists; fail clearly if ratings CSV is missing
+# Ensure required runtime datasets exist (fail fast during build)
 RUN mkdir -p /app/backend/data \
  && echo "DEBUG: Listing /app" && ls -la /app || true \
  && echo "DEBUG: Listing /app/backend/data" && ls -la /app/backend/data || true \
- && (\
-      test -f /app/backend/data/full_ratings.parquet \
-   || test -f /app/backend/data/full_ratings.feather \
-   || test -f /app/backend/data/full_ratings.csv \
-   || (echo "ERROR: Missing ratings data. Provide one of: full_ratings.parquet, full_ratings.feather, or full_ratings.csv in backend/data" && exit 1)\
-    )
+ && missing=0 \
+ && for name in team_ratings team_ratings_seasonal team_metrics team_metrics_seasonal drivers_of_ratings_top drivers_of_ratings_seasonal; do \
+      if [ ! -f "/app/backend/data/${name}.parquet" ] \
+         && [ ! -f "/app/backend/data/${name}.feather" ] \
+         && [ ! -f "/app/backend/data/${name}.csv" ]; then \
+        echo "ERROR: Missing dataset '${name}' (provide .parquet, .feather, or .csv)"; \
+        missing=1; \
+      fi; \
+    done; \
+    if ! test -f /app/backend/data/nba_teams.csv; then \
+      echo "ERROR: Missing dataset 'nba_teams.csv'"; \
+      missing=1; \
+    fi; \
+    if [ "$missing" -ne 0 ]; then exit 1; fi
 
 WORKDIR /app/backend
 

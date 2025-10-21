@@ -11,25 +11,28 @@ import os
 import math
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Set, Dict
 
 import pandas as pd
 # Import that works when backend/ is on sys.path (tests run from backend)
 from utils.data_loader import load_table  # type: ignore
-from services.team_history import active_years_for_team
+from services.team_history import active_years_for_team, load_team_history
 
 # Build a robust path to the ratings CSV
-def _default_ratings_path() -> Path:
-    # services/ -> app/ -> project root (/app in Docker)
+def _default_per_game_path() -> Path:
     root = Path(__file__).resolve().parents[1]
-    # Intentionally do not include extension so the loader can choose the best format
-    return root / "data" / "full_ratings"
+    return root / "data" / "team_ratings"
+
+
+def _default_seasonal_path() -> Path:
+    root = Path(__file__).resolve().parents[1]
+    return root / "data" / "team_ratings_seasonal"
 
 def get_ratings_csv_path() -> Path:
     env = os.getenv("RATINGS_CSV")
     if env:
         return Path(env).expanduser().resolve()
-    return _default_ratings_path()
+    return _default_per_game_path()
 
 @lru_cache(maxsize=1)
 def load_full() -> pd.DataFrame:
@@ -38,14 +41,38 @@ def load_full() -> pd.DataFrame:
     Ensures a YEAR column exists derived from GAME_DATE.
     """
     base = get_ratings_csv_path()
-    # Use unified loader: it will try .parquet, .feather, then .csv on the same stem
-    # Keep parse_dates semantics for CSV by normalizing dtype after load if needed.
     df = load_table(str(base))
+    if "DATE" in df.columns and "GAME_DATE" not in df.columns:
+        df = df.rename(columns={"DATE": "GAME_DATE"})
     if "GAME_DATE" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["GAME_DATE"]):
-        # Normalize to datetime if the source didn't carry datetime type (CSV fallback)
         df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce")
+    if "TEAM_FULL_NAME" in df.columns and "TEAM" not in df.columns:
+        df = df.rename(columns={"TEAM_FULL_NAME": "TEAM"})
     if "YEAR" not in df.columns and "GAME_DATE" in df.columns:
         df["YEAR"] = df["GAME_DATE"].dt.year
+    if "TEAM" in df.columns:
+        base = df["TEAM"].map(_primary_team_label)
+        df["TEAM_BASE"] = base
+        df["TEAM_KEY"] = df["TEAM"].map(_normalise_team)
+        df["TEAM_BASE_KEY"] = base.map(_normalise_team)
+    return df
+
+
+@lru_cache(maxsize=1)
+def load_seasonal() -> pd.DataFrame:
+    base = _default_seasonal_path()
+    df = load_table(str(base))
+    if "DATE" in df.columns and "GAME_DATE" not in df.columns:
+        df = df.rename(columns={"DATE": "GAME_DATE"})
+    if "TEAM_FULL_NAME" in df.columns and "TEAM" not in df.columns:
+        df = df.rename(columns={"TEAM_FULL_NAME": "TEAM"})
+    if "GAME_DATE" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["GAME_DATE"]):
+        df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce")
+    if "TEAM" in df.columns:
+        base = df["TEAM"].map(_primary_team_label)
+        df["TEAM_BASE"] = base
+        df["TEAM_KEY"] = df["TEAM"].map(_normalise_team)
+        df["TEAM_BASE_KEY"] = base.map(_normalise_team)
     return df
 
 def resolved_csv_path() -> str:
@@ -55,6 +82,7 @@ def resolved_csv_path() -> str:
 def clear_cache():
     """Clear the cached ratings DataFrame."""
     load_full.cache_clear()
+    load_seasonal.cache_clear()
 
 def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, end: Optional[str] = None) -> pd.DataFrame:
     """
@@ -65,10 +93,19 @@ def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, e
     """
     df = load_full()
 
-    # Build a filtered view first (no full-frame copy)
     sub = df
     if teams:
-        sub = sub[sub["TEAM"].isin(teams)]
+        wanted = { _normalise_team(t) for t in teams }
+        mask = None
+        if "TEAM_KEY" in df.columns:
+            mask = df["TEAM_KEY"].isin(wanted)
+        if "TEAM_BASE_KEY" in df.columns:
+            base_mask = df["TEAM_BASE_KEY"].isin(wanted)
+            mask = base_mask if mask is None else (mask | base_mask)
+        if mask is None:
+            sub = df.iloc[0:0]
+        else:
+            sub = df[mask]
 
     if start:
         # Compare using datetime to avoid creating string dates for full frame
@@ -82,24 +119,86 @@ def get_series(teams: Optional[List[str]] = None, start: Optional[str] = None, e
             sub = sub[sub["GAME_DATE"] <= end_dt]
 
     # Only keep the columns we need and sort at the end
-    sub = sub.loc[:, ["GAME_DATE", "TEAM", "RATING"]].sort_values("GAME_DATE").copy()
+    sub = sub.loc[:, ["GAME_DATE", "TEAM", "TEAM_BASE", "RATING"]].sort_values("GAME_DATE").copy()
 
-    # Derive presentation date on the subset only
     sub["date"] = sub["GAME_DATE"].dt.strftime("%Y-%m-%d")
-    out = sub.loc[:, ["date", "TEAM", "RATING"]].rename(columns={"TEAM": "team", "RATING": "rating"})
+    team_display = sub["TEAM_BASE"].where(sub["TEAM_BASE"].notna(), sub["TEAM"])
+    out = sub.loc[:, ["date", "RATING"]].copy()
+    out.insert(1, "team", team_display.values)
+    out.rename(columns={"RATING": "rating"}, inplace=True)
     return out
+
+def get_seasonal_summary(teams: Optional[List[str]] = None) -> pd.DataFrame:
+    df = load_seasonal()
+    sub = df
+    if teams:
+        wanted = {_normalise_team(t) for t in teams}
+        mask = None
+        if "TEAM_KEY" in df.columns:
+            mask = df["TEAM_KEY"].isin(wanted)
+        if "TEAM_BASE_KEY" in df.columns:
+            base_mask = df["TEAM_BASE_KEY"].isin(wanted)
+            mask = base_mask if mask is None else (mask | base_mask)
+        sub = df.iloc[0:0] if mask is None else df[mask]
+    if "GAME_DATE" in sub.columns:
+        sub = sub.sort_values("GAME_DATE")
+    sub = sub.loc[:, ["SEASON", "TEAM_BASE", "RATING"]].copy()
+    sub.rename(columns={"SEASON": "season", "TEAM_BASE": "team", "RATING": "rating"}, inplace=True)
+    return sub
 
 def teams() -> List[str]:
     """Return all unique team names sorted alphabetically."""
     df = load_full()
-    vals = df["TEAM"].dropna().unique().tolist()
-    return sorted(vals)
+    column = "TEAM_BASE" if "TEAM_BASE" in df.columns else "TEAM"
+    raw_names = df[column].dropna().map(_primary_team_label).unique().tolist()
+
+    history = load_team_history()
+    season_counts: Dict[str, int] = {}
+    if "YEAR" in df.columns:
+        try:
+            counts = (
+                df.loc[:, [column, "YEAR"]]
+                .dropna(subset=[column, "YEAR"])
+                .assign(_team=lambda frame: frame[column].map(_primary_team_label))
+                .groupby("_team")["YEAR"]
+                .nunique(dropna=True)
+            )
+            season_counts = counts.to_dict()
+        except Exception:
+            season_counts = {}
+
+    seen: Set[str] = set()
+    filtered: List[str] = []
+
+    for base in sorted(raw_names, key=lambda name: name.casefold()):
+        if base in seen:
+            continue
+        entry = history.get(base)
+        years = entry.get("years") if entry else None
+        unique_years = {int(y) for y in years or [] if isinstance(y, int)}
+        seasons = len(unique_years)
+        if seasons <= 1:
+            seasons = season_counts.get(base, seasons)
+        if seasons <= 1:
+            continue
+        seen.add(base)
+        filtered.append(base)
+
+    return filtered
 
 def seasons_for_team(team: str) -> List[int]:
     """Return all seasons available for a team sorted from newest to oldest."""
     df = load_full()
+    norm = _normalise_team(team)
+    mask = None
+    if "TEAM_KEY" in df.columns:
+        mask = df["TEAM_KEY"].isin([norm])
+    if "TEAM_BASE_KEY" in df.columns:
+        base_mask = df["TEAM_BASE_KEY"].isin([norm])
+        mask = base_mask if mask is None else (mask | base_mask)
+    subset = df.iloc[0:0] if mask is None else df[mask]
     vals = (
-        df.loc[df["TEAM"] == team, "YEAR"]
+        subset.loc[:, "YEAR"]
         .dropna()
         .astype(int)
         .unique()
@@ -120,7 +219,15 @@ def latest_rating_in_season(team: str, year: int) -> Optional[float]:
     if allowed_years and int(year) not in allowed_years:
         return None
     df = load_full()
-    sub = df[(df["TEAM"] == team) & (df["YEAR"] == int(year))].sort_values("GAME_DATE")
+    norm = _normalise_team(team)
+    mask_team = None
+    if "TEAM_KEY" in df.columns:
+        mask_team = df["TEAM_KEY"].isin([norm])
+    if "TEAM_BASE_KEY" in df.columns:
+        base_mask = df["TEAM_BASE_KEY"].isin([norm])
+        mask_team = base_mask if mask_team is None else (mask_team | base_mask)
+    sub = df.iloc[0:0] if mask_team is None else df[mask_team]
+    sub = sub[sub["YEAR"] == int(year)].sort_values("GAME_DATE")
     if sub.empty:
         return None
     # If your CSV has a column named RATING use that. Adjust here if the name differs.
@@ -157,18 +264,19 @@ def predict_prob(home_team: str, home_year: int, away_team: str, away_year: int)
     }
 
 
-def _normalise_team(name: object) -> str:
-    if not isinstance(name, str):
-        return ""
-    return "".join(ch.lower() for ch in name if ch.isalnum())
-
-
 def _primary_team_label(name: object) -> str:
     """Prefer the core team label when full names include era ranges."""
     if not isinstance(name, str):
         return ""
     base = name.split("(", 1)[0].strip()
     return base or name
+
+
+def _normalise_team(name: object) -> str:
+    if not isinstance(name, str):
+        return ""
+    base = _primary_team_label(name)
+    return "".join(ch.lower() for ch in base if ch.isalnum())
 
 
 @lru_cache(maxsize=1)

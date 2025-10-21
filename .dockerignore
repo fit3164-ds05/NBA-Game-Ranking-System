@@ -1,0 +1,41 @@
+# Git & VCS
+.git
+.gitignore
+
+# Local environments and secrets
+.env
+env.local
+*.env
+
+# Node and build artefacts
+node_modules/
+frontend/node_modules/
+dist/
+.vite/
+
+# OS / editor cruft
+.DS_Store
+.vscode/
+.idea/
+
+# Tests and coverage (not needed in runtime image)
+tests/
+backend/tests/
+frontend/test/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Large or unused data assets excluded from the runtime image
+backend/data/legacy/
+backend/data/visuals/
+backend/data/qa/
+backend/data/enlarged_dataset.parquet
+backend/data/enlarged_dataset.feather
+backend/data/enlarged_dataset.csv
+backend/data/full_nba_data.csv
+backend/data/results_with_predictions.parquet
+backend/data/team_metrics_dataset.parquet
+backend/data/team_metrics_dataset.feather
+backend/data/cols_*.txt
+backend/data/h*.txt

@@ -14,6 +14,7 @@ from services.ratings import (
     load_full,
     resolved_csv_path,
     summarize_matchup,
+    get_seasonal_summary,
 )
 from services import ratings
 from services.drivers import load_drivers, load_drivers_seasonal
@@ -160,6 +161,22 @@ def get_league_trends_scoring_zones():
         current_app.logger.exception("Failed to load scoring zone dataset: %s", exc)
         return jsonify(error="Failed to load scoring zone composition"), 500
     return jsonify(data=data)
+
+
+@api_bp.get("/ratings/seasonal")
+def ratings_seasonal():
+    """Return seasonal rating snapshot per team."""
+    teams_param = request.args.get("teams")
+    wanted = None
+    if teams_param:
+        wanted = [t.strip() for t in teams_param.split(",") if t.strip()]
+    try:
+        df = get_seasonal_summary(teams=wanted)
+    except FileNotFoundError as exc:
+        return jsonify(error=str(exc)), 500
+
+    records = df.to_dict(orient="records")
+    return jsonify(data=records)
 
 @api_bp.post("/predict")
 def predict():
