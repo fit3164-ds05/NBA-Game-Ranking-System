@@ -179,36 +179,16 @@ export default function LeagueTrends() {
           childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
         >
           <p className="text-slate-500">
-            Our historical rating system uses a basic Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
+            <i>Field Goal Attempt Composition</i> illustrates how the share of 2 point and 3 point attempts have changed each season from 1996/97 to now.
           </p>
 
           <p className="text-slate-500">
-            The Elo rating system is built on the principle that each team starts with a rating, and this rating changes after every game based on the result. 
+            From this chart, it is obvious that the NBA has gradually shifted to attempting more 3 pointers. In 1996/97, 3 point attempts made up about 20% of total field goal attempts. In 2024/25, 3 point attempts made up about 40% of total field goal attempts, roughly doubling the proportion three decades ago.
           </p>
 
           <p className="text-slate-500">
-            The long-term average Elo rating is 1500. As such, each team starts with a rating of 100.
-          </p>
-
-          <p className="text-slate-500">
-            The amount of points gained or lost depends on the relative strength of opponents, as determined by their ratings. If a higher-rated team defeats a lower-rated team, the higher-rated team gains only a few points, while the lower-rated team loses only a few points. However, if the lower-rated team pulls off an upset and defeats the higher-rated team, they gain more points, and the higher-rated team loses more points. 
-          </p>
-
-          <p className="text-slate-500">
-            Basic Elo ratings are calculated using the formula Rn = Ro + K(W - We), where: Rn is the team's new rating after the game, Ro is the team's rating prior to the game, W is the result of the game (1 for a win, 0 for a loss), We is the expected match result, and K is the K-factor.
-          </p>
-
-          <p className="text-slate-500">
-            The K-factor determines the sensitivity of ratings to new matches. It is set to efficiently account for new data but not overreact to it. Our Elo ratings are calculated using a K-factor of 32.
-          </p>
-
-          <p className="text-slate-500">
-            The expected match result is calculated using the formula We = 1/(1 + 10 ^ ((Ropp - Ro) / 400)), where Ropp is the opponent's rating before the game, and Ro is the team's rating before the game.
-          </p>
-
-          <p className="text-slate-500">
-            In view of full transparency, our Elo rating system also has a several areas for improvement. It does not account for home-court advantage, margin of victory, season-to-season carry-over, and league expansion/contraction.
-          </p>        
+            This chart also shows the rate of change in the proportion of 2 point attempts and 3 point attempts. The rate of change is quite gradual until 2011/12, increases unil 2019/20, and then somewhat stablises.
+          </p>  
       </FloatingCard>
       </section>
 
@@ -299,36 +279,16 @@ export default function LeagueTrends() {
           childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
         >
           <p className="text-slate-500">
-            Our historical rating system uses a basic Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
+            <i>Scoring Zone Contributions</i> illustrates how the share of points coming from different areas of the court have changed each season from 1996/97 to now.
           </p>
 
           <p className="text-slate-500">
-            The Elo rating system is built on the principle that each team starts with a rating, and this rating changes after every game based on the result. 
+            Scoring zones are split into four areas: free throws, 2-pointers (mid-range), 2-pointers (in the paint), and 3-pointers. Essentially, 2-pointers are split into points inside the paint, and points outside the paint (mid-range).
           </p>
 
           <p className="text-slate-500">
-            The long-term average Elo rating is 1500. As such, each team starts with a rating of 100.
-          </p>
-
-          <p className="text-slate-500">
-            The amount of points gained or lost depends on the relative strength of opponents, as determined by their ratings. If a higher-rated team defeats a lower-rated team, the higher-rated team gains only a few points, while the lower-rated team loses only a few points. However, if the lower-rated team pulls off an upset and defeats the higher-rated team, they gain more points, and the higher-rated team loses more points. 
-          </p>
-
-          <p className="text-slate-500">
-            Basic Elo ratings are calculated using the formula Rn = Ro + K(W - We), where: Rn is the team's new rating after the game, Ro is the team's rating prior to the game, W is the result of the game (1 for a win, 0 for a loss), We is the expected match result, and K is the K-factor.
-          </p>
-
-          <p className="text-slate-500">
-            The K-factor determines the sensitivity of ratings to new matches. It is set to efficiently account for new data but not overreact to it. Our Elo ratings are calculated using a K-factor of 32.
-          </p>
-
-          <p className="text-slate-500">
-            The expected match result is calculated using the formula We = 1/(1 + 10 ^ ((Ropp - Ro) / 400)), where Ropp is the opponent's rating before the game, and Ro is the team's rating before the game.
-          </p>
-
-          <p className="text-slate-500">
-            In view of full transparency, our Elo rating system also has a several areas for improvement. It does not account for home-court advantage, margin of victory, season-to-season carry-over, and league expansion/contraction.
-          </p>        
+            This chart shows that there has not been much variation in the proportion of points coming from free throws and 3-pointers. However, it does show that the proportion of points coming from 3-pointers has significantly increased over time, from around 18% to 35%. This increase is matched by the decrease in points coming from mid-range 2-pointers, which have decreased from 20% to around 6%. This indicates that on average, the NBA has shifted a few feet back, taking (and making) 3-pointers instead of mid-range 2-pointers. 
+          </p>      
         </FloatingCard>
       </section>
     </div>
