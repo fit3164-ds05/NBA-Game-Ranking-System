@@ -172,6 +172,50 @@ export default function LeagueTrends() {
         <FloatingCard
           tone="light"
           className="lg:col-span-5"
+          title="Explanation"
+          titleSize="text-lg"
+          body=""
+          bodySize="text-sm"
+          childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
+        >
+          <p className="text-slate-500">
+            Our historical rating system uses a basic Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
+          </p>
+
+          <p className="text-slate-500">
+            The Elo rating system is built on the principle that each team starts with a rating, and this rating changes after every game based on the result. 
+          </p>
+
+          <p className="text-slate-500">
+            The long-term average Elo rating is 1500. As such, each team starts with a rating of 100.
+          </p>
+
+          <p className="text-slate-500">
+            The amount of points gained or lost depends on the relative strength of opponents, as determined by their ratings. If a higher-rated team defeats a lower-rated team, the higher-rated team gains only a few points, while the lower-rated team loses only a few points. However, if the lower-rated team pulls off an upset and defeats the higher-rated team, they gain more points, and the higher-rated team loses more points. 
+          </p>
+
+          <p className="text-slate-500">
+            Basic Elo ratings are calculated using the formula Rn = Ro + K(W - We), where: Rn is the team's new rating after the game, Ro is the team's rating prior to the game, W is the result of the game (1 for a win, 0 for a loss), We is the expected match result, and K is the K-factor.
+          </p>
+
+          <p className="text-slate-500">
+            The K-factor determines the sensitivity of ratings to new matches. It is set to efficiently account for new data but not overreact to it. Our Elo ratings are calculated using a K-factor of 32.
+          </p>
+
+          <p className="text-slate-500">
+            The expected match result is calculated using the formula We = 1/(1 + 10 ^ ((Ropp - Ro) / 400)), where Ropp is the opponent's rating before the game, and Ro is the team's rating before the game.
+          </p>
+
+          <p className="text-slate-500">
+            In view of full transparency, our Elo rating system also has a several areas for improvement. It does not account for home-court advantage, margin of victory, season-to-season carry-over, and league expansion/contraction.
+          </p>        
+      </FloatingCard>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <FloatingCard
+          tone="light"
+          className="lg:col-span-7"
           title="Scoring Zone Contributions"
           titleSize="text-lg"
           body="League share of total points coming from the paint, mid-range, threes, and free throws."
@@ -244,53 +288,49 @@ export default function LeagueTrends() {
             </ResponsiveContainer>
           )}
         </FloatingCard>
+
+        <FloatingCard
+          tone="light"
+          className="lg:col-span-5"
+          title="Explanation"
+          titleSize="text-lg"
+          body=""
+          bodySize="text-sm"
+          childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
+        >
+          <p className="text-slate-500">
+            Our historical rating system uses a basic Elo rating system to measure the performance of teams throughout the entire existence of the NBA.
+          </p>
+
+          <p className="text-slate-500">
+            The Elo rating system is built on the principle that each team starts with a rating, and this rating changes after every game based on the result. 
+          </p>
+
+          <p className="text-slate-500">
+            The long-term average Elo rating is 1500. As such, each team starts with a rating of 100.
+          </p>
+
+          <p className="text-slate-500">
+            The amount of points gained or lost depends on the relative strength of opponents, as determined by their ratings. If a higher-rated team defeats a lower-rated team, the higher-rated team gains only a few points, while the lower-rated team loses only a few points. However, if the lower-rated team pulls off an upset and defeats the higher-rated team, they gain more points, and the higher-rated team loses more points. 
+          </p>
+
+          <p className="text-slate-500">
+            Basic Elo ratings are calculated using the formula Rn = Ro + K(W - We), where: Rn is the team's new rating after the game, Ro is the team's rating prior to the game, W is the result of the game (1 for a win, 0 for a loss), We is the expected match result, and K is the K-factor.
+          </p>
+
+          <p className="text-slate-500">
+            The K-factor determines the sensitivity of ratings to new matches. It is set to efficiently account for new data but not overreact to it. Our Elo ratings are calculated using a K-factor of 32.
+          </p>
+
+          <p className="text-slate-500">
+            The expected match result is calculated using the formula We = 1/(1 + 10 ^ ((Ropp - Ro) / 400)), where Ropp is the opponent's rating before the game, and Ro is the team's rating before the game.
+          </p>
+
+          <p className="text-slate-500">
+            In view of full transparency, our Elo rating system also has a several areas for improvement. It does not account for home-court advantage, margin of victory, season-to-season carry-over, and league expansion/contraction.
+          </p>        
+        </FloatingCard>
       </section>
-
-      <FloatingCard
-        tone="light"
-        title="Reading the shift"
-        titleSize="text-lg"
-        body="A stacked share perspective highlights when perimeter volume began overtaking traditional mid-range play."
-        bodySize="text-sm"
-        childrenClassName="mt-5 space-y-3 text-sm text-slate-600"
-      >
-        <ul className="space-y-3">
-          <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-            <p className="text-sm font-semibold text-slate-900">Early 2000s plateau</p>
-            <p className="text-xs text-slate-500">
-              Three-point share hovered under 25% until pace-space lineups emerged after 2007.
-            </p>
-          </li>
-          <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-            <p className="text-sm font-semibold text-slate-900">2015 surge</p>
-            <p className="text-xs text-slate-500">
-              The Warriors and Rockets era pushed 3PT attempts above a third of all shots.
-            </p>
-          </li>
-          <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-            <p className="text-sm font-semibold text-slate-900">Modern equilibrium</p>
-            <p className="text-xs text-slate-500">
-              Recent seasons sit near a 60/40 split, showing how rim pressure still anchors offenses.
-            </p>
-          </li>
-        </ul>
-      </FloatingCard>
-
-      <FloatingCard
-        tone="light"
-        title="Next up"
-        titleSize="text-lg"
-        body="Activate the shot chart module in the sidebar to illustrate how individual teams evolve inside this league context."
-        bodySize="text-sm"
-        childrenClassName="mt-6 flex flex-col gap-3 text-xs text-slate-500 md:flex-row md:items-center md:justify-end"
-      >
-        <span className="rounded-full bg-white px-4 py-2 shadow-[0_12px_32px_-24px rgba(15,23,42,0.25)]">
-          Sync with shotchart
-        </span>
-        <span className="rounded-full bg-white px-4 py-2 shadow-[0_12px_32px_-24px rgba(15,23,42,0.25)]">
-          Share scene
-        </span>
-      </FloatingCard>
     </div>
   );
 }
