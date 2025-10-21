@@ -16,14 +16,14 @@ import { getLeagueFGComposition, getLeagueScoringZones } from "../lib/api";
 
 const FGA_COLORS = {
   pct_2pt: "#4c1d95",
-  pct_3pt: "#7dd3fc",
+  pct_3pt: "#0073ffff",
 };
 
 const ZONE_COLORS = {
   pct_pitp: "#3730a3",
   pct_midrange: "#7c3aed",
-  pct_three: "#38bdf8",
-  pct_ft: "#cbd5f5",
+  pct_three: "#0073ffff",
+  pct_ft: "#f700ffff",
 };
 
 export default function LeagueTrends() {
