@@ -10,7 +10,7 @@ import {
   Label,
 } from "recharts";
 
-const PRIMARY_COLOR = "#2563eb";
+const PRIMARY_COLOR = "#0073ffff";
 
 function wrapLabel(label, limit = 16, maxLines = 2) {
   const words = String(label ?? "").split(/\s+/);
@@ -77,7 +77,7 @@ function MetricTick({ x, y, payload }) {
   );
 }
 
-export default function DriversHeatmap({ rows = [] }) {
+export default function DriversColumnChart({ rows = [] }) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">

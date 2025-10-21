@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardSwitcher from "../components/DashboardSwitcher";
 import FloatingCard from "../components/FloatingCard";
-import DriversHeatmap from "../components/DriversHeatmap";
+import DriversColumnChart from "../components/DriversColumnChart";
 import DriversSeasonalChart from "../components/DriversSeasonalChart";
 import { getDriversOfRatings, getDriversOfRatingsSeasonal } from "../lib/api";
 
@@ -71,17 +71,17 @@ export default function DriversofRatings() {
   return (
     <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
       <DashboardSwitcher
-        title="The forces behind team ratings and wins"
-        description="Explore how efficiency metrics correlate with historical ratings to prioritise what matters most."
+        title="The forces behind team ratings"
+        description="Explore how team metrics correlate with historical ratings"
       />
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <FloatingCard
           tone="light"
           className="lg:col-span-8"
-          title="Top correlation drivers"
+          title="Top drivers"
           titleSize="text-lg"
-          body="Column height shows how tightly a metric tracks with historical ratings. Hover any bar to see the underlying definition."
+          body="Team metrics with the greatest correlation with historical ratings"
           bodySize="text-sm"
           childrenClassName="mt-6"
         >
@@ -95,47 +95,50 @@ export default function DriversofRatings() {
               <span className="text-xs text-rose-500">{error}</span>
             </div>
           ) : (
-            <DriversHeatmap rows={rows} />
+            <DriversColumnChart rows={rows} />
           )}
         </FloatingCard>
 
         <FloatingCard
           tone="light"
           className="lg:col-span-4"
-          title="How to read the chart"
+          title="Explanation"
           titleSize="text-lg"
           body=""
           bodySize="text-sm"
           childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
         >
-          <ul className="space-y-3">
-            <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-              <p className="text-sm font-semibold text-slate-900">Metric label</p>
-              <p className="text-xs text-slate-500">
-                The X-axis lists advanced and four-factor metrics sourced from the ratings dataset.
-              </p>
-            </li>
-            <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-              <p className="text-sm font-semibold text-slate-900">Column height</p>
-              <p className="text-xs text-slate-500">
-                Taller columns indicate a stronger positive correlation with historical team ratings.
-              </p>
-            </li>
-            <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-              <p className="text-sm font-semibold text-slate-900">Numeric label</p>
-              <p className="text-xs text-slate-500">
-                The number above each column is the correlation coefficient rounded to two decimals.
-              </p>
-            </li>
-          </ul>
+          <p className="text-slate-500">
+            <i>Top Drivers</i> illustrates the team metrics with the greatest correlation with historical ratings from 1996/97 to now. Team metrics under consideration are taken from advanced box scores.
+          </p>
+
+          <p className="text-slate-500">
+            <i>Net Rating</i> is arguably the most comprehensive single indicator of team strength. It captures the point differential per 100 possessions, blending offensive and defensive performance into one number. Teams with consistently high net ratings dominate both ends of the floor, which directly translates to winning margins and, by extension, higher ratings.
+            While <i>Net Rating</i> is the number of points scored per 100 possessions minus the number of points allowed per 100 possessions, <i>offensive rating</i> is just the number of points scored per 100 points.
+            <i>Offensive Rating</i> quantifies how effectively a team converts possessions into points. A high offensive rating reflects strong shot selection, ball movement, and execution.
+            As both are measured per 100 possessions, <i>Net Rating</i> and <i>Offensive Rating</i> are also good indicators of a team's pace.
+          </p>  
+
+          <p className="text-slate-500">
+            <i>True Shooting Percentage</i>, <i>Effective Field Goal Percentage</i>, and <i>Field Goal Percentage</i> all reflect scoring efficiency. 
+            <i>Field Goal Percentage</i> offers a baseline view of scoring efficiency.
+            <i>True Shooting Percentage</i> adjusts for the value of three-pointers and free throws, offering a more accurate measure of scoring efficiency than traditional <i>Field Goal Percentage</i>. 
+            Similarly, <i>Effective Field Goal Percentage</i> accounts for the added value of three-pointers.
+            These metrics are often dependent on teams' shot selection quality and periemter efficiency, and thus their ability to maximise points per shot.
+          </p>
+
+          <p className="text-slate-500">
+            The number of <i>Points</i> scored remains a strong signal of offensive power. Although raw scoring does not account for pace or efficiency, at the end of the day, points win and lose games.
+          </p>
         </FloatingCard>
       </section>
 
       <FloatingCard
         tone="light"
-        title="Correlation trends over time"
+        title="Top drivers over time"
+        className="lg:col-span-8"
         titleSize="text-lg"
-        body="Season-by-season correlations show where certain metrics gained or lost influence on overall ratings."
+        body="Seasonal correlations between the top drivers and historical ratings"
         bodySize="text-sm"
         childrenClassName="mt-6"
       >
@@ -156,20 +159,34 @@ export default function DriversofRatings() {
       </FloatingCard>
 
       <FloatingCard
-        tone="light"
-        title="Suggested next step"
-        titleSize="text-lg"
-        body="Pivot to player insights to inspect who is driving the swing in on/off splits."
-        bodySize="text-sm"
-        childrenClassName="mt-6 flex flex-col gap-3 text-xs text-slate-500 md:flex-row md:items-center md:justify-end"
-      >
-        <span className="rounded-full bg-white px-4 py-2 shadow-[0_12px_32px_-24px rgba(15,23,42,0.25)]">
-          Track custom cohorts
-        </span>
-        <span className="rounded-full bg-white px-4 py-2 shadow-[0_12px_32px_-24px rgba(15,23,42,0.25)]">
-          Export CSV
-        </span>
-      </FloatingCard>
+          tone="light"
+          className="lg:col-span-4"
+          title="Explanation"
+          titleSize="text-lg"
+          body=""
+          bodySize="text-sm"
+          childrenClassName="mt-4 space-y-3 text-sm text-slate-600"
+        >
+          <p className="text-slate-500">
+            <i>Top Drivers Over Time</i> illustrates how the importance of the top drivers of historical ratings have evolved over the time, from 1996/97 to now, highlighting where certain metrics gained or lost influence on overall ratings.
+          </p>
+
+          <p className="text-slate-500">
+            <i>Net rating</i> has consistently remained essentially the most important driver of historical ratings, confirming its status as the most comprehensive single indicator of team strength by capturing both offensive and defensive performance.
+          </p>
+
+          <p className="text-slate-500">
+            <i>Points</i> per game, by contrast, shows considerable fluctuation. Its correlation with ratings rises and falls unpredictably, suggesting that raw scoring alone is not a stable indicator of team strength.
+          </p>  
+
+          <p className="text-slate-500">
+            <i>True Shooting Percentage</i> begins as the leading metric in the first four seasons, but then settles into a lower range for the next two decades. This shift may reflect changes in league-wide scoring efficiency or diminishing marginal returns from shooting optimisation.
+          </p>
+
+          <p className="text-slate-500">
+            Interestingly, <i>Offensive Rating</i>, <i>Effective Field Goal Percentage</i>, and <i>Field Goal Percentage</i> don’t exhibit a clear long-term trend, but they move in lockstep, rising and falling together season by season. This suggests they’re capturing similar underlying dynamics in team performance, likely tied to scoring efficiency and shot selection.
+          </p>
+        </FloatingCard>
     </div>
   );
 }
