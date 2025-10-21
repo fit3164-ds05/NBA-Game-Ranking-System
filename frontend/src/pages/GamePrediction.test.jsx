@@ -27,17 +27,19 @@ vi.mock('../lib/api', () => {
       rating_diff: 30,
       model_version: 'glicko_csv_v1',
       models: {
-        elo: {
-          label: 'Ratings (logistic)',
+        xgboost: {
+          label: 'XGBoost (win+margin)',
           home_win_prob: 0.6,
           predicted_margin: 1.2,
-          home_rating: 1530,
-          away_rating: 1500,
-          margin_sigma: 8.4,
           win_prob_from_margin: 0.62,
+          margin_sigma: 8.4,
+          feature_context: {},
+          top_factors: [],
+          bias: 0.01,
+          confidence_interval: { lower_68: 0.43, upper_68: 0.47, count: 817 },
         },
       },
-      available_models: ['elo'],
+      available_models: ['xgboost'],
       head_to_head: {
         scope: 'historical',
         home_team,
@@ -104,11 +106,10 @@ describe('GamePrediction page', () => {
       expect(screen.getByText('60%')).toBeInTheDocument()
       expect(screen.getAllByText(/Confidence/i)[0]).toBeInTheDocument()
       expect(screen.getByText('Low')).toBeInTheDocument()
-      expect(screen.getAllByText(/margin favours/i).length).toBeGreaterThan(0)
+      expect(screen.getAllByText(/Margin lean/i).length).toBeGreaterThan(0)
       expect(screen.getByText(/Margin projection/i)).toBeInTheDocument()
       expect(screen.getByText(/How to interpret/i)).toBeInTheDocument()
       expect(screen.getByText(/Head-to-head/i)).toBeInTheDocument()
-      expect(screen.getByText(/Model bundle glicko_csv_v1/i)).toBeInTheDocument()
     })
   })
 })

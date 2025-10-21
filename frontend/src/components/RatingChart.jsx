@@ -509,7 +509,9 @@ export default function RatingChart({
 
   const CustomTooltip = ({ active, label, payload }) => {
     if (!active || !payload || payload.length === 0 || legendTeams.length === 0) return null;
-    let filtered = payload.filter((p) => !p?.payload?.__isHighlight && p.value != null);
+    const highlightEntries = payload.filter((p) => p?.payload?.__isHighlight && p.value != null);
+    const normalEntries = payload.filter((p) => !p?.payload?.__isHighlight && p.value != null);
+    let filtered = highlightEntries.length ? [...highlightEntries, ...normalEntries] : normalEntries;
 
     const hasLegendEntries = legendTeams.length > 0;
     const allHighlighted = hasLegendEntries && legendTeams.length === uniqueTeams.length;
@@ -517,16 +519,20 @@ export default function RatingChart({
     // If a subset is highlighted, show only those. If none or all are highlighted,
     // limit entries to top-N by value to avoid clutter.
     if (hasLegendEntries && !allHighlighted) {
-      filtered = filtered.filter((p) => legendTeamSet.has(p.name));
+      filtered = filtered.filter((p) => legendTeamSet.has(p.name || p.payload?.team));
     } else if (maxTooltipItems && maxTooltipItems > 0) {
-      filtered = [...filtered]
+      const nonHighlight = filtered.filter((p) => !p?.payload?.__isHighlight);
+      const top = nonHighlight
         .sort((a, b) => Number(b.value) - Number(a.value))
-        .slice(0, maxTooltipItems);
+        .slice(0, Math.max(0, maxTooltipItems - highlightEntries.length));
+      filtered = highlightEntries.length ? [...highlightEntries, ...top] : top;
     }
 
     const map = new Map();
     for (const p of filtered) {
-      if (!map.has(p.name)) map.set(p.name, p);
+      const keyName = p.name || p.payload?.team;
+      if (!keyName) continue;
+      if (!map.has(keyName)) map.set(keyName, p);
     }
     if (map.size === 0) return null;
     const seasonLabel = formatSeasonShort(label);
@@ -541,9 +547,9 @@ export default function RatingChart({
       >
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>Season {seasonLabel}</div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-          {Array.from(map.values()).map((p) => (
-            <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
-              <span>{p.name}: </span>
+          {Array.from(map.entries()).map(([keyName, p]) => (
+            <li key={keyName} style={{ marginBottom: 2, color: p.color }}>
+              <span>{keyName}: </span>
               <span>{Number(p.value).toFixed(0)}</span>
             </li>
           ))}
@@ -563,22 +569,28 @@ export default function RatingChart({
 
   const SeasonDetailTooltip = ({ active, label, payload }) => {
     if (!showSeasonDetail || !active || !payload || payload.length === 0) return null;
-    let filtered = payload.filter((p) => p.value != null);
+    const highlightEntries = payload.filter((p) => p?.payload?.__isHighlight && p.value != null);
+    const normalEntries = payload.filter((p) => !p?.payload?.__isHighlight && p.value != null);
+    let filtered = highlightEntries.length ? [...highlightEntries, ...normalEntries] : normalEntries;
 
     const hasLegendEntries = legendTeams.length > 0;
     const allHighlighted = hasLegendEntries && legendTeams.length === uniqueTeams.length;
 
     if (hasLegendEntries && !allHighlighted) {
-      filtered = filtered.filter((p) => legendTeamSet.has(p.name));
+      filtered = filtered.filter((p) => legendTeamSet.has(p.name || p.payload?.team));
     } else if (maxTooltipItems && maxTooltipItems > 0) {
-      filtered = [...filtered]
+      const nonHighlight = filtered.filter((p) => !p?.payload?.__isHighlight);
+      const top = nonHighlight
         .sort((a, b) => Number(b.value) - Number(a.value))
-        .slice(0, maxTooltipItems);
+        .slice(0, Math.max(0, maxTooltipItems - highlightEntries.length));
+      filtered = highlightEntries.length ? [...highlightEntries, ...top] : top;
     }
 
     const map = new Map();
     for (const p of filtered) {
-      if (!map.has(p.name)) map.set(p.name, p);
+      const keyName = p.name || p.payload?.team;
+      if (!keyName) continue;
+      if (!map.has(keyName)) map.set(keyName, p);
     }
     if (map.size === 0) return null;
 
@@ -599,9 +611,9 @@ export default function RatingChart({
       >
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>{labelText}</div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-          {Array.from(map.values()).map((p) => (
-            <li key={p.name} style={{ marginBottom: 2, color: p.color }}>
-              <span>{p.name}: </span>
+          {Array.from(map.entries()).map(([keyName, p]) => (
+            <li key={keyName} style={{ marginBottom: 2, color: p.color }}>
+              <span>{keyName}: </span>
               <span>{Number(p.value).toFixed(0)}</span>
             </li>
           ))}
@@ -767,12 +779,47 @@ export default function RatingChart({
                       strokeWidth={isHovered ? 7 : isUserHighlighted ? 6 : 5}
                       strokeOpacity={faded ? 0.08 : baseOpacity}
                       isAnimationActive={false}
-                      dot={{ r: isHovered ? 6 : 5 }}
-                      activeDot={false}
+                      dot={({ cx, cy, payload }) => {
+                        const value = payload?.[team];
+                        if (value == null) return null;
+                        const radius = isHovered ? 7 : 6;
+                        const color = getTeamHighlightColor(team);
+                        return (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={radius}
+                            fill={color}
+                            stroke="#ffffff"
+                            strokeWidth={2}
+                            style={{ pointerEvents: "auto" }}
+                            onMouseEnter={() => handleLineEnter(team)}
+                            onMouseLeave={() => handleLineLeave(team)}
+                          />
+                        );
+                      }}
+                      activeDot={({ cx, cy, payload }) => {
+                        const value = payload?.[team];
+                        if (value == null) return null;
+                        const color = getTeamHighlightColor(team);
+                        return (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={8}
+                            fill={color}
+                            stroke="#ffffff"
+                            strokeWidth={2.5}
+                            style={{ pointerEvents: "auto" }}
+                            onMouseEnter={() => handleLineEnter(team)}
+                            onMouseLeave={() => handleLineLeave(team)}
+                          />
+                        );
+                      }}
                       strokeLinejoin="round"
                       strokeLinecap="round"
                       legendType="none"
-                      name={undefined}
+                      name={team}
                       onClick={() => handleSelectTeam(team)}
                       onMouseEnter={() => handleLineEnter(team)}
                       onMouseLeave={() => handleLineLeave(team)}

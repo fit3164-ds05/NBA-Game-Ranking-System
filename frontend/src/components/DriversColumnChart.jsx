@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   LabelList,
   Label,
+  Cell,
 } from "recharts";
 
 const PRIMARY_COLOR = "#0073ffff";
@@ -52,6 +53,11 @@ function DriversTooltip({ active, payload }) {
       <div className="mt-2 text-sm font-medium text-slate-700">
         Correlation: {row.correlation.toFixed(2)}
       </div>
+      {!row.available ? (
+        <div className="mt-2 text-xs text-amber-600">
+          Seasonal trends do not include this metric.
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -86,7 +92,21 @@ export default function DriversColumnChart({ rows = [] }) {
     );
   }
 
-  const sorted = [...rows].sort((a, b) => b.correlation - a.correlation);
+  const allowSet = allowedMetricKeys && allowedMetricKeys.size ? allowedMetricKeys : null;
+
+  const decorated = rows.map((row, index) => {
+    const metricKey = metricSlug(row.name || row.metric);
+    const available = !allowSet || (metricKey && allowSet.has(metricKey));
+    const palette = metricColorMap?.get(metricKey) ?? colorForIndex(index);
+    return {
+      ...row,
+      metricKey,
+      available,
+      palette,
+    };
+  });
+
+  const sorted = [...decorated].sort((a, b) => Number(b.correlation) - Number(a.correlation));
   const correlations = sorted.map((d) => Number(d.correlation) || 0);
   const min = Math.min(...correlations);
   const max = Math.max(...correlations);
@@ -99,9 +119,21 @@ export default function DriversColumnChart({ rows = [] }) {
     id: row.metric || row.name,
     name: row.name,
     metric: row.metric,
+    metricKey: row.metricKey,
     correlation: Number(row.correlation) || 0,
     description: row.description,
+    available: row.available,
+    palette: row.palette,
   }));
+
+  const handleSelect = (entry) => {
+    if (!onSelectMetric) return;
+    if (!entry?.metricKey || !entry?.available) {
+      onSelectMetric(null);
+      return;
+    }
+    onSelectMetric(entry.metricKey === selectedMetricKey ? null : entry.metricKey);
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -157,7 +189,32 @@ export default function DriversColumnChart({ rows = [] }) {
               />
             </YAxis>
             <Tooltip content={<DriversTooltip />} cursor={{ fill: "rgba(37,99,235,0.08)" }} />
-            <Bar dataKey="correlation" radius={[8, 8, 0, 0]} fill={PRIMARY_COLOR}>
+            <Bar
+              dataKey="correlation"
+              radius={[8, 8, 0, 0]}
+              cursor={onSelectMetric ? "pointer" : "default"}
+              onClick={(data, index) => handleSelect(chartData[index])}
+            >
+              {chartData.map((row, index) => {
+                const isSelected = selectedMetricKey === row.metricKey;
+                const dimmed = selectedMetricKey && !isSelected;
+                const fillBase = row.available ? row.palette : "#cbd5f5";
+                const fill = isSelected
+                  ? fillBase
+                  : dimmed
+                    ? withAlpha(fillBase, 0.25)
+                    : withAlpha(fillBase, 0.75);
+                return (
+                  <Cell
+                    key={row.id || index}
+                    fill={fill}
+                    stroke={isSelected ? withAlpha(fillBase, 1) : undefined}
+                    strokeWidth={isSelected ? 1 : 0}
+                    onClick={() => handleSelect(row)}
+                    style={{ cursor: row.available && onSelectMetric ? "pointer" : "default", opacity: row.available ? 1 : 0.6 }}
+                  />
+                );
+              })}
               <LabelList
                 dataKey="correlation"
                 position="top"

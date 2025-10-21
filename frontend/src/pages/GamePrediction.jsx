@@ -131,6 +131,27 @@ function StatusDotIcon({ className = "", ...props }) {
   );
 }
 
+function InfoIcon({ className = "", ...props }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9.25" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+      <line x1="11" y1="12" x2="12" y2="12" />
+      <line x1="12" y1="12" x2="12" y2="16" />
+    </svg>
+  );
+}
+
 function formatSeasonLabel(year) {
   const numeric = Number(year);
   if (!Number.isFinite(numeric)) {
@@ -228,6 +249,7 @@ export default function GamePrediction() {
   const [activeModel, setActiveModel] = useState("xgboost");
   const [teamSeasonBounds, setTeamSeasonBounds] = useState({});
   const [teamDisplayNames, setTeamDisplayNames] = useState({});
+  const [showRulesTooltip, setShowRulesTooltip] = useState(false);
 
   const allowedSeasonLists = useMemo(() => {
     const map = {};
@@ -503,8 +525,18 @@ export default function GamePrediction() {
   // Build per-team highlighted years for the RatingChart
   const selectedYearsByTeam = useMemo(() => {
     const map = {};
-    if (homeTeam && typeof homeSeason === "number") map[homeTeam] = String(homeSeason);
-    if (awayTeam && typeof awaySeason === "number") map[awayTeam] = String(awaySeason);
+    const addYear = (team, season) => {
+      if (!team || typeof season !== "number") return;
+      if (!map[team]) {
+        map[team] = [season];
+        return;
+      }
+      if (!map[team].includes(season)) {
+        map[team] = [...map[team], season];
+      }
+    };
+    addYear(homeTeam, homeSeason);
+    addYear(awayTeam, awaySeason);
     return map;
   }, [homeTeam, homeSeason, awayTeam, awaySeason]);
 
@@ -527,9 +559,42 @@ export default function GamePrediction() {
       {/* Main form */}
       <form onSubmit={onPredict} className="space-y-6">
         <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-4">
-          <p className="text-sm text-gray-600">
-            Choose teams and seasons. You can pick the same team on both sides as long as the seasons differ.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-gray-600">
+              Choose the franchises and seasons you want to compare. We use end-of-season ratings to frame the matchup.
+            </p>
+            <div
+              className="relative"
+              onMouseEnter={() => setShowRulesTooltip(true)}
+              onMouseLeave={() => setShowRulesTooltip(false)}
+              onFocus={() => setShowRulesTooltip(true)}
+              onBlur={() => setShowRulesTooltip(false)}
+            >
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                aria-label="Show matchup scheduling rules"
+                aria-haspopup="true"
+                aria-expanded={showRulesTooltip}
+              >
+                <InfoIcon className="h-4 w-4" />
+              </button>
+              {showRulesTooltip && (
+                <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-[0_12px_32px_-20px_rgba(15,23,42,0.35)]">
+                  <p className="font-semibold text-slate-900">Team/season rules</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4">
+                    <li>Same franchise on both sides must use different seasons.</li>
+                    <li>Different franchises are allowed to share the same season year.</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <ul className="list-disc space-y-1 pl-4 text-xs text-gray-500">
+            <li>Same franchise on both sides must use different seasons.</li>
+            <li>Different franchises may share the same season year.</li>
+          </ul>
 
           <div className="grid md:grid-cols-2 gap-6">
             <TeamSelectCard
@@ -546,7 +611,7 @@ export default function GamePrediction() {
               onSeason={onHomeSeasonChange}
               disabledSeasonOptions={disabledHomeSeasons}
               teamDisplayNames={teamDisplayNames}
-              help="Home selection and season"
+              help="Select the home franchise, then choose the season to analyse."
             />
 
             <TeamSelectCard
@@ -563,7 +628,7 @@ export default function GamePrediction() {
               onSeason={onAwaySeasonChange}
               disabledSeasonOptions={disabledAwaySeasons}
               teamDisplayNames={teamDisplayNames}
-              help="Away selection and season"
+              help="Select the away franchise, then choose the season to analyse."
             />
           </div>
 
@@ -582,13 +647,6 @@ export default function GamePrediction() {
             onClick={swapTeams}
           >
             Swap teams
-          </button>
-          <button
-            type="button"
-            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
-            onClick={resetAll}
-          >
-            Reset
           </button>
         </div>
 
@@ -621,13 +679,6 @@ export default function GamePrediction() {
           </div>
         )}
 
-        <RatingChart
-          teams={[homeTeam, awayTeam].filter(Boolean)}
-          selectedYearsByTeam={selectedYearsByTeam}
-          showTooltip={false}
-          showZoomControls={false}
-        />
-
         {/* Prediction result display */}
         <FloatingCard tone="light" padding="p-4" wrapChildren={false}>
           {!result && !loading && (
@@ -644,6 +695,24 @@ export default function GamePrediction() {
               teamDisplayNames={teamDisplayNames}
             />
           )}
+        </FloatingCard>
+
+        <FloatingCard
+          tone="light"
+          padding="p-4"
+          wrapChildren={false}
+          className="mt-4"
+          title="Seasonal historical ratings"
+          titleSize="text-base"
+          titleWeight="font-semibold"
+          childrenClassName="mt-4"
+        >
+          <RatingChart
+            teams={[homeTeam, awayTeam].filter(Boolean)}
+            selectedYearsByTeam={selectedYearsByTeam}
+            showTooltip
+            showZoomControls={false}
+          />
         </FloatingCard>
       </form>
     </div>
@@ -680,14 +749,8 @@ function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam, 
   if (typeof margin === "number" && typeof sigma === "number" && sigma > 0) {
     const z = Math.abs(margin) / sigma;
     const favourite = margin >= 0 ? homeTeam : awayTeam;
-    const detailParts = [`margin favours ${favourite} by ${formatNumber(Math.abs(margin), 1)} pts`];
-    detailParts.push(`≈ ${formatNumber(z, 2)}σ from even`);
-    if (typeof marginProb === "number") {
-      detailParts.push(`${formatPercent(marginProb)} via margin model`);
-    }
-    if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
-      detailParts.push(`calibrated 68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)} (n=${interval.count ?? 0})`);
-    }
+    const detailParts = [`Margin lean (regression): ${favourite} by ${formatNumber(Math.abs(margin), 1)} pts`];
+    detailParts.push(`Spread distance: ≈ ${formatNumber(z, 2)}σ from a toss-up`);
     const detail = detailParts.join(" · ");
     let label = "Low";
     if (z >= 1.25) {
@@ -700,9 +763,6 @@ function computeConfidence(prob, margin, sigma, marginProb, homeTeam, awayTeam, 
   if (typeof prob === "number") {
     const diff = Math.abs(prob - 0.5);
     const detailParts = [`${homeTeam} win chance ${formatPercent(prob)} (50% = even matchup)`];
-    if (interval && interval.lower_68 !== undefined && interval.upper_68 !== undefined) {
-      detailParts.push(`calibrated 68% ${formatPercent(interval.lower_68)}–${formatPercent(interval.upper_68)} (n=${interval.count ?? 0})`);
-    }
     const detail = detailParts.join(" · ");
     let label = "Low";
     if (diff >= 0.2) {
@@ -779,7 +839,12 @@ function ResultPanel({ result, activeModel, onSelectModel, teamDisplayNames }) {
     )
     .filter(Boolean);
   const leadNarrative = driverNarratives[0] ?? null;
-  const supportingNarratives = leadNarrative ? driverNarratives.slice(1) : driverNarratives;
+  const auxiliaryExplanations = driverNarratives.filter((item) => {
+    if (!item) return false;
+    if (!leadNarrative) return true;
+    return !(item.label === leadNarrative.label && item.summary === leadNarrative.summary);
+  });
+  const topExplanations = auxiliaryExplanations.slice(0, 2);
   const interval = active?.confidence_interval;
   const winProb = typeof active?.home_win_prob === "number" ? active.home_win_prob : null;
   const predictedMargin = typeof active?.predicted_margin === "number" ? active.predicted_margin : null;
@@ -808,7 +873,6 @@ function ResultPanel({ result, activeModel, onSelectModel, teamDisplayNames }) {
         <p className="text-sm text-gray-600">
           Home rating {formatNumber(result.home_rating, 1)} · Away rating {formatNumber(result.away_rating, 1)} · Rating diff {formatNumber(result.rating_diff, 1)}
         </p>
-        <p className="text-xs text-gray-400">Model bundle {result.model_version}</p>
       </div>
 
       {!!xgboostFriendlyMessage && (
@@ -857,24 +921,14 @@ function ResultPanel({ result, activeModel, onSelectModel, teamDisplayNames }) {
             classifierProb={active.home_win_prob}
             marginProb={marginProb}
             marginValue={active.predicted_margin}
-            marginSigma={active.margin_sigma}
-            confidence={confidence}
-            modelType={activeModel}
-            leadDriver={leadNarrative}
-            homeTeam={homeTeamName}
-            awayTeam={awayTeamName}
-          />
-
-          {supportingNarratives.length > 0 ? (
-            <DriversCard
-              narratives={supportingNarratives}
-              title={`Other key drivers (${active.label || activeModel})`}
-            />
-          ) : activeModel === "xgb_simple" ? (
-            <div className="rounded-2xl border bg-white px-4 py-3 text-sm text-gray-500">
-              Key drivers unavailable for this matchup.
-            </div>
-          ) : null}
+          marginSigma={active.margin_sigma}
+          confidence={confidence}
+          modelType={activeModel}
+          leadDriver={leadNarrative}
+          topExplanations={topExplanations}
+          homeTeam={homeTeamName}
+          awayTeam={awayTeamName}
+        />
 
           {otherModels.length > 0 && (
             <div className="mt-2">
@@ -941,17 +995,31 @@ function OutcomeSummary({
 
   if (typeof classifierProb === "number") {
     const homeChance = formatPercent(classifierProb);
+    const awayChance = formatPercent(1 - classifierProb);
+    const calibrationBand =
+      confidence?.interval &&
+      typeof confidence.interval.lower_68 === "number" &&
+      typeof confidence.interval.upper_68 === "number"
+        ? confidence.interval
+        : null;
     stats.push({
       key: "classifier",
       label: "Classifier win chance",
       value: homeChance,
       caption: `${homeTeam} chance via classifier`,
       detail: (
-        <ProbabilityBar
-          value={classifierProb}
-          homeLabel={`${homeTeam} ${homeChance}`}
-          awayLabel={`${awayTeam} ${formatPercent(1 - classifierProb)}`}
-        />
+        <div className="space-y-2">
+          <ProbabilityBar
+            value={classifierProb}
+            homeLabel={`${homeTeam} ${homeChance}`}
+            awayLabel={`${awayTeam} ${awayChance}`}
+          />
+          <p className="text-xs text-gray-600">
+            XGBoost classification model blends rating differences and recent form to estimate the home win chance.
+            Here it gives <span className="font-medium">{homeTeam}</span> {homeChance} vs {awayChance} for{" "}
+            <span className="font-medium">{awayTeam}</span>, signalling a {Math.abs(classifierProb - 0.5) < 0.05 ? "near toss-up" : "clear lean"} before tip-off.
+          </p>
+        </div>
       ),
       tone: "primary",
     });
@@ -1249,6 +1317,7 @@ function InterpretationCard({
   confidence,
   modelType,
   leadDriver,
+  topExplanations = [],
   homeTeam,
   awayTeam,
 }) {
@@ -1307,33 +1376,22 @@ function InterpretationCard({
             </span>
           </li>
         )}
+        {topExplanations.length > 0 && (
+          <li className="flex items-start gap-2">
+            <TargetIcon className={iconClass} />
+            <span>
+              Key rating signals:{" "}
+              {topExplanations
+                .slice(0, 2)
+                .map((item) => `${item.label} — ${item.summary}`)
+                .join(" · ")}
+            </span>
+          </li>
+        )}
         <li className="flex items-start gap-2">
           <ShieldIcon className="mt-0.5 h-5 w-5 text-gray-500" aria-hidden="true" />
           <span>Confidence drivers: {confidence.detail}.</span>
         </li>
-        {confidence.interval && (
-          <li className="flex items-start gap-2">
-            <TargetIcon className={iconClass} />
-            <span>
-              Calibrated 68% interval: {formatPercent(confidence.interval.lower_68)}–{formatPercent(confidence.interval.upper_68)} (based on {confidence.interval.count ?? 0} validation games).
-            </span>
-          </li>
-        )}
-      </ul>
-    </div>
-  );
-}
-
-function DriversCard({ narratives, title }) {
-  return (
-    <div className="rounded-2xl border bg-white px-4 py-3">
-      <h5 className="text-sm font-semibold text-gray-700">{title}</h5>
-      <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-        {narratives.map((item) => (
-          <li key={item.feature}>
-            <span className="font-medium">{item.label}</span>: {item.summary}
-          </li>
-        ))}
       </ul>
     </div>
   );

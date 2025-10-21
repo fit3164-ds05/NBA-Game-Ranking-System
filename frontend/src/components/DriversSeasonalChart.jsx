@@ -27,7 +27,7 @@ function seasonSort(a, b) {
   return parseYear(a) - parseYear(b);
 }
 
-function buildChartData(rows) {
+function buildChartData(rows, metricColorMap) {
   const seasons = Array.from(
     new Set(rows.map((row) => row?.season).filter(Boolean))
   ).sort(seasonSort);
@@ -38,10 +38,12 @@ function buildChartData(rows) {
   rows.forEach((row) => {
     if (!row?.name) return;
     if (!metricMeta.has(row.name)) {
-      const slug = row.name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      const slug = metricSlug(row.name);
+      const existingColor = metricColorMap?.get(slug);
+      const color = existingColor || colorForIndex(metricMeta.size);
       metricMeta.set(row.name, {
         key: slug,
-        color: COLORS[metricMeta.size % COLORS.length],
+        color,
         description: row.description,
       });
       metrics.push(row.name);
@@ -64,15 +66,18 @@ function buildChartData(rows) {
   return { data, metrics, metricMeta };
 }
 
-function DriversLineTooltip({ active, payload, label, metricLookup }) {
+function DriversLineTooltip({ active, payload, label, metricLookup, focusMetricKey }) {
   if (!active || !payload || payload.length === 0) return null;
+  const filtered = focusMetricKey
+    ? payload.filter((item) => item.dataKey === focusMetricKey)
+    : payload;
   return (
     <div className="rounded-lg bg-white px-4 py-3 text-sm shadow-lg">
       <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
         {label}
       </div>
       <ul className="mt-2 space-y-1 text-xs text-slate-600">
-        {payload.map((item) => {
+        {filtered.map((item) => {
           const name = metricLookup.get(item.dataKey)?.name ?? item.name;
           return (
             <li key={item.dataKey} className="flex items-center gap-2">
@@ -90,7 +95,7 @@ function DriversLineTooltip({ active, payload, label, metricLookup }) {
   );
 }
 
-export default function DriversSeasonalChart({ rows = [] }) {
+export default function DriversSeasonalChart({ rows = [], focusMetricKey = null, onMetricClick, metricColorMap }) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
@@ -99,7 +104,7 @@ export default function DriversSeasonalChart({ rows = [] }) {
     );
   }
 
-  const { data, metrics, metricMeta } = buildChartData(rows);
+  const { data, metrics, metricMeta } = buildChartData(rows, metricColorMap);
 
   if (data.length === 0 || metrics.length === 0) {
     return (
@@ -111,10 +116,13 @@ export default function DriversSeasonalChart({ rows = [] }) {
 
   const legendPayload = metrics.map((name) => {
     const meta = metricMeta.get(name);
+    const key = meta?.key;
+    const isFocused = !focusMetricKey || focusMetricKey === key;
     return {
       value: name,
       type: "line",
       color: meta?.color ?? "#0f172a",
+      inactive: !isFocused,
     };
   });
 
@@ -131,6 +139,11 @@ export default function DriversSeasonalChart({ rows = [] }) {
       ];
     })
   );
+
+  const handleLineClick = (meta) => {
+    if (!onMetricClick || !meta?.key) return;
+    onMetricClick(meta.key === focusMetricKey ? null : meta.key);
+  };
 
   return (
     <div className="h-[420px] w-full">
@@ -152,28 +165,38 @@ export default function DriversSeasonalChart({ rows = [] }) {
           />
           <Tooltip
             content={
-              <DriversLineTooltip metricLookup={metricLookup} />
+              <DriversLineTooltip
+                metricLookup={metricLookup}
+                focusMetricKey={focusMetricKey}
+              />
             }
           />
           <Legend
             wrapperStyle={{ paddingTop: 16 }}
             payload={legendPayload}
             iconType="circle"
+            formatter={(value, entry) => (
+              <span style={{ opacity: entry?.inactive ? 0.4 : 1 }}>{value}</span>
+            )}
           />
           {metrics.map((name) => {
             const meta = metricMeta.get(name);
             if (!meta) return null;
+            const isFocused = !focusMetricKey || focusMetricKey === meta.key;
             return (
               <Line
                 key={meta.key}
                 type="monotone"
                 dataKey={meta.key}
                 stroke={meta.color}
-                strokeWidth={2.5}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
+                strokeWidth={isFocused ? 2.8 : 1.5}
+                strokeOpacity={isFocused ? 1 : 0.2}
+                dot={isFocused ? { r: 3 } : { r: 0 }}
+                activeDot={isFocused ? { r: 5 } : false}
                 name={name}
                 connectNulls
+                onClick={() => handleLineClick(meta)}
+                cursor={onMetricClick ? "pointer" : "default"}
               />
             );
           })}

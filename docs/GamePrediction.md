@@ -1,10 +1,9 @@
 # Game Prediction Page
 
-This view blends three families of signals to explain a single matchup prediction:
+This view blends two families of signals to explain a single matchup prediction:
 
 * **XGBoost (win+margin)** – classification model for raw win probability plus a regression model for expected margin.  The regression output provides a calibrated standard deviation so we can say how far the matchup sits from a toss-up.
 * **XGBoost (simple)** – compact classifier trained on the most influential features.  It trades a little accuracy for sharper, human-scale explanations.
-* **Ratings (logistic)** – the legacy Glicko/Elo-style baseline computed from season-ending ratings.
 
 As of this iteration the XGBoost feature matrix is derived from `backend/data/team_ratings.csv`
 combined with Elo snapshots. Team-season profiles are aggregated from the historical rating
@@ -15,6 +14,7 @@ data source.
 
 `POST /api/predict` returns:
 
+* Root level: `home_rating`, `away_rating`, `rating_diff` – the latest season ratings for context.
 * `models.xgboost`
   * `home_win_prob`: classifier probability.
   * `predicted_margin`, `margin_sigma`: regression mean μ and calibrated σ.
@@ -22,7 +22,6 @@ data source.
   * `top_factors`: SHAP-style contributions from the classifier (home vs away features, rolling windows, etc.).
   * `confidence_interval`: 68% Wilson interval derived from the validation+test split (see calibration script).
 * `models.xgb_simple`: same shape but without margin terms.
-* `models.elo`: logistic probability and margin from rating difference.
 * `head_to_head`: season-aware summary of the most recent meetings.
 
 ## Confidence badge
@@ -30,7 +29,7 @@ data source.
 If μ and σ are available:
 
 ```
-margin favours TEAM by |μ| points · ≈ zσ from even · Φ(μ/σ) via margin model · calibrated 68% interval
+Margin lean (regression): TEAM by |μ| points · Spread distance: ≈ zσ from a toss-up · Classifier calibration (68% band): lower–upper win rate
 ```
 
 Thresholds:
@@ -48,7 +47,7 @@ If the active model lacks margin info (e.g. the compact classifier) we fall back
 * **Projected winner** – headline card that states the favourite, classifier-derived win chance, and the margin projection.
 * **Classifier win probability** – direct XGBoost output.
 * **Margin projection** – regression spread with a bell curve showing the home-margin distribution: zero line, mean marker, shaded home-win area (≈ probability). The caption calls out the margin-derived home win chance.
-* **Confidence** – combines the margin z-score with the calibrated interval. When only the classifier is available it explains how far the probability sits from a coin flip.
+* **Confidence** – combines the regression margin lean, the distance from an even game (z-score), and the classifier’s 68% calibration band so you know how volatile this probability range is. Without margin data the badge falls back to classifier distance from 50%.
 * **Lead driver** – the interpretation card now highlights the top SHAP contributor in plain English (e.g. “Miami hold a last 10 games average offensive rating edge…”).
 * **Key drivers** – SHAP contributions translated to prose using the shared helper at `frontend/src/utils/featureNarratives.js`. Rolling windows become “10-game average”, diffs become “Home vs away …”, `ADV_*` ratings mention per-100 possession context, and `FF_*` four-factor stats expand their acronyms.
 * **Head-to-head** – last five meetings in the selected season when both teams share a year, otherwise “Last 5 meetings before YYYY”.

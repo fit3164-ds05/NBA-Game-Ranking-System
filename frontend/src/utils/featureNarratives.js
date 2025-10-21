@@ -44,6 +44,14 @@ const FEATURE_LABELS = {
   TR_RATING_ROLL10: "Ten-game rating average",
   HOME_ELO_PRE: "Home Elo rating",
   AWAY_ELO_PRE: "Away Elo rating",
+  HOME_TR_RATING_PRE: "Home team rating strength",
+  AWAY_TR_RATING_PRE: "Away team rating strength",
+  HOME_TR_RATING_ROLL5: "Home five-game rating average",
+  AWAY_TR_RATING_ROLL5: "Away five-game rating average",
+  HOME_TR_RATING_ROLL10: "Home ten-game rating average",
+  AWAY_TR_RATING_ROLL10: "Away ten-game rating average",
+  HOME_TR_RATING_DELTA: "Home rating momentum",
+  AWAY_TR_RATING_DELTA: "Away rating momentum",
 };
 
 const FEATURE_DESCRIPTORS = {
@@ -81,6 +89,14 @@ const FEATURE_DESCRIPTORS = {
   TR_RATING_DELTA: "change in team rating prior to the game",
   TR_RATING_ROLL5: "five-game average team rating",
   TR_RATING_ROLL10: "ten-game average team rating",
+  HOME_TR_RATING_PRE: "home team rating strength",
+  AWAY_TR_RATING_PRE: "away team rating strength",
+  HOME_TR_RATING_ROLL5: "home five-game average team rating",
+  AWAY_TR_RATING_ROLL5: "away five-game average team rating",
+  HOME_TR_RATING_ROLL10: "home ten-game average team rating",
+  AWAY_TR_RATING_ROLL10: "away ten-game average team rating",
+  HOME_TR_RATING_DELTA: "home rating change prior to the game",
+  AWAY_TR_RATING_DELTA: "away rating change prior to the game",
 };
 
 const DIFF_LIKE_FEATURES = new Set(["rating_diff"]);
@@ -104,11 +120,22 @@ export function getFeatureMeta(feature) {
       isDiff: false,
       windowSize: null,
       stat: null,
+      side: null,
     };
   }
 
   let raw = feature;
   let isDiff = false;
+  let side = null;
+
+  if (raw.startsWith("HOME_")) {
+    side = "Home";
+    raw = raw.slice(5);
+  } else if (raw.startsWith("AWAY_")) {
+    side = "Away";
+    raw = raw.slice(5);
+  }
+
   if (raw.startsWith("DIFF_")) {
     isDiff = true;
     raw = raw.slice(5);
@@ -128,8 +155,9 @@ export function getFeatureMeta(feature) {
     isDiff = true;
   }
 
-  const baseLabel = FEATURE_LABELS[core] || toTitleCase(core.replace(/_/g, " "));
-  const descriptor = FEATURE_DESCRIPTORS[core] || baseLabel.toLowerCase();
+  const labelKey = side ? `${side.toUpperCase()}_${core}` : core;
+  const baseLabel = FEATURE_LABELS[labelKey] || FEATURE_LABELS[core] || toTitleCase(core.replace(/_/g, " "));
+  const descriptor = FEATURE_DESCRIPTORS[labelKey] || FEATURE_DESCRIPTORS[core] || baseLabel.toLowerCase();
 
   let label = baseLabel;
   if (windowSize) {
@@ -149,6 +177,7 @@ export function getFeatureMeta(feature) {
     isDiff,
     windowSize,
     stat,
+    side,
   };
 }
 
@@ -184,6 +213,7 @@ export function buildFactorNarrative(factor, {
   const opposingTeam = favouredTeam === homeTeam ? awayTeam : favouredTeam === awayTeam ? homeTeam : undefined;
   const magnitude = Math.abs(contribution);
   const impact = magnitude >= 0.2 ? "a strong lift" : magnitude >= 0.05 ? "a noticeable lift" : "a small nudge";
+  const subjectTeam = meta.side === "Home" ? (homeTeam || "the home team") : meta.side === "Away" ? (awayTeam || "the away team") : null;
 
   if (meta.isDiff) {
     if (typeof value === "number" && Number.isFinite(value) && Math.abs(value) >= 1e-3) {
@@ -199,57 +229,53 @@ export function buildFactorNarrative(factor, {
           summary: `${favouredTeam ?? fallbackTeam} hold a ${descriptor} edge of ${formattedAmount}, giving them ${impact} in the projections.`,
           favouredTeam: favouredTeam ?? fallbackTeam,
           opposingTeam,
-          impact,
-          meta,
+          magnitude,
         };
       }
       return {
         feature: factor?.feature ?? meta.key,
         label: meta.label,
-        summary: `${favouredTeam ?? fallbackTeam} trail by ${formattedAmount} in ${descriptor}, yet it still translates into ${impact} for their chances.`,
+        summary: `${opposingTeam ?? fallbackTeam} concede a ${descriptor} deficit of ${formattedAmount}, giving ${favouredTeam ?? fallbackTeam} ${impact}.`,
         favouredTeam: favouredTeam ?? fallbackTeam,
         opposingTeam,
-        impact,
-        meta,
+        magnitude,
       };
     }
-    const descriptor = buildMetricDescriptor(meta);
+
     return {
       feature: factor?.feature ?? meta.key,
       label: meta.label,
-      summary: `${favouredTeam ?? fallbackTeam} benefit from ${descriptor}, providing ${impact} in the projections.`,
+      summary: `${favouredTeam ?? fallbackTeam} show a favourable ${buildMetricDescriptor(meta)}, giving them ${impact}.`,
       favouredTeam: favouredTeam ?? fallbackTeam,
       opposingTeam,
-      impact,
-      meta,
+      magnitude,
     };
   }
+
+  const beneficiary = favouredTeam || fallbackTeam;
+  const subject = subjectTeam || beneficiary;
+  const subjectLabel = meta.label ? meta.label.toLowerCase() : "the metric";
 
   if (typeof value === "number" && Number.isFinite(value)) {
     const absValue = Math.abs(value);
     const digits = absValue >= 100 ? 0 : absValue >= 10 ? 1 : 2;
-    const formattedAmount = formatNumber(value, digits);
-    const perspective = favouredTeam === homeTeam ? "home" : favouredTeam === awayTeam ? "away" : "team";
+    const formattedValue = formatNumber(absValue, digits);
     return {
       feature: factor?.feature ?? meta.key,
       label: meta.label,
-      summary: `The model sees ${meta.label.toLowerCase()} at ${formattedAmount} from the ${perspective} side, giving ${favouredTeam ?? fallbackTeam} ${impact}.`,
-      favouredTeam: favouredTeam ?? fallbackTeam,
+      summary: `${subject} ${subjectLabel} sits at ${formattedValue}, giving ${beneficiary} ${impact}.`,
+      favouredTeam: beneficiary,
       opposingTeam,
-      impact,
-      meta,
+      magnitude,
     };
   }
 
   return {
     feature: factor?.feature ?? meta.key,
     label: meta.label,
-    summary: `${meta.label} gives ${favouredTeam ?? fallbackTeam} ${impact} in the projections.`,
-    favouredTeam: favouredTeam ?? fallbackTeam,
+    summary: `${subject} show strength in ${subjectLabel}, giving ${beneficiary} ${impact}.`,
+    favouredTeam: beneficiary,
     opposingTeam,
-    impact,
-    meta,
+    magnitude,
   };
 }
-
-export { FEATURE_LABELS };

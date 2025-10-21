@@ -4,7 +4,7 @@ This reference explains how the prediction stack is wired end to end: how we pre
 
 ## 1. Model Family Overview
 
-- **Logistic ratings baseline** – a single-step Elo-style logistic using the most recent in-season ratings for each team (`backend/services/ratings.py:239`). Produces a win probability and a rough point margin by dividing the rating gap by 25.
+- **Legacy ratings baseline** (optional) – a single-step Elo-style logistic using the most recent in-season ratings for each team (`backend/services/ratings.py:239`). It now only supplies rating context; the UI no longer surfaces its probabilities.
 - **XGBoost classifier (win probability)** – gradient-boosted trees trained on pre-game rolling stats, rating diffs, season context, and rest metrics. Serves calibrated win probabilities and SHAP-style top factors (`backend/ml/infer.py:53`).
 - **XGBoost regression (margin + σ)** – companion regressor trained on the same features to predict the home scoring margin; its calibrated residual spread yields a second win probability (`backend/ml/infer.py:107`).
 - **Compact classifier** – optional lightweight model that keeps only the top feature importances for narrative clarity (`backend/ml/infer.py:134`). Used when we need a quick explanation with fewer features.
@@ -45,12 +45,11 @@ For faster inference, we pre-aggregate the rolling feature vectors per team-seas
 - **Why run both models?** – Margin predictions unlock richer UI elements (bell-curve, confidence z-score) and spot cases where a modest win probability still implies a decisive margin due to σ shrinkage.
 - **Fallbacks** – If artefacts are missing we log a warning but still return the logistic baseline and whatever XGBoost pieces succeeded (`backend/app/routes.py:254`).
 
-## 5. Ratings Logistic Baseline
+## 5. Legacy Ratings Baseline (context only)
 
 - **Data source** – Latest pre-game rating per team-season from the cached rating table (`backend/services/ratings.py:213`).
-- **Probability math** – Elo logistic: `p_home = 1 / (1 + 10^(-diff / 400))` (`backend/services/ratings.py:254`).
-- **Margin proxy** – Linear heuristic `diff / 25` (`backend/services/ratings.py:255`).
-- **Role** – Provides a simple, fully deterministic fallback even when ML artefacts or feature profiles are missing. Also good for sanity checks and A/B testing in the UI.
+- **What remains** – We still pull `home_rating`, `away_rating`, and `rating_diff` for storytelling context.
+- **What changed** – The logistic win probability and margin proxy are no longer returned to the UI; XGBoost models are now the sole prediction sources.
 
 ## 6. Classification vs Regression – When to Use Each
 

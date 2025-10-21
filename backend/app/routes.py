@@ -210,15 +210,13 @@ def predict():
         # If prediction returns an error, return 404
         return jsonify(error=result["error"]), 404
 
-    models_payload = {
-        "elo": {
-            "label": "Ratings (logistic)",
-            "home_win_prob": result.get("home_win_prob"),
-            "predicted_margin": result.get("predicted_margin"),
-            "home_rating": result.get("home_rating"),
-            "away_rating": result.get("away_rating"),
-        }
+    rating_snapshot = {
+        "home_rating": result.get("home_rating"),
+        "away_rating": result.get("away_rating"),
+        "rating_diff": result.get("rating_diff"),
     }
+
+    models_payload: dict[str, dict] = {}
 
     xgb_error = None
     try:
@@ -266,7 +264,7 @@ def predict():
             "away_team": away_team,
             "away_season": as_,
         },
-        **result,
+        **{k: v for k, v in rating_snapshot.items() if v is not None},
         "model_version": "glicko_csv_v1",
         "models": models_payload,
         "available_models": list(models_payload.keys()),

@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardSwitcher from "../components/DashboardSwitcher";
 import FloatingCard from "../components/FloatingCard";
 import DriversColumnChart from "../components/DriversColumnChart";
 import DriversSeasonalChart from "../components/DriversSeasonalChart";
 import { getDriversOfRatings, getDriversOfRatingsSeasonal } from "../lib/api";
+import { metricSlug } from "../utils/metricSlug";
+import { buildColorMap } from "../utils/driverColors";
 
 export default function DriversofRatings() {
   const [rows, setRows] = useState([]);
@@ -12,6 +14,7 @@ export default function DriversofRatings() {
   const [seasonalRows, setSeasonalRows] = useState([]);
   const [seasonalLoading, setSeasonalLoading] = useState(true);
   const [seasonalError, setSeasonalError] = useState(null);
+  const [activeMetricKey, setActiveMetricKey] = useState(null);
 
   useEffect(() => {
     let isActive = true;
@@ -67,6 +70,52 @@ export default function DriversofRatings() {
       isActive = false;
     };
   }, []);
+
+  const { allowedMetricKeys, metricColorMap } = useMemo(() => {
+    const seasonalKeys = [];
+    const unionKeys = [];
+    const seasonalSeen = new Set();
+    const unionSeen = new Set();
+
+    if (Array.isArray(seasonalRows)) {
+      seasonalRows.forEach((row) => {
+        const key = metricSlug(row?.name);
+        if (key && !seasonalSeen.has(key)) {
+          seasonalSeen.add(key);
+          seasonalKeys.push(key);
+        }
+        if (key && !unionSeen.has(key)) {
+          unionSeen.add(key);
+          unionKeys.push(key);
+        }
+      });
+    }
+
+    if (Array.isArray(rows)) {
+      rows.forEach((row) => {
+        const key = metricSlug(row?.name || row?.metric);
+        if (key && !unionSeen.has(key)) {
+          unionSeen.add(key);
+          unionKeys.push(key);
+        }
+      });
+    }
+
+    return {
+      allowedMetricKeys: new Set(seasonalKeys),
+      metricColorMap: buildColorMap(unionKeys),
+    };
+  }, [seasonalRows, rows]);
+
+  useEffect(() => {
+    if (activeMetricKey && !allowedMetricKeys.has(activeMetricKey)) {
+      setActiveMetricKey(null);
+    }
+  }, [activeMetricKey, allowedMetricKeys]);
+
+  const handleMetricSelect = (key) => {
+    setActiveMetricKey(key);
+  };
 
   return (
     <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
