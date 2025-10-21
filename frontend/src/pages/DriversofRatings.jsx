@@ -81,7 +81,7 @@ export default function DriversofRatings() {
           className="lg:col-span-8"
           title="Top correlation drivers"
           titleSize="text-lg"
-          body="Correlation between team metrics and historical ratings. Darker tiles signal a tighter relationship with model strength."
+          body="Column height shows how tightly a metric tracks with historical ratings. Hover any bar to see the underlying definition."
           bodySize="text-sm"
           childrenClassName="mt-6"
         >
@@ -91,7 +91,7 @@ export default function DriversofRatings() {
             </div>
           ) : error ? (
             <div className="flex h-64 flex-col items-center justify-center gap-2 text-sm text-rose-600">
-              <span className="font-semibold">Unable to display the heatmap.</span>
+              <span className="font-semibold">Unable to display the chart.</span>
               <span className="text-xs text-rose-500">{error}</span>
             </div>
           ) : (
@@ -102,7 +102,7 @@ export default function DriversofRatings() {
         <FloatingCard
           tone="light"
           className="lg:col-span-4"
-          title="How to interpret the tiles"
+          title="How to read the chart"
           titleSize="text-lg"
           body=""
           bodySize="text-sm"
@@ -110,21 +110,21 @@ export default function DriversofRatings() {
         >
           <ul className="space-y-3">
             <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-              <p className="text-sm font-semibold text-slate-900">Metric</p>
+              <p className="text-sm font-semibold text-slate-900">Metric label</p>
               <p className="text-xs text-slate-500">
-                The Y-axis lists advanced and four-factor metrics sourced from the ratings dataset.
+                The X-axis lists advanced and four-factor metrics sourced from the ratings dataset.
               </p>
             </li>
             <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-              <p className="text-sm font-semibold text-slate-900">Color intensity</p>
+              <p className="text-sm font-semibold text-slate-900">Column height</p>
               <p className="text-xs text-slate-500">
-                Darker shades indicate a stronger positive correlation with historical team ratings.
+                Taller columns indicate a stronger positive correlation with historical team ratings.
               </p>
             </li>
             <li className="rounded-2xl bg-white px-4 py-3 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
               <p className="text-sm font-semibold text-slate-900">Numeric label</p>
               <p className="text-xs text-slate-500">
-                The correlation coefficient rounded to two decimals, helpful for quick comparisons.
+                The number above each column is the correlation coefficient rounded to two decimals.
               </p>
             </li>
           </ul>

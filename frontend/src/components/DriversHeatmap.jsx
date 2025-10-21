@@ -1,37 +1,22 @@
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  LabelList,
+  Label,
+} from "recharts";
 
-const palette = [
-  "#fff5eb",
-  "#fee6ce",
-  "#fdd0a2",
-  "#fdae6b",
-  "#fd8d3c",
-  "#f16913",
-  "#d94801",
-  "#a63603",
-  "#7f2704",
-];
+const PRIMARY_COLOR = "#2563eb";
 
-function pickColor(value, min, max) {
-  if (Number.isNaN(value) || max <= min) {
-    return palette[0];
-  }
-  const ratio = Math.min(1, Math.max(0, (value - min) / (max - min)));
-  const idx = Math.round(ratio * (palette.length - 1));
-  return palette[idx];
-}
-
-function labelFill(value, min, max) {
-  if (max <= min) return "#6b4f28";
-  const ratio = (value - min) / (max - min);
-  return ratio > 0.55 ? "#fff8f0" : "#6b2800";
-}
-
-function wrapDescription(description, limit = 48) {
-  if (!description) return [];
-  const words = String(description).split(/\s+/);
+function wrapLabel(label, limit = 16, maxLines = 2) {
+  const words = String(label ?? "").split(/\s+/);
   const lines = [];
   let current = "";
+
   words.forEach((word) => {
     const next = current ? `${current} ${word}` : word;
     if (next.length > limit && current) {
@@ -41,24 +26,54 @@ function wrapDescription(description, limit = 48) {
       current = next;
     }
   });
+
   if (current) {
     lines.push(current);
   }
-  return lines.slice(0, 2);
+
+  return lines.slice(0, maxLines);
 }
 
-function HeatmapTooltip({ active, payload }) {
+function DriversTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null;
   const row = payload[0]?.payload;
   if (!row) return null;
   return (
-    <div className="rounded-lg bg-white px-4 py-3 text-sm shadow-lg">
+    <div className="max-w-xs rounded-lg bg-white px-4 py-3 text-sm shadow-lg">
       <div className="font-semibold text-slate-900">{row.name}</div>
-      <div className="text-xs text-slate-500">{row.description}</div>
+      {row.metric ? (
+        <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
+          {String(row.metric).replace(/_/g, " ")}
+        </div>
+      ) : null}
+      {row.description ? (
+        <div className="mt-1 text-xs text-slate-500">{row.description}</div>
+      ) : null}
       <div className="mt-2 text-sm font-medium text-slate-700">
         Correlation: {row.correlation.toFixed(2)}
       </div>
     </div>
+  );
+}
+
+function MetricTick({ x, y, payload }) {
+  const lines = wrapLabel(payload?.value, 16, 2);
+  if (!lines.length) return null;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, idx) => (
+        <text
+          key={`${payload.value}-${idx}`}
+          x={0}
+          y={12 + idx * 12}
+          textAnchor="middle"
+          fill="#475569"
+          fontSize={11}
+        >
+          {line}
+        </text>
+      ))}
+    </g>
   );
 }
 
@@ -72,119 +87,87 @@ export default function DriversHeatmap({ rows = [] }) {
   }
 
   const sorted = [...rows].sort((a, b) => b.correlation - a.correlation);
-  const min = Math.min(...sorted.map((d) => d.correlation));
-  const max = Math.max(...sorted.map((d) => d.correlation));
+  const correlations = sorted.map((d) => Number(d.correlation) || 0);
+  const min = Math.min(...correlations);
+  const max = Math.max(...correlations);
+  const spread = Math.max(0.05, max - min || 0.05);
+  const padding = spread * 0.1;
+  const domainMin = Math.min(0, min - padding);
+  const domainMax = max + padding;
+
   const chartData = sorted.map((row) => ({
     id: row.metric || row.name,
     name: row.name,
     metric: row.metric,
-    value: 1,
-    correlation: Number(row.correlation),
+    correlation: Number(row.correlation) || 0,
     description: row.description,
   }));
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="h-[360px] w-full">
+    <div className="flex flex-col gap-2">
+      <div className="h-[320px] w-full">
         <ResponsiveContainer>
           <BarChart
             data={chartData}
-            layout="vertical"
-            margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+            margin={{ top: 16, right: 16, bottom: 56, left: 48 }}
+            barCategoryGap={20}
           >
-            <XAxis type="number" domain={[0, 1]} hide />
-            <YAxis
-              type="category"
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
               dataKey="name"
-              width={0}
-              tick={false}
-              axisLine={false}
+              interval={0}
               tickLine={false}
-            />
-            <Tooltip content={<HeatmapTooltip />} cursor={{ fill: "rgba(15,23,42,0.04)" }} />
-            <Bar
-              dataKey="value"
-              radius={[12, 12, 12, 12]}
-              barSize={72}
-              label={({ x, y, width, height, payload: barData }) => {
-                const padding = 20;
-                const corr = typeof barData?.correlation === "number" ? barData.correlation : NaN;
-                if (Number.isNaN(corr)) {
-                  return null;
-                }
-                const textColor = labelFill(corr, min, max);
-                const metricLabel = String(barData.metric || "").replace(/_/g, " ");
-                const nameY = y + padding + 14;
-                const lines = wrapDescription(barData.description);
-                const descStartY = nameY + 22;
-                return (
-                  <g>
-                    {metricLabel ? (
-                      <text
-                        x={x + padding}
-                        y={y + padding}
-                        fontSize={11}
-                        fontWeight={600}
-                        fill={textColor}
-                        letterSpacing="0.18em"
-                      >
-                        {metricLabel}
-                      </text>
-                    ) : null}
-                    <text
-                      x={x + padding}
-                      y={nameY}
-                      fontSize={16}
-                      fontWeight={600}
-                      fill={textColor}
-                    >
-                      {barData.name}
-                    </text>
-                    {lines.map((line, idx) => (
-                      <text
-                        key={`${barData.id}-desc-${idx}`}
-                        x={x + padding}
-                        y={descStartY + idx * 16}
-                        fontSize={12}
-                        fill={textColor}
-                      >
-                        {line}
-                      </text>
-                    ))}
-                    <text
-                      x={x + width - padding}
-                      y={y + height - padding + 6}
-                      textAnchor="end"
-                      fontSize={16}
-                      fontWeight={600}
-                      fill={textColor}
-                    >
-                      {corr.toFixed(2)}
-                    </text>
-                  </g>
-                );
-              }}
+              height={60}
+              tick={<MetricTick />}
             >
-              {chartData.map((row) => (
-                <Cell key={row.id} fill={pickColor(row.correlation, min, max)} />
-              ))}
+              <Label
+                value="Metrics"
+                position="insideBottom"
+                offset={-52}
+                fill="#475569"
+                fontSize={11}
+              />
+            </XAxis>
+            <YAxis
+              domain={[domainMin, domainMax]}
+              tick={{ fontSize: 11, fill: "#475569" }}
+              width={56}
+              tickFormatter={(value) => (Number.isFinite(value) ? value.toFixed(2) : value)}
+              tickMargin={8}
+            >
+              <Label
+                content={({ viewBox }) => {
+                  if (!viewBox) return null;
+                  const { x, y, height } = viewBox;
+                  const cx = (x ?? 0) - 38;
+                  const cy = (y ?? 0) + (height ?? 0) / 2;
+                  return (
+                    <text
+                      x={cx}
+                      y={cy}
+                      transform={`rotate(-90 ${cx} ${cy})`}
+                      textAnchor="middle"
+                      fill="#475569"
+                      fontSize={11}
+                    >
+                      Correlation
+                    </text>
+                  );
+                }}
+              />
+            </YAxis>
+            <Tooltip content={<DriversTooltip />} cursor={{ fill: "rgba(37,99,235,0.08)" }} />
+            <Bar dataKey="correlation" radius={[8, 8, 0, 0]} fill={PRIMARY_COLOR}>
+              <LabelList
+                dataKey="correlation"
+                position="top"
+                formatter={(value) => (Number.isFinite(value) ? value.toFixed(2) : "")}
+                fill="#1e293b"
+                fontSize={11}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="text-sm font-semibold text-slate-700">Correlation scale</div>
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          <span>{min.toFixed(2)}</span>
-          <div
-            className="h-2 flex-1 rounded-full"
-            style={{
-              background: `linear-gradient(90deg, ${palette[0]}, ${palette[palette.length - 1]})`,
-            }}
-          />
-          <span>{max.toFixed(2)}</span>
-        </div>
       </div>
     </div>
   );
