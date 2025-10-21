@@ -15,7 +15,7 @@ import FloatingCard from "../components/FloatingCard";
 import { getLeagueFGComposition, getLeagueScoringZones } from "../lib/api";
 
 const FGA_COLORS = {
-  pct_2pt: "#4c1d95",
+  pct_2pt: "#7c3aed",
   pct_3pt: "#0073ffff",
 };
 
@@ -116,7 +116,7 @@ export default function LeagueTrends() {
           className="lg:col-span-7"
           title="Field Goal Attempt Composition"
           titleSize="text-lg"
-          body="Share of 2PT and 3PT attempts by season (team_metrics_seasonal.csv)."
+          body="Share of field goal attempts coming from 2-point attempts and 3-point attempts"
           bodySize="text-sm"
           childrenClassName="mt-6 h-[360px]"
         >
@@ -198,7 +198,7 @@ export default function LeagueTrends() {
           className="lg:col-span-7"
           title="Scoring Zone Contributions"
           titleSize="text-lg"
-          body="League share of total points coming from the paint, mid-range, threes, and free throws."
+          body="Share of points coming from the paint, mid-range, threes, and free throws"
           bodySize="text-sm"
           childrenClassName="mt-6 h-[360px]"
         >
