@@ -199,7 +199,6 @@ export default function HistoricalRanking() {
           In view of full transparency, our Elo rating system also has a several areas for improvement. It does not account for home-court advantage, margin of victory, season-to-season carry-over, and league expansion/contraction.
         </p>        
       </FloatingCard>
-    
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import Dash from "../../public/dashboard.svg";
 import Stats from "../../public/stats.svg";
 import Predictions from "../../public/predictions.svg";
-import logo from '../assets/Data-Dribble-Logo-no-bg.png';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -114,11 +113,6 @@ export default function Home() {
           </div>
       </section>
 
-      <footer className={`mt-10 mb-0 text-center text-xs uppercase tracking-[0.35em] ${theme.outroText}`}>
-        Crafted for hoop minds with an eye for detail
-      </footer>
-
-      <img src={logo} className="mt-10 h-30 w-30" alt="Data Dribble Logo" />
     </main>
   );
 }

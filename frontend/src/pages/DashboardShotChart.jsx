@@ -20,6 +20,7 @@ const PERIOD_COLORS = [
 
 export default function DashboardShotChart() {
   const [selection, setSelection] = useState(null); // { player, season, shots }
+  const [pendingSelection, setPendingSelection] = useState(null);
   const handleQuickLoadLeBron = () => {
     setSelection({
       player: { id: lebron2425.playerId, name: "LeBron James" },
@@ -121,13 +122,14 @@ export default function DashboardShotChart() {
         bodySize="text-sm"
         wrapChildren={false}
       >
+      <div className="flex justify">
+      </div>
           <div className="mt-8 flex flex-col gap-4 rounded-[26px] bg-white/90 p-6 shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
             <PlayerSeasonPicker
               defaultSeason="2024-25"
               autoFetchShots={true}
-              onComplete={(sel) => {
-                setSelection(sel ?? null);
-              }}
+              onComplete={(payload) => setPendingSelection(payload ?? null)}
+              className="w-full max-w-md"
             />
             <button
               type="button"
@@ -137,6 +139,14 @@ export default function DashboardShotChart() {
               Quick-load LeBron 2024-25
             </button>
           </div>
+        <button
+          type="button"
+          onClick={() => setSelection(pendingSelection)}
+          disabled={!pendingSelection}
+          className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:bg-amber-300 disabled:text-amber-100"
+        >
+          View Shot Chart
+        </button>
         </FloatingCard>
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">

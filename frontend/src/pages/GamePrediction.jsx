@@ -730,7 +730,7 @@ function explainProbDelta(delta, homeTeam, awayTeam) {
   const magnitude = Math.abs(value);
   const adjective = magnitude >= 10 ? "much" : magnitude >= 5 ? "more" : "slightly";
   const direction = value > 0 ? homeTeam : awayTeam;
-  return `${delta} → ${adjective} more confidence in ${direction}`;
+  return `${delta} - ${adjective} more confidence in ${direction}`;
 }
 
 function describeMarginExpectation(margin) {
@@ -1211,7 +1211,7 @@ function MarginDistribution({ margin, sigma, homeTeam, awayTeam, winProb }) {
         </div>
       </div>
       <div className="text-xs text-gray-600">
-        <span className="font-medium">{formatNumber(margin, 1)} pts</span> mean · σ {formatNumber(safeSigma, 1)} · {highlightTeam} area ≈ {highlightProb || "—"}
+        <span className="font-medium">{formatNumber(margin, 1)} pts</span> mean · σ {formatNumber(safeSigma, 1)} · {highlightTeam} area ≈ {highlightProb || "-"}
       </div>
     </div>
   );
