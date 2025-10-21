@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardSwitcher from "../components/DashboardSwitcher";
 import FloatingCard from "../components/FloatingCard";
-import DriversHeatmap from "../components/DriversHeatmap";
+import DriversColumnChart from "../components/DriversColumnChart";
 import DriversSeasonalChart from "../components/DriversSeasonalChart";
 import { getDriversOfRatings, getDriversOfRatingsSeasonal } from "../lib/api";
 
@@ -95,7 +95,7 @@ export default function DriversofRatings() {
               <span className="text-xs text-rose-500">{error}</span>
             </div>
           ) : (
-            <DriversHeatmap rows={rows} />
+            <DriversColumnChart rows={rows} />
           )}
         </FloatingCard>
 

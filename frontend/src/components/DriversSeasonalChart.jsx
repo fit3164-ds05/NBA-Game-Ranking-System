@@ -10,12 +10,12 @@ import {
 } from "recharts";
 
 const COLORS = [
-  "#2563eb",
-  "#ea580c",
-  "#16a34a",
-  "#7c3aed",
-  "#facc15",
-  "#b45309",
+  "#de324c",
+  "#f4895f",
+  "#95cf92",
+  "#369acc",
+  "#9656a2",
+  "#e97aff"
 ];
 
 function seasonSort(a, b) {
