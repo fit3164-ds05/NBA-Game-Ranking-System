@@ -173,18 +173,18 @@ export default function DashboardShotChart() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <QuickSummaryStat
                   label="Field Goals"
-                  primary={`${summary.makes}/${summary.attempts}`}
-                  secondary={`${formatPct(summary.fgPct)} FG%`}
+                  primary={`${formatPct(summary.fgPct)} FG`}
+                  secondary={`${summary.makes}/${summary.attempts}` }
                 />
                 <QuickSummaryStat
                   label="3PT"
-                  primary={`${summary.threeMakes}/${summary.threeAtt}`}
-                  secondary={`${formatPct(summary.threePct)} 3P%`}
+                  primary={`${formatPct(summary.threePct)} 3PT`}
+                  secondary={`${summary.threeMakes}/${summary.threeAtt}`}
                 />
                 <QuickSummaryStat
                   label="2PT"
-                  primary={`${summary.twoMakes}/${summary.twoAtt}`}
-                  secondary={`${formatPct(summary.twoPct)} 2P%`}
+                  primary={`${formatPct(summary.twoPct)} 2P`}
+                  secondary={`${summary.twoMakes}/${summary.twoAtt}`}
                 />
                 <QuickSummaryStat
                   label="Avg Distance"
@@ -256,6 +256,12 @@ export default function DashboardShotChart() {
               ))}
             </ul>
           )}
+          <p className = "mt-4 text-xs text-slate-500">
+            FG - Field Goal (Any Shot on the court excl. Free Throws) <br></br>
+            2PT - Two-Pointer <br></br>
+            3PT - Three-Pointer <br></br>
+            Restricted Area - Area right under the basket
+          </p>
         </FloatingCard>
 
         <FloatingCard
