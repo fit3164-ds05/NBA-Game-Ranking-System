@@ -122,32 +122,31 @@ export default function DashboardShotChart() {
         bodySize="text-sm"
         wrapChildren={false}
       >
-      <div className="flex justify">
-      </div>
-          <div className="mt-8 flex flex-col gap-4 rounded-[26px] bg-white/90 p-6 shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
-            <PlayerSeasonPicker
-              defaultSeason="2024-25"
-              autoFetchShots={true}
-              onComplete={(payload) => setPendingSelection(payload ?? null)}
-              className="w-full max-w-md"
-            />
-            <button
-              type="button"
-              onClick={handleQuickLoadLeBron}
-              className="self-end inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
-            >
-              Quick-load LeBron 2024-25
-            </button>
-          </div>
-        <button
-          type="button"
-          onClick={() => setSelection(pendingSelection)}
-          disabled={!pendingSelection}
-          className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:bg-amber-300 disabled:text-amber-100"
-        >
-          View Shot Chart
-        </button>
-        </FloatingCard>
+        <div className="flex justify"></div>
+        <div className="mt-8 flex flex-col gap-4 rounded-[26px] bg-white/90 p-6 shadow-[0_20px_60px_-46px rgba(15,23,42,0.35)]">
+          <PlayerSeasonPicker
+            defaultSeason="2024-25"
+            autoFetchShots={true}
+            onComplete={(payload) => setPendingSelection(payload ?? null)}
+            className="w-full max-w-md"
+          />
+          <button
+            type="button"
+            onClick={() => setSelection(pendingSelection)}
+            disabled={!pendingSelection}
+            className="w-80 rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+          >
+            View Shot Chart
+          </button>
+          <button
+            type="button"
+            onClick={handleQuickLoadLeBron}
+            className="w-80 rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
+          >
+            Demo Quick-Load
+          </button>
+        </div>
+      </FloatingCard>
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <FloatingCard
@@ -304,16 +303,17 @@ export default function DashboardShotChart() {
           {periodBreakdown.length > 0 ? (
             <FloatingCard
               tone="light"
-              title="Shot distribution by period"
+              title="Scoring Breakdown by Period"
               titleSize="text-lg"
               wrapChildren={false}
             >
-              <div className="mt-4 space-y-5 text-sm text-slate-600">
-                <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-8">
+                <div className="mt-4 space-y-5 text-sm text-slate-600">
                   <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-                    <span>Quarter scoring completeness</span>
+                    <span>Scores by Quarter on Average</span>
                     <span>Total makes: {totalPeriodMakes || "0"}</span>
                   </div>
+
                   <div className="space-y-2">
                     {periodBreakdown.map((period, index) => {
                       const color = PERIOD_COLORS[index % PERIOD_COLORS.length];
@@ -325,6 +325,7 @@ export default function DashboardShotChart() {
                         100,
                         Math.max(0, scoreRatio * 100)
                       );
+
                       return (
                         <div key={period.label}>
                           <div className="flex items-center justify-between text-xs text-slate-500">
@@ -332,7 +333,6 @@ export default function DashboardShotChart() {
                               <span
                                 className="inline-block h-2.5 w-2.5 rounded-full"
                                 style={{ backgroundColor: color }}
-                                aria-hidden="true"
                               />
                               {period.label}
                             </span>
@@ -354,47 +354,52 @@ export default function DashboardShotChart() {
                     })}
                   </div>
                 </div>
-                <div className="overflow-hidden rounded border text-xs">
-                  <table className="min-w-full divide-y divide-slate-200 text-left">
-                    <thead className="bg-slate-50 text-slate-500">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Period</th>
-                        <th className="px-3 py-2 font-medium">Shots</th>
-                        <th className="px-3 py-2 font-medium">Makes</th>
-                        <th className="px-3 py-2 font-medium">FG%</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {periodBreakdown.map((period) => (
-                        <tr key={period.label}>
-                          <td className="px-3 py-2">{period.label}</td>
-                          <td className="px-3 py-2">{period.attempts}</td>
-                          <td className="px-3 py-2">{period.makes}</td>
-                          <td className="px-3 py-2">
-                            {formatPct(period.fgPct)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                <div className="mt-4 space-y-5 text-sm text-slate-600">
+                  <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
+                    <span>Field Goal % by Quarter</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {periodBreakdown.map((period, index) => {
+                      const color = PERIOD_COLORS[index % PERIOD_COLORS.length];
+                      const fgPct = period.makes / period.attempts;
+                      const fillfgPercent = Math.min(
+                        100,
+                        Math.max(0, fgPct * 100)
+                      );
+
+                      return (
+                        <div key={period.label}>
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: color }}
+                              />
+                              {period.label}
+                            </span>
+                            <span className="tabular-nums text-slate-600">
+                              {formatPct(fgPct)}
+                            </span>
+                          </div>
+                          <div className="relative mt-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${fillfgPercent}%`,
+                                backgroundColor: color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </FloatingCard>
           ) : null}
-
-          <FloatingCard tone="light" wrapChildren={false}>
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-900">
-                Raw payload
-                <span className="text-xs uppercase tracking-[0.3em] text-amber-500/80 transition-transform duration-200 group-open:rotate-90">
-                  ▶
-                </span>
-              </summary>
-              <pre className="mt-4 max-h-96 overflow-auto rounded-2xl bg-white px-4 py-3 text-xs text-slate-600 shadow-[0_16px_42px_-28px rgba(15,23,42,0.22)]">
-                {JSON.stringify(shotPayload, null, 2)}
-              </pre>
-            </details>
-          </FloatingCard>
         </>
       )}
     </div>
