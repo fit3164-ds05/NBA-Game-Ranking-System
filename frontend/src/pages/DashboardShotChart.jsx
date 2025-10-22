@@ -7,15 +7,13 @@ import { computeShotSummary, formatPct } from "../lib/shotSummary";
 import lebron2425 from "../../public/vendor/lebron_2425.json";
 
 const PERIOD_COLORS = [
-  "#075985",
-  "#0ea5e9",
-  "#22d3ee",
-  "#0f766e",
-  "#34d399",
-  "#f97316",
-  "#facc15",
-  "#a855f7",
-  "#f472b6",
+  "#3730a3",
+  "#7c3aed",
+  "#0073ffff",
+  "#f700ffff",
+  "#e167dbff",
+  "#727aecff",
+  "#d27aedff"
 ];
 
 export default function DashboardShotChart() {
