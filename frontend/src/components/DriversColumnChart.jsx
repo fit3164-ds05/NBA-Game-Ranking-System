@@ -10,8 +10,8 @@ import {
   Label,
   Cell,
 } from "recharts";
-
-const PRIMARY_COLOR = "#0073ffff";
+import { metricSlug } from "../utils/metricSlug";
+import { colorForIndex } from "../utils/driverColors";
 
 function wrapLabel(label, limit = 16, maxLines = 2) {
   const words = String(label ?? "").split(/\s+/);
@@ -83,7 +83,28 @@ function MetricTick({ x, y, payload }) {
   );
 }
 
-export default function DriversColumnChart({ rows = [] }) {
+function withAlpha(hex, alpha) {
+  if (!hex || typeof hex !== "string") {
+    return `rgba(37,99,235,${alpha})`;
+  }
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) {
+    return `rgba(37,99,235,${alpha})`;
+  }
+  const bigint = parseInt(normalized, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export default function DriversColumnChart({
+  rows = [],
+  selectedMetricKey,
+  onSelectMetric,
+  allowedMetricKeys,
+  metricColorMap,
+}) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">

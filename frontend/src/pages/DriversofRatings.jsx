@@ -144,7 +144,13 @@ export default function DriversofRatings() {
               <span className="text-xs text-rose-500">{error}</span>
             </div>
           ) : (
-            <DriversColumnChart rows={rows} />
+            <DriversColumnChart
+              rows={rows}
+              selectedMetricKey={activeMetricKey}
+              onSelectMetric={handleMetricSelect}
+              allowedMetricKeys={allowedMetricKeys}
+              metricColorMap={metricColorMap}
+            />
           )}
         </FloatingCard>
 
@@ -204,7 +210,12 @@ export default function DriversofRatings() {
               <span className="text-xs text-rose-500">{seasonalError}</span>
             </div>
           ) : (
-            <DriversSeasonalChart rows={seasonalRows} />
+            <DriversSeasonalChart
+              rows={seasonalRows}
+              focusMetricKey={activeMetricKey ?? undefined}
+              onMetricClick={handleMetricSelect}
+              metricColorMap={metricColorMap}
+            />
           )}
         </FloatingCard>
 

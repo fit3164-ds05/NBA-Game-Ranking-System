@@ -8,15 +8,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-
-const COLORS = [
-  "#de324c",
-  "#f4895f",
-  "#95cf92",
-  "#369acc",
-  "#9656a2",
-  "#e97aff"
-];
+import { metricSlug } from "../utils/metricSlug";
+import { colorForIndex } from "../utils/driverColors";
 
 function seasonSort(a, b) {
   const parseYear = (season) => {
