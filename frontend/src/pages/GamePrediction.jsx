@@ -560,6 +560,9 @@ export default function GamePrediction() {
       <form onSubmit={onPredict} className="space-y-6">
         <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-4">
           <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-gray-600">
+              
+            </p>
             <div
               className="relative"
               onMouseEnter={() => setShowRulesTooltip(true)}
@@ -587,7 +590,7 @@ export default function GamePrediction() {
               )}
             </div>
           </div>
-
+          
           <div className="grid md:grid-cols-2 gap-6">
             <TeamSelectCard
               title="Home"
