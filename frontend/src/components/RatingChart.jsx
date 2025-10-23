@@ -337,7 +337,7 @@ export default function RatingChart({
   const detailSeasonLabel = detailSeasonInfo?.label ?? "";
   const detailHeading =
     selectedSeasonDetail == null
-      ? "Game-by-Game rating will appear when a season is selected."
+      ? "Game-by-Game Historical Ratings"
       : `Game-by-Game Historical Ratings (Season ${detailSeasonLabel || "____/__"})`;
 
   const detailTeams = React.useMemo(() => {

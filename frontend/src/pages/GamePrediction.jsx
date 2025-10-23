@@ -560,9 +560,6 @@ export default function GamePrediction() {
       <form onSubmit={onPredict} className="space-y-6">
         <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-4">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-sm text-gray-600">
-              Choose the franchises and seasons you want to compare. We use end-of-season ratings to frame the matchup.
-            </p>
             <div
               className="relative"
               onMouseEnter={() => setShowRulesTooltip(true)}
@@ -590,11 +587,6 @@ export default function GamePrediction() {
               )}
             </div>
           </div>
-
-          <ul className="list-disc space-y-1 pl-4 text-xs text-gray-500">
-            <li>Same franchise on both sides must use different seasons.</li>
-            <li>Different franchises may share the same season year.</li>
-          </ul>
 
           <div className="grid md:grid-cols-2 gap-6">
             <TeamSelectCard
