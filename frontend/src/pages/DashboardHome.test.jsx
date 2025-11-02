@@ -18,7 +18,7 @@ describe('DashboardHome page', () => {
 
     expect(screen.getByText('Statistics Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Discover NBA data interactively')).toBeInTheDocument()
-    expect(screen.getByText('Move from league-wide signals to focused breakdowns with a single gesture.')).toBeInTheDocument()
+    expect(screen.getByText('All dashboard features use data from the 1996/97 season onward.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/dashboardhome')
     expect(screen.getByRole('link', { name: 'Shot Chart' })).toHaveAttribute('href', '/dashboardshotchart')
   })
