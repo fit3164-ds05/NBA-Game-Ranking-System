@@ -6,7 +6,7 @@ const dashboardCards = [
   {
     title: "Shot Charts",
     description:
-      "Select shot charts for a player and season with detailed explanations of each shot area on hover. (Available from the 1996/97 season onward)",
+      "Select shot charts for a player and season with detailed explanations of each shot area on hover.",
     icon: "/shotchart.svg",
     alt: "Shot chart icon",
     to: "/dashboardshotchart",
@@ -35,7 +35,7 @@ export default function DashboardHome() {
   return (
     <div className="flex w-full flex-col gap-12 px-8 text-slate-900">
       <DashboardSwitcher
-        description="Move from league-wide signals to focused breakdowns with a single gesture."
+        description="All dashboard features use data from the 1996/97 season onward."
       />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
