@@ -136,13 +136,6 @@ export default function DashboardShotChart() {
           >
             View Shot Chart
           </button>
-          <button
-            type="button"
-            onClick={handleQuickLoadLeBron}
-            className="w-80 rounded-lg bg-black text-white px-5 py-2 font-medium disabled:opacity-60 cursor-pointer"
-          >
-            Demo Quick-Load
-          </button>
         </div>
       </FloatingCard>
 
